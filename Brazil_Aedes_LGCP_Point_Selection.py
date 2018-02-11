@@ -594,7 +594,7 @@ args_hyperparam = (xy_quad, latent_v_array)
 # Start Optimization Algorithm for GP Hyperparameters
 hyperparam_solution = scopt.minimize(fun=short_log_integrand_v, args=args_hyperparam, x0=initial_hyperparam,
                                      method='Nelder-Mead',
-                                     options={'xatol': 0.1, 'fatol': 1, 'disp': True, 'maxfev': 1000})
+                                     options={'xatol': 1, 'fatol': 1, 'disp': True, 'maxfev': 1000})
 
 # options={'xatol': 0.1, 'fatol': 1, 'disp': True, 'maxfev': 10000})
 # No bounds needed for Nelder-Mead
@@ -642,11 +642,22 @@ for i in range(hess_length):
         hess_matrix[i, j] = -0.5 * (inv_cov_overall[i, j] + inv_cov_overall[j, i])
         hess_matrix[j, i] = hess_matrix[i, j]
 
+# Generate Posterior Covariance Matrix of log-intensity v
 posterior_cov_matrix = - hess_matrix
-posterior_sd_array = np.sqrt(np.diag(posterior_cov_matrix))  # This can then be plotted
+
+# Standard Deviation in terms of log-intensity v
+posterior_sd_v_array = np.sqrt(np.diag(posterior_cov_matrix))  # This can then be plotted
+
+# Taking into consideration 1 standard deviations away from the posterior mean
+posterior_sd_v_upper = latent_v_array + (0.1 * posterior_sd_v_array)
+posterior_sd_v_lower = latent_v_array - (0.1 * posterior_sd_v_array)
+
+# Setting the boundary for the filling in-between *** Note that all possible values of lambda have to be positive
+posterior_sd_lambda_upper = np.exp(posterior_sd_v_upper)
+posterior_sd_lambda_lower = np.exp(posterior_sd_v_lower)
 
 # Generate posterior standard deviation mesh for plotting ***
-posterior_sd_mesh = posterior_sd_array.reshape(lambda_mesh.shape)
+posterior_sd_v_mesh = posterior_sd_v_array.reshape(lambda_mesh.shape)
 
 # Measure time taken for covariance matrix and final standard deviation tabulation
 time_posterior_tab = time.clock() - start_posterior_tab
@@ -708,8 +719,8 @@ brazil_mean_3d.grid(True)
 # Create an index to label each data point so as to make it 1-D
 index = np.arange(0, lambda_mesh.size, 1)
 
-upper_bound = lambda_quad + (2 * posterior_sd_array)
-lower_bound = lambda_quad - (2 * posterior_sd_array)
+upper_bound = posterior_sd_lambda_upper
+lower_bound = posterior_sd_lambda_lower
 
 brazil_1d = plt.figure()
 brazil_1d.canvas.set_window_title('Brazil Reshaped to 1-D')

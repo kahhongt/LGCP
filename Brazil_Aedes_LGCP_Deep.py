@@ -599,11 +599,23 @@ for i in range(hess_length):
         hess_matrix[i, j] = -0.5 * (inv_cov_overall[i, j] + inv_cov_overall[j, i])
         hess_matrix[j, i] = hess_matrix[i, j]
 
+
+# Generate Posterior Covariance Matrix of log-intensity v
 posterior_cov_matrix = - hess_matrix
-posterior_sd_array = np.sqrt(np.diag(posterior_cov_matrix))  # This can then be plotted
+
+# Standard Deviation in terms of log-intensity v
+posterior_sd_v_array = np.sqrt(np.diag(posterior_cov_matrix))  # This can then be plotted
+
+# Taking into consideration 2 standard deviations away from the posterior mean
+posterior_sd_v_upper = latent_v_array + (2 * posterior_sd_v_array)
+posterior_sd_v_lower = latent_v_array - (2 * posterior_sd_v_array)
+
+# Setting the boundary for the filling in-between *** Note that all possible values of lambda have to be positive
+posterior_sd_lambda_upper = np.exp(posterior_sd_v_upper)
+posterior_sd_lambda_lower = np.exp(posterior_sd_v_lower)
 
 # Generate posterior standard deviation mesh for plotting ***
-posterior_sd_mesh = posterior_sd_array.reshape(lambda_mesh.shape)
+posterior_sd_v_mesh = posterior_sd_v_array.reshape(lambda_mesh.shape)
 
 # Measure time taken for covariance matrix and final standard deviation tabulation
 time_posterior_tab = time.clock() - start_posterior_tab
@@ -636,9 +648,9 @@ brazil_lambda.pcolor(x_mesh_centralise, y_mesh_centralise, lambda_mesh, cmap='Rd
 # brazil_lambda.set_ylim(y_lower, y_upper)
 
 brazil_sd = brazil_fig.add_subplot(224)
-brazil_sd.pcolor(x_mesh_centralise, y_mesh_centralise, posterior_sd_mesh, cmap='RdBu')
+brazil_sd.pcolor(x_mesh_centralise, y_mesh_centralise, posterior_sd_v_mesh, cmap='RdBu')
 
-# Plot 3-D Posterior Mean and Posterior Covariance
+# Plotting the Posterior Covariance of intensity lambda
 brazil_3d = plt.figure()
 brazil_3d.canvas.set_window_title('Posterior Mean and Covariance in 3-D')
 brazil_mean_3d = brazil_3d.add_subplot(121, projection='3d')
@@ -648,24 +660,31 @@ brazil_mean_3d.set_xlabel('x-axis')
 brazil_mean_3d.set_ylabel('y-axis')
 brazil_mean_3d.grid(True)
 
+# Plotting the Posterior Variance of log-intensity v, and not of lambda
 brazil_mean_3d = brazil_3d.add_subplot(122, projection='3d')
-brazil_mean_3d.plot_surface(x_mesh, y_mesh, posterior_sd_mesh, cmap='RdBu')
+brazil_mean_3d.plot_surface(x_mesh, y_mesh, posterior_sd_v_mesh, cmap='RdBu')
 brazil_mean_3d.set_title('Posterior Standard Deviation')
 brazil_mean_3d.set_xlabel('x-axis')
 brazil_mean_3d.set_ylabel('y-axis')
 brazil_mean_3d.grid(True)
 
+# *** TAKE NOTE THAT POSTERIOR MEAN IS IN TERMS OF INTENSITY BUT STANDARD DEVIATION IS IN TERMS OF LOG-INTENSITY ***
+
 # ------------------------------------------End of Plotting Process of Point Patterns, Histogram and Posteriors
 
+
 # ------------------------------------------Start of 1-D Representation of 2-D Gaussian Process
+# NOTE DOES NOT WORK FINDING THE ACTUAL INTENSITY POSTERIOR MEAN AND VARIANCE
+"""
 # Involves creating an index so as to provide a representation of how the standard deviation varies for the location
 # of each histogram data point
 
 # Create an index to label each data point so as to make it 1-D
 index = np.arange(0, lambda_mesh.size, 1)
 
-upper_bound = lambda_quad + (2 * posterior_sd_array)
-lower_bound = lambda_quad - (2 * posterior_sd_array)
+# Bounds set at 2 standard deviations from the posterior mean of latent log-intensity v
+upper_bound = posterior_sd_lambda_upper
+lower_bound = posterior_sd_lambda_lower
 
 brazil_1d = plt.figure()
 brazil_1d.canvas.set_window_title('Brazil Reshaped to 1-D')
@@ -682,4 +701,5 @@ time_plotting = time.clock() - start_plotting
 print('Time Taken for plotting graphs = ', time_plotting)
 
 plt.show()
+"""
 # ------------------------------------------End of 1-D Representation of 2-D Gaussian Process

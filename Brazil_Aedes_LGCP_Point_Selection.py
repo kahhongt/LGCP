@@ -485,7 +485,7 @@ print(x_within_window.shape)
 print(y_within_window.shape)
 
 # First conduct a regression on the 2014 data set
-quads_on_side = 20  # define the number of quads along each dimension
+quads_on_side = 30  # define the number of quads along each dimension
 # histo, x_edges, y_edges = np.histogram2d(theft_x, theft_y, bins=quads_on_side)  # create histogram
 histo, y_edges, x_edges = np.histogram2d(y_within_window, x_within_window, bins=quads_on_side)
 x_mesh, y_mesh = np.meshgrid(x_edges, y_edges)  # creating mesh-grid for use
@@ -517,7 +517,7 @@ y_mesh_centralise_all = y_quad_all.reshape(y_mesh.shape)
 # Plan is to exclude the points where the histogram is zero
 
 # Create Boolean variable to identify only points with non-zero incidences
-non_zero = (k_quad_all > 0)
+non_zero = (k_quad_all > 5)
 x_quad_non_zero = x_quad_all[non_zero]
 y_quad_non_zero = y_quad_all[non_zero]
 k_quad_non_zero = k_quad_all[non_zero]
@@ -526,7 +526,7 @@ xy_quad_non_zero = np.vstack((x_quad_non_zero, y_quad_non_zero))
 k_mesh = histo
 
 # Another Boolean variable for the mesh shape
-non_zero_mesh = (k_mesh > 0)
+non_zero_mesh = (k_mesh > 5)
 x_mesh_centralise_non_zero = x_mesh_centralise_all[non_zero_mesh]
 y_mesh_centralise_non_zero = y_mesh_centralise_all[non_zero_mesh]
 
@@ -648,7 +648,7 @@ posterior_cov_matrix = - hess_matrix
 # Standard Deviation in terms of log-intensity v
 posterior_sd_v_array = np.sqrt(np.diag(posterior_cov_matrix))  # This can then be plotted
 
-# Taking into consideration 1 standard deviations away from the posterior mean
+# Taking into consideration 0.1 standard deviations away from the posterior mean
 posterior_sd_v_upper = latent_v_array + (0.1 * posterior_sd_v_array)
 posterior_sd_v_lower = latent_v_array - (0.1 * posterior_sd_v_array)
 

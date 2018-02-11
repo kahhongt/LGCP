@@ -626,17 +626,17 @@ brazil_scatter.set_xlim(x_lower, x_upper)
 brazil_scatter.set_ylim(y_lower, y_upper)
 
 brazil_histogram = brazil_fig.add_subplot(222)
-brazil_histogram.pcolor(x_mesh_centralise, y_mesh_centralise, histo, cmap='Reds')
+brazil_histogram.pcolor(x_mesh_centralise, y_mesh_centralise, histo, cmap='RdBu')
 # brazil_histogram.set_xlim(x_lower, x_upper)
 # brazil_histogram.set_ylim(y_lower, y_upper)
 
 brazil_lambda = brazil_fig.add_subplot(223)
-brazil_lambda.pcolor(x_mesh_centralise, y_mesh_centralise, lambda_mesh, cmap='Reds')
+brazil_lambda.pcolor(x_mesh_centralise, y_mesh_centralise, lambda_mesh, cmap='RdBu')
 # brazil_lambda.set_xlim(x_lower, x_upper)
 # brazil_lambda.set_ylim(y_lower, y_upper)
 
 brazil_sd = brazil_fig.add_subplot(224)
-brazil_sd.pcolor(x_mesh_centralise, y_mesh_centralise, posterior_sd_mesh, cmap='Reds')
+brazil_sd.pcolor(x_mesh_centralise, y_mesh_centralise, posterior_sd_mesh, cmap='RdBu')
 
 # Plot 3-D Posterior Mean and Posterior Covariance
 brazil_3d = plt.figure()
@@ -672,8 +672,8 @@ brazil_1d.canvas.set_window_title('Brazil Reshaped to 1-D')
 
 brazil_post = brazil_1d.add_subplot(111)
 brazil_post.fill_between(index, lower_bound, upper_bound, color='lavender')
-brazil_post.scatter(index, k_quad, color='darkblue', s=10)
-brazil_post.scatter(index, lambda_quad, color='darkred', s=10)
+brazil_post.scatter(index, k_quad, color='darkblue', s=4)
+brazil_post.scatter(index, lambda_quad, color='darkred', s=4)
 brazil_post.set_title('Brazil Aedes Regression')
 brazil_post.set_xlabel('Index of Histogram')
 brazil_post.set_ylabel('Brazil Aedes Spread Posterior Distribution')

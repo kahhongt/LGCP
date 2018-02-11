@@ -476,6 +476,7 @@ lambda_mesh = lambda_quad.reshape(x_mesh.shape)  # Create mesh from rows
 print("Latent Intensity Values are ", lambda_quad)
 print("Initial Data Points are ", k_quad)
 print(latent_v_array.shape)
+print(lambda_quad.shape)
 print(k_quad.shape)
 
 

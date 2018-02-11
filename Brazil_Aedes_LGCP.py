@@ -518,9 +518,6 @@ brazil_lambda.set_xlim(x_lower, x_upper)
 brazil_lambda.set_ylim(y_lower, y_upper)
 
 plt.show()
-
-
-
 # ------------------------------------------End of Plotting Process of Point Patterns, Histogram and Posterior Mean
 
 

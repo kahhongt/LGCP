@@ -318,6 +318,50 @@ def log_integrand_with_v(param, *args):
     return log_g_minimization
 
 
+def short_log_integrand_v(param, *args):
+    """
+    1. Shorter version that tabulates only the log of the GP prior behind the Poisson distribution. Includes only terms
+    containing the covariance matrix elements that are made up of the kernel hyper-parameters
+    2. Kernel: Matern(3/2)
+    3. Assume a constant latent intensity, even at locations without any incidences
+    :param param: v_array, hyperparameters - sigma, length scale and noise, prior scalar mean - array of 4 elements
+    :param args: xy coordinates for input into the covariance function and the optimised v_array
+    :return: the log of the GP Prior, log[N(prior mean, covariance matrix)]
+    """
+    # Generate Matern Covariance Matrix
+    # Enter parameters
+    sigma = param[0]
+    length = param[1]
+    noise = param[2]
+    scalar_mean = param[3]
+
+    # Enter Arguments
+    xy_coordinates = args[0]
+    v_array = args[1]  # Note that this is refers to the optimised log-intensity array
+
+    # Set up inputs for generation of objective function
+    prior_mean = mean_func_scalar(scalar_mean, xy_coordinates)
+    c_auto = fast_matern_2d(sigma, length, xy_coordinates, xy_coordinates)
+    c_noise = np.eye(c_auto.shape[0]) * (noise ** 2)  # Fro-necker delta function
+    cov_matrix = c_auto + c_noise
+
+    """Generate Objective Function = log[g(v)]"""
+
+    # Generate Determinant Term (after taking log)
+    determinant = np.exp(np.linalg.slogdet(cov_matrix))[1]
+    det_term = -0.5 * np.log(2 * np.pi * determinant)
+
+    # Generate Euclidean Term (after taking log)
+    v_difference = v_array - prior_mean
+    inv_covariance_matrix = np.linalg.inv(cov_matrix)
+    euclidean_term = -0.5 * fn.matmulmul(v_difference, inv_covariance_matrix, np.transpose(v_difference))
+
+    """Summation of all terms change to correct form to find minimum point"""
+    log_gp = det_term + euclidean_term
+    log_gp_minimization = -1 * log_gp  # Make the function convex for minimization
+    return log_gp_minimization
+
+
 def log_likelihood(param, *args):
     """
     Considers only the log-likelihood of the Poisson distribution in front of the gaussian process to optimize
@@ -428,7 +472,7 @@ print(x_within_window.shape)
 print(y_within_window.shape)
 
 # First conduct a regression on the 2014 data set
-quads_on_side = 20  # define the number of quads along each dimension
+quads_on_side = 10  # define the number of quads along each dimension
 # histo, x_edges, y_edges = np.histogram2d(theft_x, theft_y, bins=quads_on_side)  # create histogram
 histo, y_edges, x_edges = np.histogram2d(y_within_window, x_within_window, bins=quads_on_side)
 x_mesh, y_mesh = np.meshgrid(x_edges, y_edges)  # creating mesh-grid for use
@@ -450,6 +494,7 @@ k_quad = fn.row_create(histo)  # histogram array
 
 # ------------------------------------------Start of Optimization of latent v_array using only the log-likelihood
 
+start_v_opt = time.clock()
 # Optimize using Gradient and Hessian Methods, instead of just using the Nelder-mead which depends
 # solely on function evaluations. Gradient and Hessian provides the directions for the iteration, which speeds things
 # up a lot
@@ -479,23 +524,37 @@ print(latent_v_array.shape)
 print(lambda_quad.shape)
 print(k_quad.shape)
 
-
+time_v_opt = time.clock() - start_v_opt
 # ------------------------------------------Start of Optimization of GP Hyper-parameters
-
+start_gp_opt = time.clock()
 # Initialise Hyper-parameters for the Gaussian Process
 initial_hyperparam = np.array([1, 1, 1, 1])
 
 # Set up tuple for arguments
-args_hyperparam = (xy_quad, k_quad, latent_v_array)
+args_hyperparam = (xy_quad, latent_v_array)
 
 # Start Optimization Algorithm for GP Hyperparameters
-hyperparam_solution = scopt.minimize(fun=log_integrand_with_v, args=args_hyperparam, x0=initial_hyperparam,
-                                     method='Nelder-Mead')
+hyperparam_solution = scopt.minimize(fun=short_log_integrand_v, args=args_hyperparam, x0=initial_hyperparam,
+                                     method='Nelder-Mead',
+                                     options={'xatol': 0.1, 'fatol': 1, 'disp': True, 'maxfev': 1000})
 
 # options={'xatol': 0.1, 'fatol': 1, 'disp': True, 'maxfev': 10000})
-
+# No bounds needed for Nelder-Mead
+# solution = scopt.minimize(fun=log_model_evidence, args=xyz_data, x0=initial_param, method='Nelder-Mead')
 print(hyperparam_solution)
 
+time_gp_opt = time.clock() - start_gp_opt
+
+print('Time Taken for v optimization = ', time_v_opt)
+print('TIme Taken for hyper-parameter optimization = ', time_gp_opt)
+
+# ------------------------------------------End of Optimization of GP Hyper-parameters
+
+# ------------------------------------------Start of Posterior Covariance Calculation
+
+
+
+# ------------------------------------------End of Posterior Covariance Calculation
 
 # ------------------------------------------Start of Plotting Process of Point Patterns, Histogram and Posterior Mean
 brazil_fig = plt.figure()

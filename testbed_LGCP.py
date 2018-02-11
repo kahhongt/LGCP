@@ -221,12 +221,11 @@ a = np.array([1, 2, 3, 4])
 b = np.array([1, 2, 3, 4])
 mat = np.array([[1, 2, 3, 4], [3, 5, 6, 7], [4, 4, 4, 4], [3, 7, 9, 1]])
 c = a * b
-print(c)
 print(mat)
-matb = np.matmul(mat, b)
-print(np.sum(a * matb))
 
-print(fn.matmulmul(a, mat, b))
+det_mat = np.exp(np.linalg.slogdet(mat))[1]
+print(det_mat)
+print(np.linalg.det(mat))
 
 
 """

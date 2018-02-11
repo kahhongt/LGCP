@@ -474,7 +474,7 @@ print(x_within_window.shape)
 print(y_within_window.shape)
 
 # First conduct a regression on the 2014 data set
-quads_on_side = 10  # define the number of quads along each dimension
+quads_on_side = 50  # define the number of quads along each dimension
 # histo, x_edges, y_edges = np.histogram2d(theft_x, theft_y, bins=quads_on_side)  # create histogram
 histo, y_edges, x_edges = np.histogram2d(y_within_window, x_within_window, bins=quads_on_side)
 x_mesh, y_mesh = np.meshgrid(x_edges, y_edges)  # creating mesh-grid for use
@@ -491,6 +491,8 @@ x_quad = x_quad + 0.5 * quad_length_x
 y_quad = y_quad + 0.5 * quad_length_y
 xy_quad = np.vstack((x_quad, y_quad))  # stacking the x and y coordinates vertically together
 k_quad = fn.row_create(histo)  # histogram array
+x_mesh_centralise = x_quad.reshape(x_mesh.shape)
+y_mesh_centralise = y_quad.reshape(y_mesh.shape)
 
 # ------------------------------------------End of Selective Binning
 
@@ -556,6 +558,8 @@ print('TIme Taken for hyper-parameter optimization = ', time_gp_opt)
 # Note Hessian = second derivative of the log[g(v)]
 # Posterior Distribution follows N(v; v_hap, -1 * Hessian)
 
+start_posterior_tab = time.clock()
+
 # Extract optimized hyper-parameters
 hyperparam_opt = hyperparam_solution.x
 sigma_opt = hyperparam_opt[0]
@@ -563,15 +567,35 @@ length_opt = hyperparam_opt[1]
 noise_opt = hyperparam_opt[2]
 prior_mean_opt = hyperparam_opt[3]
 
-# Generate covariance matrix with kronecker noise
+# Generate prior covariance matrix with kronecker noise
 cov_auto = fast_matern_2d(sigma_opt, length_opt, xy_quad, xy_quad)
 cov_noise = (noise_opt ** 2) * np.eye(cov_auto.shape[0])
 cov_overall = cov_auto + cov_noise
 
 # Generate inverse of covariance matrix and set up the hessian matrix using symmetry
 inv_cov_overall = np.linalg.inv(cov_overall)
+inv_cov_diagonal_array = np.diag(inv_cov_overall)
+hess_diagonal = -1 * (np.exp(latent_v_array) + inv_cov_diagonal_array)
 
-print(inv_cov_overall.shape)
+# Initialise and generate hessian matrix
+hess_matrix = np.zeros_like(inv_cov_overall)
+hess_length = inv_cov_overall.shape[0]
+
+# Fill in values
+for i in range(hess_length):
+    hess_matrix[i, i] = -1 * (np.exp(latent_v_array[i]) + inv_cov_overall[i, i])
+    for j in range(i + 1, hess_length):
+        hess_matrix[i, j] = -0.5 * (inv_cov_overall[i, j] + inv_cov_overall[j, i])
+        hess_matrix[j, i] = hess_matrix[i, j]
+
+posterior_cov_matrix = - hess_matrix
+posterior_sd_array = np.sqrt(np.diag(posterior_cov_matrix))  # This can then be plotted
+
+# Generate posterior standard deviation mesh for plotting ***
+posterior_sd_mesh = posterior_sd_array.reshape(lambda_mesh.shape)
+
+# Measure time taken for covariance matrix and final standard deviation tabulation
+time_posterior_tab = time.clock() - start_posterior_tab
 
 # ------------------------------------------End of Posterior Covariance Calculation
 
@@ -587,24 +611,18 @@ brazil_scatter.set_xlim(x_lower, x_upper)
 brazil_scatter.set_ylim(y_lower, y_upper)
 
 brazil_histogram = brazil_fig.add_subplot(222)
-brazil_histogram.pcolor(x_mesh, y_mesh, histo, cmap='Reds')
+brazil_histogram.pcolor(x_mesh_centralise, y_mesh_centralise, histo, cmap='Reds')
 # brazil_histogram.set_xlim(x_lower, x_upper)
 # brazil_histogram.set_ylim(y_lower, y_upper)
 
 brazil_lambda = brazil_fig.add_subplot(223)
-brazil_lambda.pcolor(x_mesh, y_mesh, lambda_mesh, cmap='Reds')
+brazil_lambda.pcolor(x_mesh_centralise, y_mesh_centralise, lambda_mesh, cmap='Reds')
 # brazil_lambda.set_xlim(x_lower, x_upper)
 # brazil_lambda.set_ylim(y_lower, y_upper)
 
+brazil_sd = brazil_fig.add_subplot(224)
+brazil_sd.pcolor(x_mesh_centralise, y_mesh_centralise, posterior_sd_mesh, cmap='Reds')
+
 plt.show()
-# ------------------------------------------End of Plotting Process of Point Patterns, Histogram and Posterior Mean
 
-
-"""
-res = minimize(rosen, x0, method='Newton-CG',
-...                jac=rosen_der, hessp=rosen_hess_p,
-...                options={'xtol': 1e-8, 'disp': True})
-
-solution = scopt.minimize(fun=posterior_num_cost_opt, args=arguments, x0=initial_v, method='Nelder-Mead',
-                          options={'xatol': 0.1, 'fatol': 10, 'disp': True, 'maxfev': 100000})
-"""
+# ------------------------------------------End of Plotting Process of Point Patterns, Histogram and Posteriors

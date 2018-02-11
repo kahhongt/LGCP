@@ -227,6 +227,12 @@ det_mat = np.exp(np.linalg.slogdet(mat))[1]
 print(det_mat)
 print(np.linalg.det(mat))
 
+m = np.diag(mat)
+print(m)
+print(np.diag(m))
+
+print(np.sqrt(mat))
+
 
 """
 time_middle = time.clock()  # Start computation time measurement

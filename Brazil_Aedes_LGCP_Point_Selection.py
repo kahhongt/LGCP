@@ -491,21 +491,21 @@ histo, y_edges, x_edges = np.histogram2d(y_within_window, x_within_window, bins=
 x_mesh, y_mesh = np.meshgrid(x_edges, y_edges)  # creating mesh-grid for use
 x_mesh = x_mesh[:-1, :-1]  # Removing extra rows and columns due to edges
 y_mesh = y_mesh[:-1, :-1]
-x_quad = fn.row_create(x_mesh)  # Creating the rows from the mesh
-y_quad = fn.row_create(y_mesh)
+x_quad_all = fn.row_create(x_mesh)  # Creating the rows from the mesh
+y_quad_all = fn.row_create(y_mesh)
 
 # *** Centralising the coordinates to be at the centre of the quads
 # Note that the quads will not be of equal length, depending on the data set
-quad_length_x = (x_quad[-1] - x_quad[0]) / quads_on_side
-quad_length_y = (y_quad[-1] - y_quad[0]) / quads_on_side
-x_quad = x_quad + 0.5 * quad_length_x
-y_quad = y_quad + 0.5 * quad_length_y
-xy_quad_with_zero = np.vstack((x_quad, y_quad))  # stacking the x and y coordinates vertically together
-k_quad = fn.row_create(histo)  # histogram array
+quad_length_x = (x_quad_all[-1] - x_quad_all[0]) / quads_on_side
+quad_length_y = (y_quad_all[-1] - y_quad_all[0]) / quads_on_side
+x_quad_all = x_quad_all + 0.5 * quad_length_x
+y_quad_all = y_quad_all + 0.5 * quad_length_y
+xy_quad_all = np.vstack((x_quad_all, y_quad_all))  # stacking the x and y coordinates vertically together
+k_quad_all = fn.row_create(histo)  # histogram array
 
 # For graphical plotting
-x_mesh_centralise = x_quad.reshape(x_mesh.shape)
-y_mesh_centralise = y_quad.reshape(y_mesh.shape)
+x_mesh_centralise_all = x_quad_all.reshape(x_mesh.shape)
+y_mesh_centralise_all = y_quad_all.reshape(y_mesh.shape)
 
 # ------------------------------------------End of Selective Binning
 
@@ -517,21 +517,36 @@ y_mesh_centralise = y_quad.reshape(y_mesh.shape)
 # Plan is to exclude the points where the histogram is zero
 
 # Create Boolean variable to identify only points with non-zero incidences
-non_zero = (k_quad > 0)
-x_non_zero = x_quad[non_zero]
-y_non_zero = y_quad[non_zero]
-xy_quad_non_zero = np.vstack((x_non_zero, y_non_zero))
+non_zero = (k_quad_all > 0)
+x_quad_non_zero = x_quad_all[non_zero]
+y_quad_non_zero = y_quad_all[non_zero]
+k_quad_non_zero = k_quad_all[non_zero]
+xy_quad_non_zero = np.vstack((x_quad_non_zero, y_quad_non_zero))
+
+k_mesh = histo
+
+# Another Boolean variable for the mesh shape
+non_zero_mesh = (k_mesh > 0)
+x_mesh_centralise_non_zero = x_mesh_centralise_all[non_zero_mesh]
+y_mesh_centralise_non_zero = y_mesh_centralise_all[non_zero_mesh]
+
 # ------------------------------------------End of Zero Point Exclusion
 
 # ------------------------------------------ SELECTION FOR EXCLUSION OF ZERO POINTS
 
-exclusion_sign = 'Exclude'  # Toggle between exclusion and inclusion of 'out-of-boundary' points
+exclusion_sign = 'exclude'  # Toggle between exclusion(1) and inclusion(0) of 'out-of-boundary' points
 
-if exclusion_sign == 'Exclude':
+if exclusion_sign == 'exclude':
     xy_quad = xy_quad_non_zero
+    k_quad = k_quad_non_zero
+    x_mesh_centralise = x_mesh_centralise_non_zero
+    y_mesh_centralise = y_mesh_centralise_non_zero
 else:
-    xy_quad = xy_quad_with_zero
-    
+    xy_quad = xy_quad_all
+    k_quad = k_quad_all
+    x_mesh_centralise = x_mesh_centralise_all
+    y_mesh_centralise = y_mesh_centralise_all
+
 # ------------------------------------------Start of Optimization of latent v_array using only the log-likelihood
 
 start_v_opt = time.clock()
@@ -556,13 +571,16 @@ v_solution = scopt.minimize(fun=log_likelihood, args=arguments_v, x0=initial_v_a
 
 latent_v_array = v_solution.x  # v_array is the log of the latent intensity
 lambda_quad = np.exp(latent_v_array)  # Taking the exponential of the log of the latent intensity
-lambda_mesh = lambda_quad.reshape(x_mesh.shape)  # Create mesh from rows
+lambda_mesh = lambda_quad.reshape(x_mesh_centralise.shape)  # Create mesh from rows
 
 print("Latent Intensity Values are ", lambda_quad)
 print("Initial Data Points are ", k_quad)
 print(latent_v_array.shape)
 print(lambda_quad.shape)
 print(k_quad.shape)
+print(x_mesh_centralise_all.shape)
+print(x_mesh_centralise.shape)
+print(lambda_mesh.shape)
 
 time_v_opt = time.clock() - start_v_opt
 # ------------------------------------------Start of Optimization of GP Hyper-parameters
@@ -640,6 +658,7 @@ print('Time Taken for Posterior Tabulation = ', time_posterior_tab)
 start_plotting = time.clock()
 
 # ------------------------------------------Start of Plotting Process of Point Patterns, Histogram and Posterior Mean
+"""
 brazil_fig = plt.figure()
 brazil_fig.canvas.set_window_title('Brazil Aedes Occurrences')
 
@@ -651,35 +670,35 @@ brazil_scatter.set_xlim(x_lower, x_upper)
 brazil_scatter.set_ylim(y_lower, y_upper)
 
 brazil_histogram = brazil_fig.add_subplot(222)
-brazil_histogram.pcolor(x_mesh_centralise, y_mesh_centralise, histo, cmap='RdBu')
+brazil_histogram.pcolor(x_mesh_centralise_all, y_mesh_centralise_all, histo, cmap='RdBu')
 # brazil_histogram.set_xlim(x_lower, x_upper)
 # brazil_histogram.set_ylim(y_lower, y_upper)
 
 brazil_lambda = brazil_fig.add_subplot(223)
-brazil_lambda.pcolor(x_mesh_centralise, y_mesh_centralise, lambda_mesh, cmap='RdBu')
+brazil_lambda.pcolor(x_mesh_centralise_all, y_mesh_centralise_all, lambda_mesh, cmap='RdBu')
 # brazil_lambda.set_xlim(x_lower, x_upper)
 # brazil_lambda.set_ylim(y_lower, y_upper)
 
 brazil_sd = brazil_fig.add_subplot(224)
-brazil_sd.pcolor(x_mesh_centralise, y_mesh_centralise, posterior_sd_mesh, cmap='RdBu')
+brazil_sd.pcolor(x_mesh_centralise_all, y_mesh_centralise_all, posterior_sd_mesh, cmap='RdBu')
 
 # Plot 3-D Posterior Mean and Posterior Covariance
 brazil_3d = plt.figure()
 brazil_3d.canvas.set_window_title('Posterior Mean and Covariance in 3-D')
 brazil_mean_3d = brazil_3d.add_subplot(121, projection='3d')
-brazil_mean_3d.plot_surface(x_mesh, y_mesh, lambda_mesh, cmap='RdBu')
+brazil_mean_3d.plot_surface(x_mesh_centralise_all, y_mesh_centralise_all, lambda_mesh, cmap='RdBu')
 brazil_mean_3d.set_title('Posterior Mean')
 brazil_mean_3d.set_xlabel('x-axis')
 brazil_mean_3d.set_ylabel('y-axis')
 brazil_mean_3d.grid(True)
 
 brazil_mean_3d = brazil_3d.add_subplot(122, projection='3d')
-brazil_mean_3d.plot_surface(x_mesh, y_mesh, posterior_sd_mesh, cmap='RdBu')
+brazil_mean_3d.plot_surface(x_mesh_centralise, y_mesh_centralise, posterior_sd_mesh, cmap='RdBu')
 brazil_mean_3d.set_title('Posterior Standard Deviation')
 brazil_mean_3d.set_xlabel('x-axis')
 brazil_mean_3d.set_ylabel('y-axis')
 brazil_mean_3d.grid(True)
-
+"""
 # ------------------------------------------End of Plotting Process of Point Patterns, Histogram and Posteriors
 
 # ------------------------------------------Start of 1-D Representation of 2-D Gaussian Process

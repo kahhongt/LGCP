@@ -284,6 +284,8 @@ def log_integrand_with_v(param, *args):
     :param param: v_array, hyperparameters - sigma, length scale and noise, prior scalar mean
     :param args: xy coordinates for iteration, data set k_array, matern factor value = 1/2 or 3/2
     :return: the log of the integrand, log[g(v)], so that we can optimise and find best hyperparameters and vhap
+
+    *** Note that this objective function is currently problematic - advised to not use it ***
     """
     # Generate Matern Covariance Matrix
     # Enter parameters
@@ -551,8 +553,25 @@ print('TIme Taken for hyper-parameter optimization = ', time_gp_opt)
 # ------------------------------------------End of Optimization of GP Hyper-parameters
 
 # ------------------------------------------Start of Posterior Covariance Calculation
+# Note Hessian = second derivative of the log[g(v)]
+# Posterior Distribution follows N(v; v_hap, -1 * Hessian)
 
+# Extract optimized hyper-parameters
+hyperparam_opt = hyperparam_solution.x
+sigma_opt = hyperparam_opt[0]
+length_opt = hyperparam_opt[1]
+noise_opt = hyperparam_opt[2]
+prior_mean_opt = hyperparam_opt[3]
 
+# Generate covariance matrix with kronecker noise
+cov_auto = fast_matern_2d(sigma_opt, length_opt, xy_quad, xy_quad)
+cov_noise = (noise_opt ** 2) * np.eye(cov_auto.shape[0])
+cov_overall = cov_auto + cov_noise
+
+# Generate inverse of covariance matrix and set up the hessian matrix using symmetry
+inv_cov_overall = np.linalg.inv(cov_overall)
+
+print(inv_cov_overall.shape)
 
 # ------------------------------------------End of Posterior Covariance Calculation
 
@@ -569,19 +588,16 @@ brazil_scatter.set_ylim(y_lower, y_upper)
 
 brazil_histogram = brazil_fig.add_subplot(222)
 brazil_histogram.pcolor(x_mesh, y_mesh, histo, cmap='Reds')
-brazil_histogram.set_xlim(x_lower, x_upper)
-brazil_histogram.set_ylim(y_lower, y_upper)
+# brazil_histogram.set_xlim(x_lower, x_upper)
+# brazil_histogram.set_ylim(y_lower, y_upper)
 
 brazil_lambda = brazil_fig.add_subplot(223)
 brazil_lambda.pcolor(x_mesh, y_mesh, lambda_mesh, cmap='Reds')
-brazil_lambda.set_xlim(x_lower, x_upper)
-brazil_lambda.set_ylim(y_lower, y_upper)
+# brazil_lambda.set_xlim(x_lower, x_upper)
+# brazil_lambda.set_ylim(y_lower, y_upper)
 
 plt.show()
 # ------------------------------------------End of Plotting Process of Point Patterns, Histogram and Posterior Mean
-
-
-
 
 
 """

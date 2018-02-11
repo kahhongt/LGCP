@@ -199,22 +199,35 @@ aedes_brazil = aedes_df[brazil]  # Extracting Brazil Data
 aedes_brazil_2014 = aedes_df[brazil & year_2014]
 aedes_brazil_2013 = aedes_df[brazil & year_2013]
 aedes_brazil_2012 = aedes_df[brazil & year_2012]
+aedes_brazil_2013_2014 = aedes_brazil_2013 & aedes_brazil_2014  # Note this is the boolean
 x_2014 = aedes_brazil_2014.values[:, 5].astype('float64')
 y_2014 = aedes_brazil_2014.values[:, 4].astype('float64')
 x_2013 = aedes_brazil_2013.values[:, 5].astype('float64')
 y_2013 = aedes_brazil_2013.values[:, 4].astype('float64')
 
+x_2013_2014 = aedes_brazil_2013_2014.values[:, 5].astype('float64')
+y_2013_2014 = aedes_brazil_2013_2014.values[:, 4].astype('float64')
+
+print(x_2013.shape)
+print(x_2014.shape)
+print(x_2013_2014.shape)
+
 time_start_pre = time.clock()
 # First conduct a regression on the 2014 data set
 quads_on_side = 11  # define the number of quads along each dimension
 # histo, x_edges, y_edges = np.histogram2d(theft_x, theft_y, bins=quads_on_side)  # create histogram
-histo, y_edges, x_edges = np.histogram2d(y_2014, x_2014, bins=quads_on_side)
+histo, y_edges, x_edges = np.histogram2d(y_2013, x_2013, bins=quads_on_side)
 x_mesh, y_mesh = np.meshgrid(x_edges, y_edges)  # creating mesh-grid for use
 x_mesh = x_mesh[:-1, :-1]  # Removing extra rows and columns due to edges
 y_mesh = y_mesh[:-1, :-1]
 x_quad = fn.row_create(x_mesh)  # Creating the rows from the mesh
 y_quad = fn.row_create(y_mesh)
 xy_quad = np.vstack((x_quad, y_quad))  # These are all the x and y values of all the edges on the map - 2 x 100
+
+print(np.max([np.max(x_2013), np.max(x_2014)]))
+print(np.min([np.min(x_2013), np.min(x_2014)]))
+print(np.max([np.max(y_2013), np.max(y_2014)]))
+print(np.min([np.min(y_2013), np.min(y_2014)]))
 
 
 a = np.array([1, 2, 3, 4])

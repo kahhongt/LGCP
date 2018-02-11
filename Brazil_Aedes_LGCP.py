@@ -445,25 +445,36 @@ aedes_brazil = aedes_df[brazil]  # Extracting Brazil Data
 aedes_brazil_2014 = aedes_df[brazil & year_2014]
 aedes_brazil_2013 = aedes_df[brazil & year_2013]
 aedes_brazil_2012 = aedes_df[brazil & year_2012]
+aedes_brazil_2013_2014 = aedes_brazil_2013 & aedes_brazil_2014
 x_2014 = aedes_brazil_2014.values[:, 5].astype('float64')
 y_2014 = aedes_brazil_2014.values[:, 4].astype('float64')
 x_2013 = aedes_brazil_2013.values[:, 5].astype('float64')
 y_2013 = aedes_brazil_2013.values[:, 4].astype('float64')
+x_2013_2014 = aedes_brazil_2013_2014.values[:, 5].astype('float64')
+y_2013_2014 = aedes_brazil_2013_2014.values[:, 4].astype('float64')
 # ------------------------------------------End of Data Collection
 
 # ------------------------------------------Start of Selective Binning
 
 # *** Decide on the year to consider ***
-year = 2013
+year = 2014
 if year == 2013:
     y_values, x_values = y_2013, x_2013
-else:
+elif year == 2014:
     y_values, x_values = y_2014, x_2014
+else:
+    y_values, x_values = y_2013_2014, x_2013_2014  # Have to check this out! ***
 
 # Define Regression Space by specifying intervals and creating boolean variables for filter
-x_upper = -45
-x_lower = -55
-y_upper = -10
+maximum_x = -32.43
+minimum_x = -72.79
+maximum_y = 4.72
+minimum_y = -32.21
+
+# To allow for selection of range for regression, ignoring the presence of all other data points
+x_upper = maximum_x
+x_lower = -60
+y_upper = 0
 y_lower = -30
 x_window = (x_values > x_lower) & (x_values < x_upper)
 y_window = (y_values > y_lower) & (y_values < y_upper)
@@ -474,7 +485,7 @@ print(x_within_window.shape)
 print(y_within_window.shape)
 
 # First conduct a regression on the 2014 data set
-quads_on_side = 50  # define the number of quads along each dimension
+quads_on_side = 20  # define the number of quads along each dimension
 # histo, x_edges, y_edges = np.histogram2d(theft_x, theft_y, bins=quads_on_side)  # create histogram
 histo, y_edges, x_edges = np.histogram2d(y_within_window, x_within_window, bins=quads_on_side)
 x_mesh, y_mesh = np.meshgrid(x_edges, y_edges)  # creating mesh-grid for use

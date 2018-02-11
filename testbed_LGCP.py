@@ -214,7 +214,7 @@ print(x_2013_2014.shape)
 
 time_start_pre = time.clock()
 # First conduct a regression on the 2014 data set
-quads_on_side = 11  # define the number of quads along each dimension
+quads_on_side = 10  # define the number of quads along each dimension
 # histo, x_edges, y_edges = np.histogram2d(theft_x, theft_y, bins=quads_on_side)  # create histogram
 histo, y_edges, x_edges = np.histogram2d(y_2013, x_2013, bins=quads_on_side)
 x_mesh, y_mesh = np.meshgrid(x_edges, y_edges)  # creating mesh-grid for use
@@ -223,6 +223,8 @@ y_mesh = y_mesh[:-1, :-1]
 x_quad = fn.row_create(x_mesh)  # Creating the rows from the mesh
 y_quad = fn.row_create(y_mesh)
 xy_quad = np.vstack((x_quad, y_quad))  # These are all the x and y values of all the edges on the map - 2 x 100
+k_quad = fn.row_create(histo)
+
 
 print(np.max([np.max(x_2013), np.max(x_2014)]))
 print(np.min([np.min(x_2013), np.min(x_2014)]))
@@ -245,6 +247,16 @@ print(m)
 print(np.diag(m))
 
 print(np.sqrt(mat))
+
+index = np.arange(0, k_quad.size, 1)
+
+brazil_1d = plt.figure()
+brazil_1d.canvas.set_window_title('Brazil Reshaped to 1-D')
+
+brazil_post_mean = brazil_1d.add_subplot(211)
+brazil_post_mean.scatter(index, k_quad)
+
+plt.show()
 
 
 """

@@ -682,5 +682,4 @@ time_plotting = time.clock() - start_plotting
 print('Time Taken for plotting graphs = ', time_plotting)
 
 plt.show()
-
 # ------------------------------------------End of 1-D Representation of 2-D Gaussian Process

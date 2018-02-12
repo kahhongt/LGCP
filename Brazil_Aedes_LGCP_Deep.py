@@ -473,9 +473,9 @@ minimum_y = -32.21
 
 # To allow for selection of range for regression, ignoring the presence of all other data points
 x_upper = maximum_x
-x_lower = -60
-y_upper = 0
-y_lower = -30
+x_lower = minimum_x
+y_upper = maximum_y
+y_lower = minimum_y
 x_window = (x_values > x_lower) & (x_values < x_upper)
 y_window = (y_values > y_lower) & (y_values < y_upper)
 x_within_window = x_values[x_window & y_window]
@@ -607,8 +607,8 @@ posterior_cov_matrix = - hess_matrix
 posterior_sd_v_array = np.sqrt(np.diag(posterior_cov_matrix))  # This can then be plotted
 
 # Taking into consideration 2 standard deviations away from the posterior mean
-posterior_sd_v_upper = latent_v_array + (2 * posterior_sd_v_array)
-posterior_sd_v_lower = latent_v_array - (2 * posterior_sd_v_array)
+posterior_sd_v_upper = latent_v_array + (0.1 * posterior_sd_v_array)
+posterior_sd_v_lower = latent_v_array - (0.1 * posterior_sd_v_array)
 
 # Setting the boundary for the filling in-between *** Note that all possible values of lambda have to be positive
 posterior_sd_lambda_upper = np.exp(posterior_sd_v_upper)
@@ -675,7 +675,7 @@ brazil_mean_3d.grid(True)
 
 # ------------------------------------------Start of 1-D Representation of 2-D Gaussian Process
 # NOTE DOES NOT WORK FINDING THE ACTUAL INTENSITY POSTERIOR MEAN AND VARIANCE
-"""
+
 # Involves creating an index so as to provide a representation of how the standard deviation varies for the location
 # of each histogram data point
 
@@ -701,5 +701,5 @@ time_plotting = time.clock() - start_plotting
 print('Time Taken for plotting graphs = ', time_plotting)
 
 plt.show()
-"""
+
 # ------------------------------------------End of 1-D Representation of 2-D Gaussian Process

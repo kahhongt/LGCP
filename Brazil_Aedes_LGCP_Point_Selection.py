@@ -517,7 +517,7 @@ y_mesh_centralise_all = y_quad_all.reshape(y_mesh.shape)
 # Plan is to exclude the points where the histogram is zero
 
 # Create Boolean variable to identify only points with non-zero incidences
-non_zero = (k_quad_all > 5)
+non_zero = (k_quad_all > 0)
 x_quad_non_zero = x_quad_all[non_zero]
 y_quad_non_zero = y_quad_all[non_zero]
 k_quad_non_zero = k_quad_all[non_zero]
@@ -526,7 +526,7 @@ xy_quad_non_zero = np.vstack((x_quad_non_zero, y_quad_non_zero))
 k_mesh = histo
 
 # Another Boolean variable for the mesh shape
-non_zero_mesh = (k_mesh > 5)
+non_zero_mesh = (k_mesh > 0)
 x_mesh_centralise_non_zero = x_mesh_centralise_all[non_zero_mesh]
 y_mesh_centralise_non_zero = y_mesh_centralise_all[non_zero_mesh]
 
@@ -649,8 +649,8 @@ posterior_cov_matrix = - hess_matrix
 posterior_sd_v_array = np.sqrt(np.diag(posterior_cov_matrix))  # This can then be plotted
 
 # Taking into consideration 0.1 standard deviations away from the posterior mean
-posterior_sd_v_upper = latent_v_array + (0.1 * posterior_sd_v_array)
-posterior_sd_v_lower = latent_v_array - (0.1 * posterior_sd_v_array)
+posterior_sd_v_upper = latent_v_array + (0.2 * posterior_sd_v_array)
+posterior_sd_v_lower = latent_v_array - (0.2 * posterior_sd_v_array)
 
 # Setting the boundary for the filling in-between *** Note that all possible values of lambda have to be positive
 posterior_sd_lambda_upper = np.exp(posterior_sd_v_upper)

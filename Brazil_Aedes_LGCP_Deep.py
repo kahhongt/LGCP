@@ -530,13 +530,10 @@ v_solution = scopt.minimize(fun=log_likelihood, args=arguments_v, x0=initial_v_a
                             options={'xtol': 0.001, 'disp': True, 'maxiter': 100000})
 
 latent_v_array = v_solution.x  # v_array is the log of the latent intensity
-lambda_quad = np.exp(latent_v_array)  # Taking the exponential of the log of the latent intensity
-lambda_mesh = lambda_quad.reshape(x_mesh.shape)  # Create mesh from rows
 
-print("Latent Intensity Values are ", lambda_quad)
+print("Latent Log-Intensity Values are ", latent_v_array)
 print("Initial Data Points are ", k_quad)
 print(latent_v_array.shape)
-print(lambda_quad.shape)
 print(k_quad.shape)
 
 time_v_opt = time.clock() - start_v_opt
@@ -565,7 +562,7 @@ print('TIme Taken for hyper-parameter optimization = ', time_gp_opt)
 
 # ------------------------------------------End of Optimization of GP Hyper-parameters
 
-# ------------------------------------------Start of Posterior Covariance Calculation
+# ------------------------------------------Start of Posterior Covariance Matrix Tabulation
 # Note Hessian = second derivative of the log[g(v)]
 # Posterior Distribution follows N(v; v_hap, -1 * Hessian)
 
@@ -601,28 +598,38 @@ for i in range(hess_length):
 
 
 # Generate Posterior Covariance Matrix of log-intensity v
-posterior_cov_matrix = - hess_matrix
+posterior_cov_matrix_v = - hess_matrix
 
-# Standard Deviation in terms of log-intensity v
-posterior_sd_v_array = np.sqrt(np.diag(posterior_cov_matrix))  # This can then be plotted
+# ------------------------------------------End of Posterior Covariance Matrix Tabulation
 
-# Taking into consideration 2 standard deviations away from the posterior mean
-posterior_sd_v_upper = latent_v_array + (0.1 * posterior_sd_v_array)
-posterior_sd_v_lower = latent_v_array - (0.1 * posterior_sd_v_array)
+# ------------------------------------------Start of Conversion into Latent Intensity
+# Tabulating posterior mean and covariance of the latent intensity - using the Log-Normal Conversion
+# latent_v_array = optimized mean of log-Normal distribution, posterior_cov_matrix_v = covariance matrix of the
+# log-normal distribution. Posterior Variance = exp(2 * mean + variance_v) * ( exp(variance) - 1)
 
-# Setting the boundary for the filling in-between *** Note that all possible values of lambda have to be positive
-posterior_sd_lambda_upper = np.exp(posterior_sd_v_upper)
-posterior_sd_lambda_lower = np.exp(posterior_sd_v_lower)
+# Tabulation of Posterior Latent Intensity Mean
+variance_v = np.diag(posterior_cov_matrix_v)  # Extracting diagonals which refer to the variances
+latent_intensity_mean = np.exp(latent_v_array + 0.5 * variance_v)
 
-# Generate posterior standard deviation mesh for plotting ***
-posterior_sd_v_mesh = posterior_sd_v_array.reshape(lambda_mesh.shape)
+# Tabulation of Posterior Latent Intensity Variance
+latent_intensity_var = np.exp((2 * latent_v_array) + variance_v) * (np.exp(variance_v) - 1)
+latent_intensity_sd = np.sqrt(latent_intensity_var)
+
+# Define upper and lower boundaries
+posterior_lambda_upper = latent_intensity_mean + latent_intensity_sd
+posterior_lambda_lower = latent_intensity_mean - latent_intensity_sd
+
+# Mesh Matrix containing posterior mean and standard deviation for plotting purposes
+latent_intensity_mean_mesh = latent_intensity_mean.reshape(x_mesh.shape)
+latent_intensity_sd_mesh = latent_intensity_sd.reshape(x_mesh.shape)
+
 
 # Measure time taken for covariance matrix and final standard deviation tabulation
 time_posterior_tab = time.clock() - start_posterior_tab
 
-print('Time Taken for Posterior Tabulation = ', time_posterior_tab)
+print('Time Taken for Conversion into Latent Intensity = ', time_posterior_tab)
 
-# ------------------------------------------End of Posterior Covariance Calculation
+# ------------------------------------------End of Conversion into Latent Intensity
 
 start_plotting = time.clock()
 
@@ -637,24 +644,26 @@ pp_2013 = brazil_scatter.scatter(x_2013, y_2013, marker='.', color='red', s=0.1)
 brazil_scatter.set_xlim(x_lower, x_upper)
 brazil_scatter.set_ylim(y_lower, y_upper)
 
+# Data Histogram
 brazil_histogram = brazil_fig.add_subplot(222)
 brazil_histogram.pcolor(x_mesh_centralise, y_mesh_centralise, histo, cmap='RdBu')
 # brazil_histogram.set_xlim(x_lower, x_upper)
 # brazil_histogram.set_ylim(y_lower, y_upper)
 
+# Posterior Mean Histogram
 brazil_lambda = brazil_fig.add_subplot(223)
-brazil_lambda.pcolor(x_mesh_centralise, y_mesh_centralise, lambda_mesh, cmap='RdBu')
+brazil_lambda.pcolor(x_mesh_centralise, y_mesh_centralise, latent_intensity_mean_mesh, cmap='RdBu')
 # brazil_lambda.set_xlim(x_lower, x_upper)
 # brazil_lambda.set_ylim(y_lower, y_upper)
 
 brazil_sd = brazil_fig.add_subplot(224)
-brazil_sd.pcolor(x_mesh_centralise, y_mesh_centralise, posterior_sd_v_mesh, cmap='RdBu')
+brazil_sd.pcolor(x_mesh_centralise, y_mesh_centralise, latent_intensity_sd_mesh, cmap='RdBu')
 
 # Plotting the Posterior Covariance of intensity lambda
 brazil_3d = plt.figure()
 brazil_3d.canvas.set_window_title('Posterior Mean and Covariance in 3-D')
 brazil_mean_3d = brazil_3d.add_subplot(121, projection='3d')
-brazil_mean_3d.plot_surface(x_mesh, y_mesh, lambda_mesh, cmap='RdBu')
+brazil_mean_3d.plot_surface(x_mesh, y_mesh, latent_intensity_mean_mesh, cmap='RdBu')
 brazil_mean_3d.set_title('Posterior Mean')
 brazil_mean_3d.set_xlabel('x-axis')
 brazil_mean_3d.set_ylabel('y-axis')
@@ -662,7 +671,7 @@ brazil_mean_3d.grid(True)
 
 # Plotting the Posterior Variance of log-intensity v, and not of lambda
 brazil_mean_3d = brazil_3d.add_subplot(122, projection='3d')
-brazil_mean_3d.plot_surface(x_mesh, y_mesh, posterior_sd_v_mesh, cmap='RdBu')
+brazil_mean_3d.plot_surface(x_mesh, y_mesh, latent_intensity_sd_mesh, cmap='RdBu')
 brazil_mean_3d.set_title('Posterior Standard Deviation')
 brazil_mean_3d.set_xlabel('x-axis')
 brazil_mean_3d.set_ylabel('y-axis')
@@ -680,11 +689,11 @@ brazil_mean_3d.grid(True)
 # of each histogram data point
 
 # Create an index to label each data point so as to make it 1-D
-index = np.arange(0, lambda_mesh.size, 1)
+index = np.arange(0, latent_intensity_mean.size, 1)
 
 # Bounds set at 2 standard deviations from the posterior mean of latent log-intensity v
-upper_bound = posterior_sd_lambda_upper
-lower_bound = posterior_sd_lambda_lower
+upper_bound = posterior_lambda_upper
+lower_bound = posterior_lambda_lower
 
 brazil_1d = plt.figure()
 brazil_1d.canvas.set_window_title('Brazil Reshaped to 1-D')
@@ -692,7 +701,8 @@ brazil_1d.canvas.set_window_title('Brazil Reshaped to 1-D')
 brazil_post = brazil_1d.add_subplot(111)
 brazil_post.fill_between(index, lower_bound, upper_bound, color='lavender')
 brazil_post.scatter(index, k_quad, color='darkblue', marker='x', s=1)
-brazil_post.scatter(index, lambda_quad, color='darkred', marker='.', s=1)
+brazil_post.scatter(index, latent_intensity_mean, color='darkred', marker='.', s=1)
+# brazil_post.plot(index, latent_intensity_mean, color='grey', s=1)
 brazil_post.set_title('Brazil Aedes Regression')
 brazil_post.set_xlabel('Index of Histogram')
 brazil_post.set_ylabel('Brazil Aedes Spread Posterior Distribution')

@@ -248,6 +248,8 @@ print(np.diag(m))
 
 print(np.sqrt(mat))
 
+print(a - 1)
+
 index = np.arange(0, k_quad.size, 1)
 
 brazil_1d = plt.figure()
@@ -257,6 +259,9 @@ brazil_post_mean = brazil_1d.add_subplot(211)
 brazil_post_mean.scatter(index, k_quad)
 
 plt.show()
+
+
+
 
 
 """

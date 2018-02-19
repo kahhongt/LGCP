@@ -557,9 +557,6 @@ print(hyperparam_solution)
 
 time_gp_opt = time.clock() - start_gp_opt
 
-print('Time Taken for v optimization = ', time_v_opt)
-print('TIme Taken for hyper-parameter optimization = ', time_gp_opt)
-
 # ------------------------------------------End of Optimization of GP Hyper-parameters
 
 # ------------------------------------------Start of Posterior Covariance Matrix Tabulation
@@ -576,9 +573,12 @@ noise_opt = hyperparam_opt[2]
 prior_mean_opt = hyperparam_opt[3]
 
 # Generate prior covariance matrix with kronecker noise
+start_covariance_matrix = time.clock()
 cov_auto = fast_matern_2d(sigma_opt, length_opt, xy_quad, xy_quad)
 cov_noise = (noise_opt ** 2) * np.eye(cov_auto.shape[0])
 cov_overall = cov_auto + cov_noise
+
+time_covariance_matrix = time.clock() - start_covariance_matrix
 
 # Generate inverse of covariance matrix and set up the hessian matrix using symmetry
 inv_cov_overall = np.linalg.inv(cov_overall)
@@ -596,9 +596,12 @@ for i in range(hess_length):
         hess_matrix[i, j] = -0.5 * (inv_cov_overall[i, j] + inv_cov_overall[j, i])
         hess_matrix[j, i] = hess_matrix[i, j]
 
+# The hessian H of the log-likelihood at vhap is the negative of the second derivative across all variables of the
+# log-likelihood. Make sure to write down the math in the report
+hess_matrix = - hess_matrix
 
 # Generate Posterior Covariance Matrix of log-intensity v
-posterior_cov_matrix_v = - hess_matrix
+posterior_cov_matrix_v = np.linalg.inv(hess_matrix)
 
 # ------------------------------------------End of Posterior Covariance Matrix Tabulation
 
@@ -629,8 +632,6 @@ print('Latent Intensity Variances are ', latent_intensity_var)
 
 # Measure time taken for covariance matrix and final standard deviation tabulation
 time_posterior_tab = time.clock() - start_posterior_tab
-
-print('Time Taken for Conversion into Latent Intensity = ', time_posterior_tab)
 
 # ------------------------------------------End of Conversion into Latent Intensity
 
@@ -684,6 +685,15 @@ brazil_mean_3d.grid(True)
 
 # ------------------------------------------End of Plotting Process of Point Patterns, Histogram and Posteriors
 
+# ------------------------------------------Start of Time Analysis
+
+
+print('Time Taken for v optimization = ', time_v_opt)
+print('TIme Taken for hyper-parameter optimization = ', time_gp_opt)
+print('Time Taken for Conversion into Latent Intensity = ', time_posterior_tab)
+
+
+# ------------------------------------------Start of Time Analysis
 
 # ------------------------------------------Start of 1-D Representation of 2-D Gaussian Process
 # NOTE DOES NOT WORK FINDING THE ACTUAL INTENSITY POSTERIOR MEAN AND VARIANCE

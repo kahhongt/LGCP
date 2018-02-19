@@ -618,8 +618,8 @@ noise_opt = hyperparam_opt[2]
 prior_mean_opt = hyperparam_opt[3]
 
 # Generate prior covariance matrix with kronecker noise
-cov_auto = fast_matern_2d(sigma_opt, length_opt, xy_quad, xy_quad)
-cov_noise = (noise_opt ** 2) * np.eye(cov_auto.shape[0])
+cov_auto = fast_matern_2d(sigma_opt, length_opt, xy_quad, xy_quad)  # Basic Covariance Matrix
+cov_noise = (noise_opt ** 2) * np.eye(cov_auto.shape[0])  # Addition of noise
 cov_overall = cov_auto + cov_noise
 
 # Generate inverse of covariance matrix and set up the hessian matrix using symmetry
@@ -638,8 +638,11 @@ for i in range(hess_length):
         hess_matrix[i, j] = -0.5 * (inv_cov_overall[i, j] + inv_cov_overall[j, i])
         hess_matrix[j, i] = hess_matrix[i, j]
 
-# Generate Posterior Covariance Matrix of log-intensity v
-posterior_cov_matrix_v = - hess_matrix
+# The hessian H of the log-likelihood at vhap is the negative of the laplacian
+hess_matrix = - hess_matrix
+
+# Generate Posterior Covariance Matrix of log-intensity v *** Check this part
+posterior_cov_matrix_v = np.linalg.inv(hess_matrix)
 print('Posterior Covariance Matrix of v is ', posterior_cov_matrix_v)
 
 # ------------------------------------------End of Posterior Covariance Calculation

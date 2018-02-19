@@ -623,6 +623,9 @@ posterior_lambda_lower = latent_intensity_mean - latent_intensity_sd
 latent_intensity_mean_mesh = latent_intensity_mean.reshape(x_mesh.shape)
 latent_intensity_sd_mesh = latent_intensity_sd.reshape(x_mesh.shape)
 
+print('Variances are ', variance_v)
+print('Latent Intensities are ', latent_intensity_mean)
+print('Latent Intensity Variances are ', latent_intensity_var)
 
 # Measure time taken for covariance matrix and final standard deviation tabulation
 time_posterior_tab = time.clock() - start_posterior_tab

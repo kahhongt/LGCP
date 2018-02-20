@@ -518,7 +518,7 @@ y_mesh_centralise_all = y_quad_all.reshape(y_mesh.shape)
 # Plan is to exclude the points where the histogram is zero
 
 # Create Boolean variable to identify only points with non-zero incidences
-non_zero = (k_quad_all > 0)
+non_zero = (k_quad_all > -1)
 x_quad_non_zero = x_quad_all[non_zero]
 y_quad_non_zero = y_quad_all[non_zero]
 k_quad_non_zero = k_quad_all[non_zero]
@@ -527,7 +527,7 @@ xy_quad_non_zero = np.vstack((x_quad_non_zero, y_quad_non_zero))
 k_mesh = histo
 
 # Another Boolean variable for the mesh shape
-non_zero_mesh = (k_mesh > 0)
+non_zero_mesh = (k_mesh > -1)
 x_mesh_centralise_non_zero = x_mesh_centralise_all[non_zero_mesh]
 y_mesh_centralise_non_zero = y_mesh_centralise_all[non_zero_mesh]
 
@@ -741,13 +741,20 @@ lower_bound = posterior_lambda_lower
 brazil_1d = plt.figure()
 brazil_1d.canvas.set_window_title('Brazil Reshaped to 1-D')
 
-brazil_post = brazil_1d.add_subplot(111)
+brazil_post = brazil_1d.add_subplot(211)
 brazil_post.fill_between(index, lower_bound, upper_bound, color='lavender')
 brazil_post.scatter(index, k_quad, color='darkblue', marker='x', s=1)
 brazil_post.scatter(index, latent_intensity_mean, color='darkred', marker='.', s=1)
-brazil_post.set_title('Brazil Aedes Regression')
+brazil_post.set_title('Brazil Aedes Regression Posterior')
 brazil_post.set_xlabel('Index of Histogram')
 brazil_post.set_ylabel('Brazil Aedes Spread Posterior Distribution')
+
+brazil_cov = brazil_1d.add_subplot(212)
+brazil_cov.plot(index, latent_intensity_var, color='darkblue')
+brazil_cov.plot(index, latent_intensity_mean, color='darkred')
+brazil_cov.set_title('Brazil Aedes Posterior Standard Deviation')
+brazil_cov.set_xlabel('Index of Histogram')
+brazil_cov.set_ylabel('Brazil Aedes Posterior Standard Deviation')
 
 time_plotting = time.clock() - start_plotting
 print('Time Taken for plotting graphs = ', time_plotting)

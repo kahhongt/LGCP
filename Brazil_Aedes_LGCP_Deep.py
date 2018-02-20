@@ -651,8 +651,10 @@ brazil_scatter.set_ylim(y_lower, y_upper)
 # Data Histogram
 brazil_histogram = brazil_fig.add_subplot(222)
 brazil_histogram.pcolor(x_mesh_centralise, y_mesh_centralise, histo, cmap='RdBu')
+brazil_pp_2013 = brazil_histogram.scatter(x_2013, y_2013, marker='.', color='white', s=0.1)
 # brazil_histogram.set_xlim(x_lower, x_upper)
 # brazil_histogram.set_ylim(y_lower, y_upper)
+plt.legend([brazil_pp_2013], ["2013"])
 
 # Posterior Mean Histogram
 brazil_lambda = brazil_fig.add_subplot(223)

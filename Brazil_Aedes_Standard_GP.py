@@ -9,12 +9,6 @@ from mpl_toolkits.mplot3d import Axes3D
 import scipy.optimize as scopt
 
 """Methodology for Conducting Gaussian Regression for 2-D"""
-# 1.
-# 1. Using Matern 3/2, calculate hyper-parameters for maximum likelihood (evidence)
-# 2. Use Nelder-Mead first, then use the Hypercube to obtain the globally optimal hyper-parameters
-# 3. Make sure you understand the matrix manipulation for the 2-D GP
-# 4. Create an arbitrary transformation matrix which can also optimised before hyper-parameters
-# 5. Using csv.read, import the 2-D point process data and plot it first
 
 
 def mean_func_zero(c):  # Prior mean function taken as 0 for the entire sampling range
@@ -23,6 +17,14 @@ def mean_func_zero(c):  # Prior mean function taken as 0 for the entire sampling
     else:
         mean_c = np.zeros(c.shape[1])
     return mean_c  # Outputs a x and y coordinates, created from the mesh grid
+
+
+def mean_func_scalar(mean, c):  # Assume that the prior mean is a constant to be optimised
+    if np.array([c.shape]).size == 1:
+        mean_c = np.ones(1) * mean
+    else:
+        mean_c = np.ones(c.shape[1]) * mean
+    return mean_c
 
 
 def squared_exp_2d(sigma_exp, length_exp, x1, x2):  # Only for 2-D
@@ -112,6 +114,32 @@ def matern_2d(v_value, sigma_matern, length_matern, x1, x2):  # there are only t
     return c
 # Both kernel functions take in numpy arrays of one row (create a single column first)
 
+# This is way faster than the function above beyond n=10
+def fast_matern_2d(sigma_matern, length_matern, x1, x2):  # there are only two variables in the matern function
+    """
+    This is much much faster than iteration over every point beyond n = 10. This function takes advantage of the
+    symmetry in the covariance matrix and allows for fast regeneration. For this function, v = 3/2
+    :param sigma_matern: coefficient factor at the front
+    :param length_matern: length scale
+    :param x1: First set of coordinates for iteration
+    :param x2: Second set of coordinates for iteration
+    :return: Covariance matrix with matern kernel
+    """
+    # Note that this function only takes in 2-D coordinates, make sure there are 2 rows and n columns
+    n = x1.shape[1]
+    cov_matrix = np.zeros((n, n))
+    for i in range(n):
+        cov_matrix[i, i] = sigma_matern ** 2
+        for j in range(i + 1, n):
+            diff = x1[:, i] - x2[:, j]
+            euclidean = np.sqrt(np.matmul(diff, np.transpose(diff)))
+            coefficient_term = (1 + np.sqrt(3) * euclidean * (length_matern ** -1))
+            exp_term = np.exp(-1 * np.sqrt(3) * euclidean * (length_matern ** -1))
+            cov_matrix[i, j] = (sigma_matern ** 2) * coefficient_term * exp_term
+            cov_matrix[j, i] = cov_matrix[i, j]
+
+    return cov_matrix
+
 
 def mu_post(xy_next, c_auto, c_cross, mismatch):  # Posterior mean
     if c_cross.shape[1] != (np.linalg.inv(c_auto)).shape[0]:
@@ -128,24 +156,43 @@ def cov_post(c_next_auto, c_cross, c_auto):  # Posterior Covariance
     return c_post
 
 
-def log_model_evidence(param, *args):  # Param includes both sigma and l, arg is passed as a pointer
+def log_gp_likelihood(param, *args):  # Param includes both sigma and l, arg is passed as a pointer
+    """
+    Function in format for optimization using Nelder-Mead Simplex Algorithm - change to include the scalar mean as a
+    value to be optimised as well - total of 4 hyper-parameters to be optimised. Note that Matern v=3/2 is used in the
+    fast_matern_2d function
+    :param param: amplitude sigma, length scale and noise amplitude
+    :param args: locations of quads, xy_quad and histogram values for each quad
+    :return: the log-likelihood of the gaussian process
+    """
+
+    # Define parameters to be optimised
     sigma = param[0]  # param is a tuple containing 2 things, which has already been defined in the function def
     length = param[1]
     noise = param[2]  # Over here we have defined each parameter in the tuple, include noise
+    mean = param[3]
+
+    # Define arguments to be entered
     xy_coordinates = args[0]  # This argument is a constant passed into the function
     histogram_data = args[1]  # Have to enter histogram data as well
-    matern_nu = args[2]  # Arbitrarily chosen v value
-    prior_mu = mean_func_zero(xy_coordinates)  # This creates a matrix with 2 rows
-    c_auto = matern_2d(matern_nu, sigma, length, xy_coordinates, xy_coordinates)
-    # c_auto = squared_exp_2d(sigma, length, xy_coordinates, xy_coordinates)
-    c_noise = np.eye(c_auto.shape[0]) * (noise ** 2)  # Fro-necker delta function
-    c_auto_noise = c_auto + c_noise  # Overall including noise, plus include any other combination
-    model_fit = - 0.5 * fn.matmulmul(histogram_data - prior_mu, np.linalg.inv(c_auto_noise),
+
+    # Tabulate prior mean as a scalar to be optimized
+    prior_mu = mean_func_scalar(mean, xy_coordinates)  # This creates a matrix with 2 rows
+
+    # Tabulate auto-covariance matrix using fast matern function plus noise
+    c_auto = fast_matern_2d(sigma, length, xy_coordinates, xy_coordinates)
+    c_noise = np.eye(c_auto.shape[0]) * (noise ** 2)  # Fronecker delta function
+    c_overall = c_auto + c_noise
+
+    # 3 components to log_gp_likelihood: model_fit, model_complexity and model_constant
+    model_fit = - 0.5 * fn.matmulmul(histogram_data - prior_mu, np.linalg.inv(c_overall),
                                      np.transpose(histogram_data - prior_mu))
-    model_complexity = - 0.5 * math.log(np.linalg.det(c_auto_noise))
+    model_complexity = - 0.5 * math.log(np.linalg.det(c_overall))
     model_constant = - 0.5 * len(histogram_data) * math.log(2*np.pi)
     log_model_evid = model_fit + model_complexity + model_constant
-    return -log_model_evid  # We want to maximize the log-likelihood, meaning the min of negative log-likelihood
+
+    # Taking the minimum of the negative log_gp_likelihood, to obtain the maximum of log_gp_likelihood
+    return -log_model_evid
 
 
 # ------------------------------------------Start of Data Collection
@@ -257,15 +304,19 @@ y_mesh_centralise_non_zero = y_mesh_centralise_all[non_zero_mesh]
 
 # ------------------------------------------Start of SELECTION FOR EXCLUSION OF ZERO POINTS
 
-exclusion_sign = 'exclude'  # Toggle between exclusion(1) and inclusion(0) of 'out-of-boundary' points
+exclusion_sign = 'include'  # Toggle between exclusion(1) and inclusion(0) of 'out-of-boundary' points
 
 if exclusion_sign == 'exclude':
     xy_quad = xy_quad_non_zero
+    x_quad = x_quad_non_zero
+    y_quad = y_quad_non_zero
     k_quad = k_quad_non_zero
     x_mesh_centralise = x_mesh_centralise_non_zero
     y_mesh_centralise = y_mesh_centralise_non_zero
 else:
     xy_quad = xy_quad_all
+    x_quad = x_quad_all
+    y_quad = y_quad_all
     k_quad = k_quad_all
     x_mesh_centralise = x_mesh_centralise_all
     y_mesh_centralise = y_mesh_centralise_all
@@ -274,49 +325,77 @@ else:
 
 # ------------------------------------------Start of Hyper-parameter Optimization
 
-"""Initialise posterior mean and posterior covariance"""
+# Checking dimensions of histo and quad after selection of window and points above a certain threshold
+print('The quad coordinates are ', xy_quad_all)
+print('The shape of quad coordinates are ', xy_quad_all.shape)
+print('The histogram array is ', k_quad)
+print('The shape of histogram array is ', k_quad.shape)  # should be the square of the number of quads on side
 
-mean_posterior = np.zeros(sampling_coord.shape[1])
-cov_posterior = np.zeros(sampling_coord.shape[1])
-# Prior mean tabulated from data set, not sampling points
-prior_mean = mean_func_zero(xy_data_coord)  # should be one row of zeros even though data has two rows
+# Initialise parameters to be optimized - could have used Latin-Hypercube
+initial_param = np.array([10, 10, 10, 10])  # Sigma amplitude, length scale, noise amplitude and scalar mean
+
+# Initialise arguments to be entered into objective function
+xyz_data = (xy_quad, k_quad)
+
+# No bounds needed for Nelder-Mead Simplex Algorithm
+solution = scopt.minimize(fun=log_gp_likelihood, args=xyz_data, x0=initial_param, method='Nelder-Mead')
+
+# List optimal hyper-parameters
+sigma_optimal = solution.x[0]
+length_optimal = solution.x[1]
+noise_optimal = solution.x[2]
+mean_optimal = solution.x[3]
+print('Last function evaluation is ', solution.fun)
+print('optimal sigma is ', sigma_optimal)
+print('optimal length-scale is ', length_optimal)
+print('optimal noise amplitude is ', noise_optimal)
+print('optimal scalar mean value is ', mean_optimal)
+
+# ------------------------------------------End of Hyper-parameter Optimization
+
+# ------------------------------------------Start of Predictive Posterior Tabulation
+
+# Define number of points for y_*
+intervals = 50
+
+# Define sampling points beyond the data set
+cut_off_x = (np.max(x_quad) - np.min(x_quad)) / 2
+cut_off_y = (np.max(y_quad) - np.min(y_quad)) / 2
+
+# Expressing posterior away from the data set by the cut-off values
+sampling_points_x = np.linspace(np.min(x_quad) - cut_off_x, np.max(x_quad) + cut_off_x, intervals)
+sampling_points_y = np.linspace(np.min(y_quad) - cut_off_y, np.max(y_quad) + cut_off_y, intervals)
 
 
-"""Create auto-covariance matrix"""
-C_dd = matern_2d(matern_v, sigma_optimal, length_optimal, xy_data_coord, xy_data_coord)
-C_noise = np.eye(C_dd.shape[0]) * (noise_optimal ** 2)
-C_dd_noise = C_dd + C_noise
-prior_mismatch = histo - prior_mean
+# Create iteration for coordinates using mesh-grid - for plotting
+sampling_points_xmesh, sampling_points_ymesh = np.meshgrid(sampling_points_x, sampling_points_y)
+sampling_x_row = fn.row_create(sampling_points_xmesh)
+sampling_y_row = fn.row_create(sampling_points_ymesh)
+sampling_coord = np.vstack((sampling_x_row, sampling_y_row))
 
 
-"""Tabulating the posterior mean and covariance for each sampling point"""
+# Generate mean and covariance array
 for i in range(sampling_coord.shape[1]):
+
+    # Generate status output
+    if i % 50 == 0:  # if i is a multiple of 50,
+        print('Tabulating Prediction Point', i)
+
+    # Extract one data point
     xy_star = sampling_coord[:, i]
-    C_star_d = matern_2d(matern_v, sigma_optimal, length_optimal, xy_star, xy_data_coord)
+    C_star_d = fast_matern_2d(sigma_optimal)
     C_star_star = matern_2d(matern_v, sigma_optimal, length_optimal, xy_star, xy_star)
     mean_posterior[i] = mu_post(xy_star, C_dd_noise, C_star_d, prior_mismatch)
     cov_posterior[i] = cov_post(C_star_star, C_star_d, C_dd_noise)
 
 
-"""Creating 2-D inputs for plotting surfaces"""
 sampling_x_2d = sampling_x_row.reshape(intervals, intervals)
 sampling_y_2d = sampling_y_row.reshape(intervals, intervals)
 mean_posterior_2d = mean_posterior.reshape(intervals, intervals)
 cov_posterior_2d = cov_posterior.reshape(intervals, intervals)
 
 
-"""Plot Settings"""
 fig_pp_data = plt.figure(1)
-
-"""
-data_original = fig_pp_data.add_subplot(221)  # Original Data Scatter
-data_original.scatter(x, y, color='darkblue', marker='.')
-data_original.set_title('Original Data Set')
-data_original.set_xlabel('x-axis')
-data_original.set_ylabel('y-axis')
-data_original.grid(True)
-"""
-
 
 data_transform = fig_pp_data.add_subplot(121)  # Transformed Data Scatter
 data_transform.scatter(x_transform, y_transform, color='darkblue', marker='.')
@@ -383,3 +462,4 @@ post_cov_wire.grid(True)
 
 plt.show()
 
+"""

@@ -94,6 +94,10 @@ k_quad_all = fn.row_create(histo)  # histogram array
 x_mesh_centralise = x_quad_all.reshape(x_mesh.shape)
 y_mesh_centralise = y_quad_all.reshape(y_mesh.shape)
 
+print('The combined quad locations are ', xy_quad_all)
+print('The shape of the combined quad locations are ', xy_quad_all.shape)
+print('The shape of x_mesh is ', x_mesh_centralise.shape)
+
 # ------------------------------------------Start of Plotting Process of Point Patterns, Histogram and Posterior Mean
 
 world_fig = plt.figure()
@@ -144,7 +148,6 @@ brazil_h_2013.set_ylabel('UTM Vertical Coordinate')
 # brazil_h_2013.set_xlim(x_lower, x_upper)
 # brazil_h_2013.set_ylim(y_lower, y_upper)
 # plt.legend([brazil_pp_2013], ["2013"])
-
 
 plt.show()
 # plt.legend([pp_2014, pp_2013], ["2014", "2013"])

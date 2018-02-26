@@ -49,8 +49,6 @@ y_2013_2014 = aedes_brazil_2013_2014.values[:, 4].astype('float64')
 world_x = aedes_df.values[:, 5].astype('float64')
 world_y = aedes_df.values[:, 4].astype('float64')
 
-print(aedes_df[year_2015 & brazil])
-
 # ------------------------------------------End of Data Collection
 
 # Define Regression Space by specifying intervals and creating boolean variables for filter
@@ -125,7 +123,7 @@ brazil_scatter_2013.set_ylabel('UTM Vertical Coordinate')
 brazil_scatter_2013.set_xlim(-75, -30)
 brazil_scatter_2013.set_ylim(-35, 5)
 
-brazil_2013_window = plt.figure()
+brazil_2013_window = plt.figure(figsize=(6, 6))
 brazil_2013_w = brazil_2013_window.add_subplot(111)
 pp_2013 = brazil_2013_w.scatter(x_within_window, y_within_window, marker='o', color='black', s=0.3)
 # plt.legend([pp_2014, pp_2013], ["2014", "2013"])
@@ -136,7 +134,7 @@ brazil_2013_w.set_ylabel('UTM Vertical Coordinate')
 # brazil_2013_w.set_ylim(y_lower, y_upper)
 
 # Data Histogram
-brazil_histogram = plt.figure()
+brazil_histogram = plt.figure(figsize=(6, 6))
 brazil_h_2013 = brazil_histogram.add_subplot(111)
 brazil_h_2013.pcolor(x_mesh_centralise, y_mesh_centralise, histo, cmap='YlOrBr')
 brazil_pp_2013 = brazil_h_2013.scatter(x_within_window, y_within_window, marker='o', color='black', s=0.3)

@@ -533,7 +533,7 @@ y_mesh_centralise_non_zero = y_mesh_centralise_all[non_zero_mesh]
 
 # ------------------------------------------End of Zero Point Exclusion
 
-# ------------------------------------------ SELECTION FOR EXCLUSION OF ZERO POINTS
+# ------------------------------------------Start of SELECTION FOR EXCLUSION OF ZERO POINTS
 
 exclusion_sign = 'exclude'  # Toggle between exclusion(1) and inclusion(0) of 'out-of-boundary' points
 
@@ -547,6 +547,8 @@ else:
     k_quad = k_quad_all
     x_mesh_centralise = x_mesh_centralise_all
     y_mesh_centralise = y_mesh_centralise_all
+
+# ------------------------------------------End of SELECTION FOR EXCLUSION OF ZERO POINTS
 
 # ------------------------------------------Start of Optimization of latent v_array using only the log-likelihood
 

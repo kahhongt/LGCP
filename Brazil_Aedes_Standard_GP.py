@@ -114,6 +114,7 @@ def matern_2d(v_value, sigma_matern, length_matern, x1, x2):  # there are only t
     return c
 # Both kernel functions take in numpy arrays of one row (create a single column first)
 
+
 # This is way faster than the function above beyond n=10
 def fast_matern_2d(sigma_matern, length_matern, x1, x2):  # there are only two variables in the matern function
     """
@@ -242,10 +243,10 @@ maximum_y = 4.72
 minimum_y = -32.21
 
 # To allow for selection of range for regression, ignoring the presence of all other data points
-x_upper = -40
-x_lower = -60
-y_upper = 0
-y_lower = -20
+x_upper = -43
+x_lower = -63
+y_upper = -2
+y_lower = -22
 x_window = (x_values > x_lower) & (x_values < x_upper)
 y_window = (y_values > y_lower) & (y_values < y_upper)
 x_within_window = x_values[x_window & y_window]

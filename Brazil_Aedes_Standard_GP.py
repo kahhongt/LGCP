@@ -353,7 +353,7 @@ print('optimal scalar mean value is ', mean_optimal)
 
 # ------------------------------------------End of Hyper-parameter Optimization
 
-# ------------------------------------------Start of Predictive Posterior Tabulation
+# ------------------------------------------Start of Sampling Points Creation
 
 # Define number of points for y_*
 intervals = 50
@@ -371,95 +371,64 @@ sampling_points_y = np.linspace(np.min(y_quad) - cut_off_y, np.max(y_quad) + cut
 sampling_points_xmesh, sampling_points_ymesh = np.meshgrid(sampling_points_x, sampling_points_y)
 sampling_x_row = fn.row_create(sampling_points_xmesh)
 sampling_y_row = fn.row_create(sampling_points_ymesh)
-sampling_coord = np.vstack((sampling_x_row, sampling_y_row))
+sampling_xy = np.vstack((sampling_x_row, sampling_y_row))
 
+# ------------------------------------------End of Sampling Points Creation
+
+# ------------------------------------------Start of Posterior Tabulation
+
+# Generate auto-covariance function from the data set
+cov_dd = fast_matern_2d(sigma_optimal, length_optimal, xy_quad, xy_quad)
+cov_noise = np.eye(cov_dd.shape[0]) * (noise_optimal ** 2)
+cov_overall = cov_dd + cov_noise
+prior_mean = mean_func_scalar(mean_optimal, xy_quad)
+prior_mismatch = k_quad - prior_mean
+
+# Initialise mean_posterior and var_posterior array
+mean_posterior = np.zeros(sampling_xy.shape[1])
+var_posterior = np.zeros(sampling_xy.shape[1])
 
 # Generate mean and covariance array
-for i in range(sampling_coord.shape[1]):
+for i in range(sampling_xy.shape[1]):
 
     # Generate status output
     if i % 50 == 0:  # if i is a multiple of 50,
         print('Tabulating Prediction Point', i)
 
-    # Extract one data point
-    xy_star = sampling_coord[:, i]
-    C_star_d = fast_matern_2d(sigma_optimal)
-    C_star_star = matern_2d(matern_v, sigma_optimal, length_optimal, xy_star, xy_star)
-    mean_posterior[i] = mu_post(xy_star, C_dd_noise, C_star_d, prior_mismatch)
-    cov_posterior[i] = cov_post(C_star_star, C_star_d, C_dd_noise)
+    # At each data point,
+    xy_star = sampling_xy[:, i]
+    cov_star_d = fast_matern_2d(sigma_optimal, length_optimal, xy_star, xy_quad)  # Cross-covariance Matrix
+
+    # auto-covariance between the same data point - adaptive function for both scalar and vectors
+    cov_star_star = matern_2d(3/2, sigma_optimal, length_optimal, xy_star, xy_star)
+
+    # Generate Posterior Mean and Variance
+    mean_posterior[i] = mu_post(xy_star, cov_overall, cov_star_d, prior_mismatch)
+    var_posterior[i] = cov_post(cov_star_star, cov_star_d, cov_overall)
 
 
 sampling_x_2d = sampling_x_row.reshape(intervals, intervals)
 sampling_y_2d = sampling_y_row.reshape(intervals, intervals)
 mean_posterior_2d = mean_posterior.reshape(intervals, intervals)
-cov_posterior_2d = cov_posterior.reshape(intervals, intervals)
+cov_posterior_2d = var_posterior.reshape(intervals, intervals)
 
+# ------------------------------------------End of Posterior Tabulation
 
-fig_pp_data = plt.figure(1)
-
-data_transform = fig_pp_data.add_subplot(121)  # Transformed Data Scatter
-data_transform.scatter(x_transform, y_transform, color='darkblue', marker='.')
-data_transform.set_title('Rotated Data Set' + '(Theta = %s) ' % theta)
-data_transform.set_xlabel('x-axis')
-data_transform.set_ylabel('y-axis')
-data_transform.grid(True)
-
-bin_plot = fig_pp_data.add_subplot(122, projection='3d')
-bin_plot.scatter(xv_transform_row, yv_transform_row, histo, color='darkblue', marker='.')
-bin_plot.set_title('3-D Binned Plot')
-bin_plot.set_xlabel('x-axis')
-bin_plot.set_ylabel('y-axis')
-bin_plot.grid(True)
-
-fig_pp_pred = plt.figure(2)
-
-post_mean_plot = fig_pp_pred.add_subplot(221, projection='3d')
-post_mean_plot.plot_surface(sampling_x_2d, sampling_y_2d, mean_posterior_2d, cmap='RdBu')
-# post_mean_plot.plot_wireframe(sampling_x_2d, sampling_y_2d, mean_posterior_2d, color='darkblue')
-post_mean_plot.set_title('Posterior Mean 3D-Plot')
-post_mean_plot.set_xlabel('x-axis')
-post_mean_plot.set_ylabel('y-axis')
-post_mean_plot.set_zlabel('mean-axis')
-post_mean_plot.grid(True)
-
-post_cov_plot = fig_pp_pred.add_subplot(222, projection='3d')
-post_cov_plot.plot_surface(sampling_x_2d, sampling_y_2d, cov_posterior_2d, cmap='RdBu')
-post_cov_plot.set_title('Posterior Covariance 3D-Plot')
-post_cov_plot.set_xlabel('x-axis')
-post_cov_plot.set_ylabel('y-axis')
-post_cov_plot.set_zlabel('covariance-axis')
-post_cov_plot.grid(True)
-
-post_mean_color = fig_pp_pred.add_subplot(223)
+# ------------------------------------------Start of Plots
+fig_post = plt.figure()
+post_mean_color = fig_post.add_subplot(121)
 post_mean_color.pcolor(sampling_points_x, sampling_points_y, mean_posterior_2d, cmap='RdBu')
 post_mean_color.set_title('Posterior Mean Color Map')
 post_mean_color.set_xlabel('x-axis')
 post_mean_color.set_ylabel('y-axis')
 post_mean_color.grid(True)
 
-post_cov_color = fig_pp_pred.add_subplot(224)
+post_cov_color = fig_post.add_subplot(122)
 post_cov_color.pcolor(sampling_points_x, sampling_points_y, cov_posterior_2d, cmap='RdBu')
 post_cov_color.set_title('Posterior Covariance Color Map')
 post_cov_color.set_xlabel('x-axis')
 post_cov_color.set_ylabel('y-axis')
 post_cov_color.grid(True)
 
-wireframes = plt.figure(3)
-
-post_mean_wire = wireframes.add_subplot(121, projection='3d')
-post_mean_wire.plot_surface(sampling_x_2d, sampling_y_2d, mean_posterior_2d, cmap='RdBu')
-post_mean_wire.set_title('Posterior Mean')
-post_mean_wire.set_xlabel('x-axis')
-post_mean_wire.set_ylabel('y-axis')
-post_mean_wire.grid(True)
-
-post_cov_wire = wireframes.add_subplot(122, projection='3d')
-post_cov_wire.plot_surface(sampling_x_2d, sampling_y_2d, cov_posterior_2d, cmap = 'RdBu')
-post_cov_wire.set_title('Posterior Covariance')
-post_cov_wire.set_xlabel('x-axis')
-post_cov_wire.set_ylabel('y-axis')
-post_cov_wire.grid(True)
-
+# ------------------------------------------Start of Plots
 plt.show()
-
-"""

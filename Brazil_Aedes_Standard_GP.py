@@ -152,7 +152,7 @@ def mu_post(xy_next, c_auto, c_cross, mismatch):  # Posterior mean
         return mean_post
 
 
-def cov_post(c_next_auto, c_cross, c_auto):  # Posterior Covariance
+def var_post(c_next_auto, c_cross, c_auto):  # Posterior Covariance
     c_post = c_next_auto - fn.matmulmul(c_cross, np.linalg.inv(c_auto), np.transpose(c_cross))
     return c_post
 
@@ -405,7 +405,7 @@ for i in range(sampling_xy.shape[1]):
 
     # Generate Posterior Mean and Variance
     mean_posterior[i] = mu_post(xy_star, cov_overall, cov_star_d, prior_mismatch)
-    var_posterior[i] = cov_post(cov_star_star, cov_star_d, cov_overall)
+    var_posterior[i] = var_post(cov_star_star, cov_star_d, cov_overall)
 
 
 sampling_x_2d = sampling_x_row.reshape(intervals, intervals)

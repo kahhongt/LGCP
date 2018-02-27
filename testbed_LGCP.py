@@ -407,7 +407,7 @@ print('TIme Taken for hyper-parameter optimization = ', time_gp_opt)
 # Define number of points for y_*
 intervals = 20
 
-cut_decision = 'no'
+cut_decision = 'yes'
 if cut_decision == 'yes':
     # Define sampling points beyond the data set
     cut_off_x = (x_upper - x_lower) / (intervals * 2)

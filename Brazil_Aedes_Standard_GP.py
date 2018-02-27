@@ -422,34 +422,33 @@ start_opt = time.clock()
 
 # Decide on optimization method
 opt_method = 'fast'
-
+"""
 # No bounds needed for Nelder-Mead Simplex Algorithm
 if opt_method == 'nelder-mead':
     # Initialise parameters to be optimized - could have used Latin-Hypercube
     initial_param = np.array([20, 5, 5, 20])  # Sigma amplitude, length scale, noise amplitude and scalar mean
-    solution = scopt.minimize(fun=log_gp_likelihood_zero_mean, args=xyz_data, x0=initial_param, method='Nelder-Mead')
+    hyperparam_solution = scopt.minimize(fun=log_gp_likelihood_zero_mean, args=xyz_data, x0=initial_param, 
+                                         method='Nelder-Mead')
 
 # Differential Evolution Method - which can be shown to give the same result as Nelder-Mead
 elif opt_method == 'differential_evolution':
     # boundary = [(20, 40), (0, 5), (0, 10), (20, 30)]  # if zero mean, the last element of tuple will not be used
     boundary = [(0, 30), (0, 10), (0, 10)]  # for zero mean
-    solution = scopt.differential_evolution(func=log_gp_likelihood_zero_mean, bounds=boundary, args=xyz_data,
-                                            init='latinhypercube')
+    hyperparam_solution = scopt.differential_evolution(func=log_gp_likelihood_zero_mean, bounds=boundary, args=xyz_data, 
+                                                       init='latinhypercube')
+"""
 
 # This method uses the log-det which is much faster - and is also able to calculate the scalar mean
-elif opt_method == 'fast':
-    initial_hyperparam = np.array([1, 1, 1, 1])  # Note that this initial condition should be close to actual
-    # Set up tuple for arguments
-    args_hyperparam = (xy_quad, k_quad)
-    # Start Optimization Algorithm for GP Hyperparameters
-    hyperparam_solution = scopt.minimize(fun=short_log_integrand_data, args=args_hyperparam, x0=initial_hyperparam,
-                                         method='Nelder-Mead',
-                                         options={'xatol': 1, 'fatol': 1, 'disp': True, 'maxfev': 100})
-    # Limits to iteration are taken
-
+initial_hyperparam = np.array([3, 2, 1, 1])  # Note that this initial condition should be close to actual
+# Set up tuple for arguments
+args_hyperparam = (xy_quad, k_quad)
+# Start Optimization Algorithm for GP Hyperparameters
+hyperparam_solution = scopt.minimize(fun=short_log_integrand_data, args=args_hyperparam, x0=initial_hyperparam,
+                                     method='Nelder-Mead',
+                                     options={'xatol': 1, 'fatol': 1, 'disp': True, 'maxfev': 100})
 
 # List optimal hyper-parameters
-sigma_optimal = hyperparam_solution.x[0]
+sigma_optimal = hyperparam_solution.x[1]
 length_optimal = hyperparam_solution.x[1]
 noise_optimal = hyperparam_solution.x[2]
 mean_optimal = hyperparam_solution.x[3]
@@ -466,7 +465,7 @@ time_opt = end_opt - start_opt
 # ------------------------------------------Start of Sampling Points Creation
 
 # Define number of points for y_*
-intervals = 20
+intervals = 50
 
 cut_decision = 'yes'
 if cut_decision == 'yes':
@@ -477,9 +476,10 @@ else:
     cut_off_x = 0
     cut_off_y = 0
 
+intervals_final = intervals + 1
 # Expressing posterior away from the data set by the cut-off values
-sampling_points_x = np.linspace(x_lower - cut_off_x, x_upper + cut_off_x, intervals)
-sampling_points_y = np.linspace(y_lower - cut_off_y, y_upper + cut_off_y, intervals)
+sampling_points_x = np.linspace(x_lower - cut_off_x, x_upper + cut_off_x, intervals_final)
+sampling_points_y = np.linspace(y_lower - cut_off_y, y_upper + cut_off_y, intervals_final)
 
 # Centralising coordinates so that we tabulate values at centre of quad
 # sampling_half_length = 0.5 * (x_upper - x_lower) / intervals
@@ -527,15 +527,15 @@ for i in range(sampling_xy.shape[1]):
     var_posterior[i] = var_post(cov_star_star, cov_star_d, cov_overall)
 
 
-sampling_x_2d = sampling_x_row.reshape(intervals, intervals)
-sampling_y_2d = sampling_y_row.reshape(intervals, intervals)
-mean_posterior_2d = mean_posterior.reshape(intervals, intervals)
-var_posterior_2d = var_posterior.reshape(intervals, intervals)
+sampling_x_2d = sampling_x_row.reshape(intervals_final, intervals_final)
+sampling_y_2d = sampling_y_row.reshape(intervals_final, intervals_final)
+mean_posterior_2d = mean_posterior.reshape(intervals_final, intervals_final)
+var_posterior_2d = var_posterior.reshape(intervals_final, intervals_final)
 sd_posterior_2d = np.sqrt(var_posterior_2d)
 
 end_posterior = time.clock()
-print('Time taken for optimization is', time_opt)
-print('Time taken for Posterior Tabulation = ', end_posterior - start_posterior)
+print('Time taken for optimization =', time_opt)
+print('Time taken for Posterior Tabulation =', end_posterior - start_posterior)
 # ------------------------------------------End of Posterior Tabulation
 
 # ------------------------------------------Start of Test Space
@@ -543,6 +543,7 @@ print('Time taken for Posterior Tabulation = ', end_posterior - start_posterior)
 # ------------------------------------------End of Test Space
 
 # ------------------------------------------Start of Plots
+start_plot = time.clock()
 fig_post = plt.figure()
 post_mean_color = fig_post.add_subplot(121)
 post_mean_color.pcolor(sampling_points_x, sampling_points_y, mean_posterior_2d, cmap='YlOrBr')
@@ -559,6 +560,7 @@ post_sd_color.set_title('Posterior Standard Deviation')
 post_sd_color.set_xlabel('UTM Horizontal Coordinate')
 post_sd_color.set_ylabel('UTM Vertical Coordinate')
 # post_cov_color.grid(True)
-
+end_plot = time.clock()
+print('Time taken for plotting =', end_plot - start_plot)
 # ------------------------------------------End of Plots
 plt.show()

@@ -7,6 +7,7 @@ matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import scipy.optimize as scopt
+import time
 
 """Methodology for Conducting Gaussian Regression for 2-D"""
 
@@ -293,7 +294,7 @@ print(x_within_window.shape)
 print(y_within_window.shape)
 
 # First conduct a regression on the 2014 data set
-quads_on_side = 10  # define the number of quads along each dimension
+quads_on_side = 20  # define the number of quads along each dimension
 # histo, x_edges, y_edges = np.histogram2d(theft_x, theft_y, bins=quads_on_side)  # create histogram
 histo, y_edges, x_edges = np.histogram2d(y_within_window, x_within_window, bins=quads_on_side)
 x_mesh, y_mesh = np.meshgrid(x_edges, y_edges)  # creating mesh-grid for use
@@ -372,47 +373,64 @@ print('The shape of histogram array is ', k_quad.shape)  # should be the square 
 # Initialise arguments to be entered into objective function
 xyz_data = (xy_quad, k_quad)
 
+# Check time for optimization process
+start_opt = time.clock()
+
 # Decide on optimization method
 opt_method = 'differential_evolution'
 
 # No bounds needed for Nelder-Mead Simplex Algorithm
 if opt_method == 'nelder-mead':
     # Initialise parameters to be optimized - could have used Latin-Hypercube
-    initial_param = np.array([10, 10, 10, 10])  # Sigma amplitude, length scale, noise amplitude and scalar mean
+    initial_param = np.array([20, 5, 5, 20])  # Sigma amplitude, length scale, noise amplitude and scalar mean
     solution = scopt.minimize(fun=log_gp_likelihood_zero_mean, args=xyz_data, x0=initial_param, method='Nelder-Mead')
 
 # Differential Evolution Method - which can be shown to give the same result as Nelder-Mead
 elif opt_method == 'differential_evolution':
-    boundary = [(0, 50), (0, 30), (0, 30), (0, 30)]  # if zero mean, the last element of tuple will not be used
-    solution = scopt.differential_evolution(func=log_gp_likelihood, bounds=boundary, args=xyz_data,
+    # boundary = [(20, 40), (0, 5), (0, 10), (20, 30)]  # if zero mean, the last element of tuple will not be used
+    boundary = [(20, 40), (0, 5), (0, 10)]  # for zero mean
+    solution = scopt.differential_evolution(func=log_gp_likelihood_zero_mean, bounds=boundary, args=xyz_data,
                                             init='latinhypercube')
 
 # List optimal hyper-parameters
 sigma_optimal = solution.x[0]
 length_optimal = solution.x[1]
 noise_optimal = solution.x[2]
-mean_optimal = solution.x[3]
+# mean_optimal = solution.x[3]
 print('Last function evaluation is ', solution.fun)
 print('optimal sigma is ', sigma_optimal)
 print('optimal length-scale is ', length_optimal)
 print('optimal noise amplitude is ', noise_optimal)
-print('optimal scalar mean value is ', mean_optimal)
+# print('optimal scalar mean value is ', mean_optimal)
 
+end_opt = time.clock()
+time_opt = end_opt - start_opt
+print(time_opt)
 # ------------------------------------------End of Hyper-parameter Optimization
 
 # ------------------------------------------Start of Sampling Points Creation
 
 # Define number of points for y_*
-intervals = 50
+intervals = 20
 
-# Define sampling points beyond the data set
-cut_off_x = (np.max(x_quad) - np.min(x_quad)) / 2
-cut_off_y = (np.max(y_quad) - np.min(y_quad)) / 2
+cut_decision = 'no'
+if cut_decision == 'yes':
+    # Define sampling points beyond the data set
+    cut_off_x = (np.max(x_quad) - np.min(x_quad)) / 2
+    cut_off_y = (np.max(y_quad) - np.min(y_quad)) / 2
+
+else:
+    cut_off_x = 0
+    cut_off_y = 0
 
 # Expressing posterior away from the data set by the cut-off values
 sampling_points_x = np.linspace(np.min(x_quad) - cut_off_x, np.max(x_quad) + cut_off_x, intervals)
 sampling_points_y = np.linspace(np.min(y_quad) - cut_off_y, np.max(y_quad) + cut_off_y, intervals)
 
+# Centralising coordinates so that we tabulate values at centre of quad
+sampling_half_length = 0.5 * (np.max(x_quad) - np.min(x_quad))
+sampling_points_x = sampling_points_x + sampling_half_length
+sampling_points_y = sampling_points_y + sampling_half_length
 
 # Create iteration for coordinates using mesh-grid - for plotting
 sampling_points_xmesh, sampling_points_ymesh = np.meshgrid(sampling_points_x, sampling_points_y)
@@ -428,7 +446,7 @@ sampling_xy = np.vstack((sampling_x_row, sampling_y_row))
 cov_dd = fast_matern_2d(sigma_optimal, length_optimal, xy_quad, xy_quad)
 cov_noise = np.eye(cov_dd.shape[0]) * (noise_optimal ** 2)
 cov_overall = cov_dd + cov_noise
-prior_mean = mean_func_scalar(mean_optimal, xy_quad)
+prior_mean = mean_func_scalar(0, xy_quad)
 prior_mismatch = k_quad - prior_mean
 
 # Initialise mean_posterior and var_posterior array
@@ -444,7 +462,7 @@ for i in range(sampling_xy.shape[1]):
 
     # At each data point,
     xy_star = sampling_xy[:, i]
-    cov_star_d = matern_2d(sigma_optimal, length_optimal, xy_star, xy_quad)  # Cross-covariance Matrix
+    cov_star_d = matern_2d(3/2, sigma_optimal, length_optimal, xy_star, xy_quad)  # Cross-covariance Matrix
 
     # auto-covariance between the same data point - adaptive function for both scalar and vectors
     cov_star_star = matern_2d(3/2, sigma_optimal, length_optimal, xy_star, xy_star)
@@ -464,14 +482,14 @@ cov_posterior_2d = var_posterior.reshape(intervals, intervals)
 # ------------------------------------------Start of Plots
 fig_post = plt.figure()
 post_mean_color = fig_post.add_subplot(121)
-post_mean_color.pcolor(sampling_points_x, sampling_points_y, mean_posterior_2d, cmap='RdBu')
+post_mean_color.pcolor(sampling_points_x, sampling_points_y, mean_posterior_2d, cmap='YlOrBr')
 post_mean_color.set_title('Posterior Mean Color Map')
 post_mean_color.set_xlabel('x-axis')
 post_mean_color.set_ylabel('y-axis')
 post_mean_color.grid(True)
 
 post_cov_color = fig_post.add_subplot(122)
-post_cov_color.pcolor(sampling_points_x, sampling_points_y, cov_posterior_2d, cmap='RdBu')
+post_cov_color.pcolor(sampling_points_x, sampling_points_y, cov_posterior_2d, cmap='YlOrBr')
 post_cov_color.set_title('Posterior Covariance Color Map')
 post_cov_color.set_xlabel('x-axis')
 post_cov_color.set_ylabel('y-axis')

@@ -388,7 +388,7 @@ if opt_method == 'nelder-mead':
 # Differential Evolution Method - which can be shown to give the same result as Nelder-Mead
 elif opt_method == 'differential_evolution':
     # boundary = [(20, 40), (0, 5), (0, 10), (20, 30)]  # if zero mean, the last element of tuple will not be used
-    boundary = [(20, 40), (0, 5), (0, 10)]  # for zero mean
+    boundary = [(0, 30), (0, 10), (0, 10)]  # for zero mean
     solution = scopt.differential_evolution(func=log_gp_likelihood_zero_mean, bounds=boundary, args=xyz_data,
                                             init='latinhypercube')
 
@@ -475,7 +475,9 @@ for i in range(sampling_xy.shape[1]):
 sampling_x_2d = sampling_x_row.reshape(intervals, intervals)
 sampling_y_2d = sampling_y_row.reshape(intervals, intervals)
 mean_posterior_2d = mean_posterior.reshape(intervals, intervals)
-cov_posterior_2d = var_posterior.reshape(intervals, intervals)
+var_posterior_2d = var_posterior.reshape(intervals, intervals)
+sd_posterior_2d = np.sqrt(var_posterior_2d)
+
 
 # ------------------------------------------End of Posterior Tabulation
 
@@ -483,17 +485,19 @@ cov_posterior_2d = var_posterior.reshape(intervals, intervals)
 fig_post = plt.figure()
 post_mean_color = fig_post.add_subplot(121)
 post_mean_color.pcolor(sampling_points_x, sampling_points_y, mean_posterior_2d, cmap='YlOrBr')
-post_mean_color.set_title('Posterior Mean Color Map')
-post_mean_color.set_xlabel('x-axis')
-post_mean_color.set_ylabel('y-axis')
-post_mean_color.grid(True)
+post_mean_color.scatter(x_quad, y_quad, marker='o', color='black', s=0.3)
+post_mean_color.set_title('Posterior Mean')
+post_mean_color.set_xlabel('UTM Horizontal Coordinate')
+post_mean_color.set_ylabel('UTM Vertical Coordinate')
+# post_mean_color.grid(True)
 
-post_cov_color = fig_post.add_subplot(122)
-post_cov_color.pcolor(sampling_points_x, sampling_points_y, cov_posterior_2d, cmap='YlOrBr')
-post_cov_color.set_title('Posterior Covariance Color Map')
-post_cov_color.set_xlabel('x-axis')
-post_cov_color.set_ylabel('y-axis')
-post_cov_color.grid(True)
+post_sd_color = fig_post.add_subplot(122)
+post_sd_color.pcolor(sampling_points_x, sampling_points_y, sd_posterior_2d, cmap='YlOrBr')
+post_sd_color.scatter(x_quad, y_quad, marker='o', color='black', s=0.3)
+post_sd_color.set_title('Posterior Standard Deviation')
+post_sd_color.set_xlabel('UTM Horizontal Coordinate')
+post_sd_color.set_ylabel('UTM Vertical Coordinate')
+# post_cov_color.grid(True)
 
-# ------------------------------------------Start of Plots
+# ------------------------------------------End of Plots
 plt.show()

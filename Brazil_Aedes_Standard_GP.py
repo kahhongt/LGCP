@@ -196,6 +196,43 @@ def log_gp_likelihood(param, *args):  # Param includes both sigma and l, arg is 
     return -log_model_evid
 
 
+# For the case where gaussian prior with zero mean is assumed
+def log_gp_likelihood_zero_mean(param, *args):
+    """
+    Log marginal likelihood which is taken as the objective function for the optimization of the hyper-parameters,
+    assuming a zero prior mean.
+    :param param: sigma amplitude, length scale and noise
+    :param args: coordinates of each quad and histogram data
+    :return: the negative of the log marginal likelihood for optimization using Nelder-Mead/ DE
+    """
+    # Define parameters to be optimised
+    sigma = param[0]  # param is a tuple containing 2 things, which has already been defined in the function def
+    length = param[1]
+    noise = param[2]  # Over here we have defined each parameter in the tuple, include noise
+
+    # Define arguments to be entered
+    xy_coordinates = args[0]  # This argument is a constant passed into the function
+    histogram_data = args[1]  # Have to enter histogram data as well
+
+    # Tabulate prior mean as a scalar to be optimized
+    prior_mu = mean_func_zero(xy_coordinates)  # This creates a matrix with 2 rows
+
+    # Tabulate auto-covariance matrix using fast matern function plus noise
+    c_auto = fast_matern_2d(sigma, length, xy_coordinates, xy_coordinates)
+    c_noise = np.eye(c_auto.shape[0]) * (noise ** 2)  # Fronecker delta function
+    c_overall = c_auto + c_noise
+
+    # 3 components to log_gp_likelihood: model_fit, model_complexity and model_constant
+    model_fit = - 0.5 * fn.matmulmul(histogram_data - prior_mu, np.linalg.inv(c_overall),
+                                     np.transpose(histogram_data - prior_mu))
+    model_complexity = - 0.5 * math.log(np.linalg.det(c_overall))
+    model_constant = - 0.5 * len(histogram_data) * math.log(2*np.pi)
+    log_model_evid = model_fit + model_complexity + model_constant
+
+    # Taking the minimum of the negative log_gp_likelihood, to obtain the maximum of log_gp_likelihood
+    return -log_model_evid
+
+
 # ------------------------------------------Start of Data Collection
 
 # Aedes Occurrences in Brazil
@@ -256,7 +293,7 @@ print(x_within_window.shape)
 print(y_within_window.shape)
 
 # First conduct a regression on the 2014 data set
-quads_on_side = 20  # define the number of quads along each dimension
+quads_on_side = 10  # define the number of quads along each dimension
 # histo, x_edges, y_edges = np.histogram2d(theft_x, theft_y, bins=quads_on_side)  # create histogram
 histo, y_edges, x_edges = np.histogram2d(y_within_window, x_within_window, bins=quads_on_side)
 x_mesh, y_mesh = np.meshgrid(x_edges, y_edges)  # creating mesh-grid for use
@@ -332,14 +369,23 @@ print('The shape of quad coordinates are ', xy_quad_all.shape)
 print('The histogram array is ', k_quad)
 print('The shape of histogram array is ', k_quad.shape)  # should be the square of the number of quads on side
 
-# Initialise parameters to be optimized - could have used Latin-Hypercube
-initial_param = np.array([10, 10, 10, 10])  # Sigma amplitude, length scale, noise amplitude and scalar mean
-
 # Initialise arguments to be entered into objective function
 xyz_data = (xy_quad, k_quad)
 
+# Decide on optimization method
+opt_method = 'differential_evolution'
+
 # No bounds needed for Nelder-Mead Simplex Algorithm
-solution = scopt.minimize(fun=log_gp_likelihood, args=xyz_data, x0=initial_param, method='Nelder-Mead')
+if opt_method == 'nelder-mead':
+    # Initialise parameters to be optimized - could have used Latin-Hypercube
+    initial_param = np.array([10, 10, 10, 10])  # Sigma amplitude, length scale, noise amplitude and scalar mean
+    solution = scopt.minimize(fun=log_gp_likelihood_zero_mean, args=xyz_data, x0=initial_param, method='Nelder-Mead')
+
+# Differential Evolution Method - which can be shown to give the same result as Nelder-Mead
+elif opt_method == 'differential_evolution':
+    boundary = [(0, 50), (0, 30), (0, 30), (0, 30)]  # if zero mean, the last element of tuple will not be used
+    solution = scopt.differential_evolution(func=log_gp_likelihood, bounds=boundary, args=xyz_data,
+                                            init='latinhypercube')
 
 # List optimal hyper-parameters
 sigma_optimal = solution.x[0]
@@ -398,7 +444,7 @@ for i in range(sampling_xy.shape[1]):
 
     # At each data point,
     xy_star = sampling_xy[:, i]
-    cov_star_d = fast_matern_2d(sigma_optimal, length_optimal, xy_star, xy_quad)  # Cross-covariance Matrix
+    cov_star_d = matern_2d(sigma_optimal, length_optimal, xy_star, xy_quad)  # Cross-covariance Matrix
 
     # auto-covariance between the same data point - adaptive function for both scalar and vectors
     cov_star_star = matern_2d(3/2, sigma_optimal, length_optimal, xy_star, xy_star)

@@ -234,6 +234,50 @@ def log_gp_likelihood_zero_mean(param, *args):
     return -log_model_evid
 
 
+def short_log_integrand_data(param, *args):
+    """
+    1. Shorter version that tabulates only the log of the GP prior. Includes only terms
+    containing the covariance matrix elements that are made up of the kernel hyper-parameters
+    2. Kernel: Matern(3/2)
+    3. Assume a constant latent intensity, even at locations without any incidences
+    :param param: hyperparameters - sigma, length scale and noise, prior scalar mean - array of 4 elements
+    :param args: xy coordinates for input into the covariance function and the histogram
+    :return: the log of the GP Prior, log[N(prior mean, covariance matrix)]
+    """
+    # Generate Matern Covariance Matrix
+    # Enter parameters
+    sigma = param[0]
+    length = param[1]
+    noise = param[2]
+    scalar_mean = param[3]
+
+    # Enter Arguments
+    xy_coordinates = args[0]
+    v_array = args[1]  # Note that this is refers to the optimised log-intensity array
+
+    # Set up inputs for generation of objective function
+    prior_mean = mean_func_scalar(scalar_mean, xy_coordinates)
+    c_auto = fast_matern_2d(sigma, length, xy_coordinates, xy_coordinates)
+    c_noise = np.eye(c_auto.shape[0]) * (noise ** 2)  # Fro-necker delta function
+    cov_matrix = c_auto + c_noise
+
+    """Generate Objective Function = log[g(v)]"""
+
+    # Generate Determinant Term (after taking log)
+    determinant = np.exp(np.linalg.slogdet(cov_matrix))[1]
+    det_term = -0.5 * np.log(2 * np.pi * determinant)
+
+    # Generate Euclidean Term (after taking log)
+    v_difference = v_array - prior_mean
+    inv_covariance_matrix = np.linalg.inv(cov_matrix)
+    euclidean_term = -0.5 * fn.matmulmul(v_difference, inv_covariance_matrix, np.transpose(v_difference))
+
+    """Summation of all terms change to correct form to find minimum point"""
+    log_gp = det_term + euclidean_term
+    log_gp_minimization = -1 * log_gp  # Make the function convex for minimization
+    return log_gp_minimization
+
+
 # ------------------------------------------Start of Data Collection
 
 # Aedes Occurrences in Brazil
@@ -377,7 +421,7 @@ xyz_data = (xy_quad, k_quad)
 start_opt = time.clock()
 
 # Decide on optimization method
-opt_method = 'differential_evolution'
+opt_method = 'fast'
 
 # No bounds needed for Nelder-Mead Simplex Algorithm
 if opt_method == 'nelder-mead':
@@ -392,11 +436,24 @@ elif opt_method == 'differential_evolution':
     solution = scopt.differential_evolution(func=log_gp_likelihood_zero_mean, bounds=boundary, args=xyz_data,
                                             init='latinhypercube')
 
+# This method uses the log-det which is much faster - and is also able to calculate the scalar mean
+elif opt_method == 'fast':
+    initial_hyperparam = np.array([1, 1, 1, 1])
+    # Set up tuple for arguments
+    args_hyperparam = (xy_quad, k_quad)
+
+    # Start Optimization Algorithm for GP Hyperparameters
+    hyperparam_solution = scopt.minimize(fun=short_log_integrand_data, args=args_hyperparam, x0=initial_hyperparam,
+                                         method='Nelder-Mead',
+                                         options={'xatol': 1, 'fatol': 1, 'disp': True, 'maxfev': 1000})
+    # Limits to iteration are taken
+
+
 # List optimal hyper-parameters
 sigma_optimal = solution.x[0]
 length_optimal = solution.x[1]
 noise_optimal = solution.x[2]
-# mean_optimal = solution.x[3]
+mean_optimal = solution.x[3]
 print('Last function evaluation is ', solution.fun)
 print('optimal sigma is ', sigma_optimal)
 print('optimal length-scale is ', length_optimal)

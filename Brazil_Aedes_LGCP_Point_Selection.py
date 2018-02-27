@@ -326,7 +326,7 @@ def short_log_integrand_v(param, *args):
     containing the covariance matrix elements that are made up of the kernel hyper-parameters
     2. Kernel: Matern(3/2)
     3. Assume a constant latent intensity, even at locations without any incidences
-    :param param: v_array, hyperparameters - sigma, length scale and noise, prior scalar mean - array of 4 elements
+    :param param: hyperparameters - sigma, length scale and noise, prior scalar mean - array of 4 elements
     :param args: xy coordinates for input into the covariance function and the optimised v_array
     :return: the log of the GP Prior, log[N(prior mean, covariance matrix)]
     """

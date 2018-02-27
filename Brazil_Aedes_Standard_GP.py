@@ -334,11 +334,11 @@ y_window = (y_values > y_lower) & (y_values < y_upper)
 x_within_window = x_values[x_window & y_window]
 y_within_window = y_values[x_window & y_window]
 
-print(x_within_window.shape)
-print(y_within_window.shape)
+print('Number of scatter points = ', x_within_window.shape)
+print('Number of scatter points = ', y_within_window.shape)
 
 # First conduct a regression on the 2014 data set
-quads_on_side = 20  # define the number of quads along each dimension
+quads_on_side = 10  # define the number of quads along each dimension
 # histo, x_edges, y_edges = np.histogram2d(theft_x, theft_y, bins=quads_on_side)  # create histogram
 histo, y_edges, x_edges = np.histogram2d(y_within_window, x_within_window, bins=quads_on_side)
 x_mesh, y_mesh = np.meshgrid(x_edges, y_edges)  # creating mesh-grid for use
@@ -438,56 +438,54 @@ elif opt_method == 'differential_evolution':
 
 # This method uses the log-det which is much faster - and is also able to calculate the scalar mean
 elif opt_method == 'fast':
-    initial_hyperparam = np.array([1, 1, 1, 1])
+    initial_hyperparam = np.array([30, 10, 10, 10])
     # Set up tuple for arguments
     args_hyperparam = (xy_quad, k_quad)
 
     # Start Optimization Algorithm for GP Hyperparameters
     hyperparam_solution = scopt.minimize(fun=short_log_integrand_data, args=args_hyperparam, x0=initial_hyperparam,
                                          method='Nelder-Mead',
-                                         options={'xatol': 1, 'fatol': 1, 'disp': True, 'maxfev': 1000})
+                                         options={'xatol': 1, 'fatol': 1, 'disp': True, 'maxfev': 100})
     # Limits to iteration are taken
 
 
 # List optimal hyper-parameters
-sigma_optimal = solution.x[0]
-length_optimal = solution.x[1]
-noise_optimal = solution.x[2]
-mean_optimal = solution.x[3]
-print('Last function evaluation is ', solution.fun)
+sigma_optimal = hyperparam_solution.x[0]
+length_optimal = hyperparam_solution.x[1]
+noise_optimal = hyperparam_solution.x[2]
+mean_optimal = hyperparam_solution.x[3]
+print('Last function evaluation is ', hyperparam_solution.fun)
 print('optimal sigma is ', sigma_optimal)
 print('optimal length-scale is ', length_optimal)
 print('optimal noise amplitude is ', noise_optimal)
-# print('optimal scalar mean value is ', mean_optimal)
+print('optimal scalar mean value is ', mean_optimal)
 
 end_opt = time.clock()
 time_opt = end_opt - start_opt
-print(time_opt)
 # ------------------------------------------End of Hyper-parameter Optimization
 
 # ------------------------------------------Start of Sampling Points Creation
 
 # Define number of points for y_*
-intervals = 20
+intervals = 10
 
-cut_decision = 'no'
+cut_decision = 'yes'
 if cut_decision == 'yes':
     # Define sampling points beyond the data set
-    cut_off_x = (np.max(x_quad) - np.min(x_quad)) / 2
-    cut_off_y = (np.max(y_quad) - np.min(y_quad)) / 2
-
+    cut_off_x = (x_upper - x_lower) / intervals
+    cut_off_y = (y_upper - y_lower) / intervals
 else:
     cut_off_x = 0
     cut_off_y = 0
 
 # Expressing posterior away from the data set by the cut-off values
-sampling_points_x = np.linspace(np.min(x_quad) - cut_off_x, np.max(x_quad) + cut_off_x, intervals)
-sampling_points_y = np.linspace(np.min(y_quad) - cut_off_y, np.max(y_quad) + cut_off_y, intervals)
+sampling_points_x = np.linspace(x_lower - cut_off_x, x_upper + cut_off_x, intervals)
+sampling_points_y = np.linspace(y_lower - cut_off_y, y_upper + cut_off_y, intervals)
 
 # Centralising coordinates so that we tabulate values at centre of quad
-sampling_half_length = 0.5 * (np.max(x_quad) - np.min(x_quad))
-sampling_points_x = sampling_points_x + sampling_half_length
-sampling_points_y = sampling_points_y + sampling_half_length
+# sampling_half_length = 0.5 * (x_upper - x_lower) / intervals
+# sampling_points_x = sampling_points_x + sampling_half_length
+# sampling_points_y = sampling_points_y + sampling_half_length
 
 # Create iteration for coordinates using mesh-grid - for plotting
 sampling_points_xmesh, sampling_points_ymesh = np.meshgrid(sampling_points_x, sampling_points_y)
@@ -498,6 +496,7 @@ sampling_xy = np.vstack((sampling_x_row, sampling_y_row))
 # ------------------------------------------End of Sampling Points Creation
 
 # ------------------------------------------Start of Posterior Tabulation
+start_posterior = time.clock()
 
 # Generate auto-covariance function from the data set
 cov_dd = fast_matern_2d(sigma_optimal, length_optimal, xy_quad, xy_quad)
@@ -514,7 +513,7 @@ var_posterior = np.zeros(sampling_xy.shape[1])
 for i in range(sampling_xy.shape[1]):
 
     # Generate status output
-    if i % 50 == 0:  # if i is a multiple of 50,
+    if i % 100 == 0:  # if i is a multiple of 50,
         print('Tabulating Prediction Point', i)
 
     # At each data point,
@@ -535,14 +534,20 @@ mean_posterior_2d = mean_posterior.reshape(intervals, intervals)
 var_posterior_2d = var_posterior.reshape(intervals, intervals)
 sd_posterior_2d = np.sqrt(var_posterior_2d)
 
-
+end_posterior = time.clock()
+print('Time taken for optimization is', time_opt)
+print('Time taken for Posterior Tabulation = ', end_posterior - start_posterior)
 # ------------------------------------------End of Posterior Tabulation
+
+# ------------------------------------------Start of Test Space
+
+# ------------------------------------------End of Test Space
 
 # ------------------------------------------Start of Plots
 fig_post = plt.figure()
 post_mean_color = fig_post.add_subplot(121)
 post_mean_color.pcolor(sampling_points_x, sampling_points_y, mean_posterior_2d, cmap='YlOrBr')
-post_mean_color.scatter(x_quad, y_quad, marker='o', color='black', s=0.3)
+post_mean_color.scatter(x_within_window, y_within_window, marker='o', color='black', s=0.3)
 post_mean_color.set_title('Posterior Mean')
 post_mean_color.set_xlabel('UTM Horizontal Coordinate')
 post_mean_color.set_ylabel('UTM Vertical Coordinate')
@@ -550,7 +555,7 @@ post_mean_color.set_ylabel('UTM Vertical Coordinate')
 
 post_sd_color = fig_post.add_subplot(122)
 post_sd_color.pcolor(sampling_points_x, sampling_points_y, sd_posterior_2d, cmap='YlOrBr')
-post_sd_color.scatter(x_quad, y_quad, marker='o', color='black', s=0.3)
+post_sd_color.scatter(x_within_window, y_within_window, marker='o', color='black', s=0.3)
 post_sd_color.set_title('Posterior Standard Deviation')
 post_sd_color.set_xlabel('UTM Horizontal Coordinate')
 post_sd_color.set_ylabel('UTM Vertical Coordinate')

@@ -253,10 +253,10 @@ def short_log_integrand_data(param, *args):
 
     # Enter Arguments
     xy_coordinates = args[0]
-    v_array = args[1]  # Note that this is refers to the optimised log-intensity array
+    data_array = args[1]  # Note that this is refers to the optimised log-intensity array
 
     # Set up inputs for generation of objective function
-    prior_mean = mean_func_scalar(scalar_mean, xy_coordinates)
+    p_mean = mean_func_scalar(scalar_mean, xy_coordinates)
     c_auto = fast_matern_2d(sigma, length, xy_coordinates, xy_coordinates)
     c_noise = np.eye(c_auto.shape[0]) * (noise ** 2)  # Fro-necker delta function
     cov_matrix = c_auto + c_noise
@@ -268,9 +268,9 @@ def short_log_integrand_data(param, *args):
     det_term = -0.5 * np.log(2 * np.pi * determinant)
 
     # Generate Euclidean Term (after taking log)
-    v_difference = v_array - prior_mean
+    data_diff = data_array - p_mean
     inv_covariance_matrix = np.linalg.inv(cov_matrix)
-    euclidean_term = -0.5 * fn.matmulmul(v_difference, inv_covariance_matrix, np.transpose(v_difference))
+    euclidean_term = -0.5 * fn.matmulmul(data_diff, inv_covariance_matrix, data_diff)
 
     """Summation of all terms change to correct form to find minimum point"""
     log_gp = det_term + euclidean_term
@@ -338,7 +338,7 @@ print('Number of scatter points = ', x_within_window.shape)
 print('Number of scatter points = ', y_within_window.shape)
 
 # First conduct a regression on the 2014 data set
-quads_on_side = 10  # define the number of quads along each dimension
+quads_on_side = 20  # define the number of quads along each dimension
 # histo, x_edges, y_edges = np.histogram2d(theft_x, theft_y, bins=quads_on_side)  # create histogram
 histo, y_edges, x_edges = np.histogram2d(y_within_window, x_within_window, bins=quads_on_side)
 x_mesh, y_mesh = np.meshgrid(x_edges, y_edges)  # creating mesh-grid for use
@@ -438,10 +438,9 @@ elif opt_method == 'differential_evolution':
 
 # This method uses the log-det which is much faster - and is also able to calculate the scalar mean
 elif opt_method == 'fast':
-    initial_hyperparam = np.array([30, 10, 10, 10])
+    initial_hyperparam = np.array([1, 1, 1, 1])  # Note that this initial condition should be close to actual
     # Set up tuple for arguments
     args_hyperparam = (xy_quad, k_quad)
-
     # Start Optimization Algorithm for GP Hyperparameters
     hyperparam_solution = scopt.minimize(fun=short_log_integrand_data, args=args_hyperparam, x0=initial_hyperparam,
                                          method='Nelder-Mead',
@@ -467,13 +466,13 @@ time_opt = end_opt - start_opt
 # ------------------------------------------Start of Sampling Points Creation
 
 # Define number of points for y_*
-intervals = 10
+intervals = 20
 
 cut_decision = 'yes'
 if cut_decision == 'yes':
     # Define sampling points beyond the data set
-    cut_off_x = (x_upper - x_lower) / intervals
-    cut_off_y = (y_upper - y_lower) / intervals
+    cut_off_x = (x_upper - x_lower) / (intervals * 2)
+    cut_off_y = (y_upper - y_lower) / (intervals * 2)
 else:
     cut_off_x = 0
     cut_off_y = 0

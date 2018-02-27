@@ -599,6 +599,17 @@ hyperparam_solution = scopt.minimize(fun=short_log_integrand_v, args=args_hyperp
 # solution = scopt.minimize(fun=log_model_evidence, args=xyz_data, x0=initial_param, method='Nelder-Mead')
 print(hyperparam_solution)
 
+# List optimal hyper-parameters
+sigma_optimal = hyperparam_solution.x[0]
+length_optimal = hyperparam_solution.x[1]
+noise_optimal = hyperparam_solution.x[2]
+mean_optimal = hyperparam_solution.x[3]
+print('Last function evaluation is ', hyperparam_solution.fun)
+print('optimal sigma is ', sigma_optimal)
+print('optimal length-scale is ', length_optimal)
+print('optimal noise amplitude is ', noise_optimal)
+print('optimal scalar mean value is ', mean_optimal)
+
 time_gp_opt = time.clock() - start_gp_opt
 
 print('Time Taken for v optimization = ', time_v_opt)

@@ -448,10 +448,11 @@ hyperparam_solution = scopt.minimize(fun=short_log_integrand_data, args=args_hyp
                                      options={'xatol': 1, 'fatol': 1, 'disp': True, 'maxfev': 100})
 
 # List optimal hyper-parameters
-sigma_optimal = hyperparam_solution.x[1]
+sigma_optimal = hyperparam_solution.x[0]
 length_optimal = hyperparam_solution.x[1]
 noise_optimal = hyperparam_solution.x[2]
 mean_optimal = hyperparam_solution.x[3]
+print(hyperparam_solution)
 print('Last function evaluation is ', hyperparam_solution.fun)
 print('optimal sigma is ', sigma_optimal)
 print('optimal length-scale is ', length_optimal)
@@ -465,7 +466,7 @@ time_opt = end_opt - start_opt
 # ------------------------------------------Start of Sampling Points Creation
 
 # Define number of points for y_*
-intervals = 50
+intervals = 20
 
 cut_decision = 'yes'
 if cut_decision == 'yes':
@@ -544,8 +545,8 @@ print('Time taken for Posterior Tabulation =', end_posterior - start_posterior)
 
 # ------------------------------------------Start of Plots
 start_plot = time.clock()
-fig_post = plt.figure()
-post_mean_color = fig_post.add_subplot(121)
+fig_m_post = plt.figure()
+post_mean_color = fig_m_post.add_subplot(111)
 post_mean_color.pcolor(sampling_points_x, sampling_points_y, mean_posterior_2d, cmap='YlOrBr')
 post_mean_color.scatter(x_within_window, y_within_window, marker='o', color='black', s=0.3)
 post_mean_color.set_title('Posterior Mean')
@@ -553,7 +554,8 @@ post_mean_color.set_xlabel('UTM Horizontal Coordinate')
 post_mean_color.set_ylabel('UTM Vertical Coordinate')
 # post_mean_color.grid(True)
 
-post_sd_color = fig_post.add_subplot(122)
+fig_sd_post = plt.figure()
+post_sd_color = fig_sd_post.add_subplot(111)
 post_sd_color.pcolor(sampling_points_x, sampling_points_y, sd_posterior_2d, cmap='YlOrBr')
 post_sd_color.scatter(x_within_window, y_within_window, marker='o', color='black', s=0.3)
 post_sd_color.set_title('Posterior Standard Deviation')

@@ -473,10 +473,10 @@ maximum_y = 4.72
 minimum_y = -32.21
 
 # To allow for selection of range for regression, ignoring the presence of all other data points
-x_upper = -40
-x_lower = -60
-y_upper = 0
-y_lower = -20
+x_upper = -43
+x_lower = -63
+y_upper = -2
+y_lower = -22
 x_window = (x_values > x_lower) & (x_values < x_upper)
 y_window = (y_values > y_lower) & (y_values < y_upper)
 x_within_window = x_values[x_window & y_window]
@@ -678,8 +678,8 @@ posterior_lambda_upper = latent_intensity_mean + latent_intensity_sd
 posterior_lambda_lower = latent_intensity_mean - latent_intensity_sd
 
 # Mesh Matrix containing posterior mean and standard deviation for plotting purposes
-# latent_intensity_mean_mesh = latent_intensity_mean.reshape(x_mesh.shape)
-# latent_intensity_sd_mesh = latent_intensity_sd.reshape(x_mesh.shape)
+latent_intensity_mean_mesh = latent_intensity_mean.reshape(x_mesh.shape)
+latent_intensity_sd_mesh = latent_intensity_sd.reshape(x_mesh.shape)
 # Note that we cannot recreate the mesh after the zero points have been excluded
 
 
@@ -709,36 +709,36 @@ brazil_scatter.set_xlim(x_lower, x_upper)
 brazil_scatter.set_ylim(y_lower, y_upper)
 
 brazil_histogram = brazil_fig.add_subplot(222)
-brazil_histogram.pcolor(x_mesh_centralise_all, y_mesh_centralise_all, histo, cmap='RdBu')
+brazil_histogram.pcolor(x_mesh_centralise_all, y_mesh_centralise_all, histo, cmap='YlOrBr')
 # brazil_histogram.set_xlim(x_lower, x_upper)
 # brazil_histogram.set_ylim(y_lower, y_upper)
 
-"""
+
 brazil_lambda = brazil_fig.add_subplot(223)
-brazil_lambda.pcolor(x_mesh_centralise_all, y_mesh_centralise_all, lambda_mesh, cmap='RdBu')
+brazil_lambda.pcolor(x_mesh_centralise_all, y_mesh_centralise_all, latent_intensity_mean_mesh, cmap='YlOrBr')
 # brazil_lambda.set_xlim(x_lower, x_upper)
 # brazil_lambda.set_ylim(y_lower, y_upper)
 
 brazil_sd = brazil_fig.add_subplot(224)
-brazil_sd.pcolor(x_mesh_centralise_all, y_mesh_centralise_all, posterior_sd_mesh, cmap='RdBu')
+brazil_sd.pcolor(x_mesh_centralise_all, y_mesh_centralise_all, latent_intensity_sd_mesh, cmap='YlOrBr')
 
 # Plot 3-D Posterior Mean and Posterior Covariance
 brazil_3d = plt.figure()
 brazil_3d.canvas.set_window_title('Posterior Mean and Covariance in 3-D')
 brazil_mean_3d = brazil_3d.add_subplot(121, projection='3d')
-brazil_mean_3d.plot_surface(x_mesh_centralise_all, y_mesh_centralise_all, lambda_mesh, cmap='RdBu')
+brazil_mean_3d.plot_surface(x_mesh_centralise_all, y_mesh_centralise_all, latent_intensity_mean_mesh, cmap='YlOrBr')
 brazil_mean_3d.set_title('Posterior Mean')
 brazil_mean_3d.set_xlabel('x-axis')
 brazil_mean_3d.set_ylabel('y-axis')
 brazil_mean_3d.grid(True)
 
 brazil_mean_3d = brazil_3d.add_subplot(122, projection='3d')
-brazil_mean_3d.plot_surface(x_mesh_centralise, y_mesh_centralise, posterior_sd_mesh, cmap='RdBu')
+brazil_mean_3d.plot_surface(x_mesh_centralise_all, y_mesh_centralise_all, latent_intensity_sd_mesh, cmap='YlOrBr')
 brazil_mean_3d.set_title('Posterior Standard Deviation')
 brazil_mean_3d.set_xlabel('x-axis')
 brazil_mean_3d.set_ylabel('y-axis')
 brazil_mean_3d.grid(True)
-"""
+
 # ------------------------------------------End of Plotting Process of Point Patterns, Histogram and Posteriors
 
 # ------------------------------------------Start of 1-D Representation of 2-D Gaussian Process

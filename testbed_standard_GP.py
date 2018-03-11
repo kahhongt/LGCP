@@ -63,32 +63,6 @@ def squared_exp_2d(sigma_exp, length_exp, x1, x2):  # Only for 2-D
     return c  # Note that this creates the covariance matrix directly
 
 
-# This is way faster than the function above beyond n=10
-def fast_squared_exp_2d(sigma_exp, length_exp, x1, x2):  # there are only two variables in the matern function
-    """
-    This is much much faster than iteration over every point beyond n = 10. This function takes advantage of the
-    symmetry in the covariance matrix and allows for fast regeneration.
-    :param sigma_exp: coefficient factor at the front
-    :param length_exp: length scale
-    :param x1: First set of coordinates for iteration
-    :param x2: Second set of coordinates for iteration
-    :return: Covariance matrix with squared exponential kernel - indicating infinite differentiability
-    """
-    # Note that this function only takes in 2-D coordinates, make sure there are 2 rows and n columns
-    n = x1.shape[1]
-    cov_matrix = np.zeros((n, n))
-    for i in range(n):
-        cov_matrix[i, i] = sigma_exp ** 2
-        for j in range(i + 1, n):
-            diff = x1[:, i] - x2[:, j]
-            euclidean = np.sqrt(np.matmul(diff, np.transpose(diff)))
-            exp_power = np.exp(-1 * (euclidean ** 2) * (length_exp ** -2))
-            cov_matrix[i, j] = (sigma_exp ** 2) * exp_power
-            cov_matrix[j, i] = cov_matrix[i, j]
-
-    return cov_matrix
-
-
 def matern_2d(v_value, sigma_matern, length_matern, x1, x2):  # there are only two variables in the matern function
     # Define horizontal and vertical dimensions of covariance matrix c
     if np.array([x1.shape]).size == 1 and np.array([x2.shape]).size != 1 and x1.size == x2.shape[0]:
@@ -138,6 +112,7 @@ def matern_2d(v_value, sigma_matern, length_matern, x1, x2):  # there are only t
                 coefficient_term = (1 + np.sqrt(3) * euclidean * (length_matern ** -1))
                 exp_term = np.exp(-1 * np.sqrt(3) * euclidean * (length_matern ** -1))
                 c[i, j] = (sigma_matern ** 2) * coefficient_term * exp_term
+
     return c
 # Both kernel functions take in numpy arrays of one row (create a single column first)
 
@@ -271,7 +246,6 @@ def log_gp_likelihood_zero_mean(param, *args):
 
     # Tabulate auto-covariance matrix using fast matern function plus noise
     c_auto = fast_matern_2d(sigma, length, xy_coordinates, xy_coordinates)
-    # c_auto = fast_squared_exp_2d(sigma, length, xy_coordinates, xy_coordinates)
     c_noise = np.eye(c_auto.shape[0]) * (noise ** 2)  # Fronecker delta function
     c_overall = c_auto + c_noise
 
@@ -284,7 +258,6 @@ def log_gp_likelihood_zero_mean(param, *args):
 
     # Taking the minimum of the negative log_gp_likelihood, to obtain the maximum of log_gp_likelihood
     return -log_model_evid
-# Matern Covariance
 
 
 def short_log_integrand_data(param, *args):
@@ -310,9 +283,7 @@ def short_log_integrand_data(param, *args):
 
     # Set up inputs for generation of objective function
     p_mean = mean_func_scalar(scalar_mean, xy_coordinates)
-    # c_auto = fast_matern_2d(sigma, length, xy_coordinates, xy_coordinates)
-    c_auto = fast_matern_1_2d(sigma, length, xy_coordinates, xy_coordinates)
-    # c_auto = fast_squared_exp_2d(sigma, length, xy_coordinates, xy_coordinates)
+    c_auto = fast_matern_2d(sigma, length, xy_coordinates, xy_coordinates)
     c_noise = np.eye(c_auto.shape[0]) * (noise ** 2)  # Fro-necker delta function
     cov_matrix = c_auto + c_noise
 
@@ -331,7 +302,6 @@ def short_log_integrand_data(param, *args):
     log_gp = det_term + euclidean_term
     log_gp_minimization = -1 * log_gp  # Make the function convex for minimization
     return log_gp_minimization
-# Matern 1/2 Covariance
 
 
 # ------------------------------------------Start of Data Collection
@@ -555,7 +525,7 @@ sampling_xy = np.vstack((sampling_x_row, sampling_y_row))
 start_posterior = time.clock()
 
 # Generate auto-covariance function from the data set
-cov_dd = fast_squared_exp_2d(sigma_optimal, length_optimal, xy_quad, xy_quad)
+cov_dd = fast_matern_2d(sigma_optimal, length_optimal, xy_quad, xy_quad)
 cov_noise = np.eye(cov_dd.shape[0]) * (noise_optimal ** 2)
 cov_overall = cov_dd + cov_noise
 prior_mean = mean_func_scalar(0, xy_quad)
@@ -574,12 +544,10 @@ for i in range(sampling_xy.shape[1]):
 
     # At each data point,
     xy_star = sampling_xy[:, i]
-    # cov_star_d = squared_exp_2d(sigma_optimal, length_optimal, xy_star, xy_quad)  # Cross-covariance Matrix
-    cov_star_d = matern_2d(1/2, sigma_optimal, length_optimal, xy_star, xy_quad)
+    cov_star_d = matern_2d(3/2, sigma_optimal, length_optimal, xy_star, xy_quad)  # Cross-covariance Matrix
 
     # auto-covariance between the same data point - adaptive function for both scalar and vectors
-    # cov_star_star = squared_exp_2d(sigma_optimal, length_optimal, xy_star, xy_star)
-    cov_star_star = matern_2d(1/2, sigma_optimal, length_optimal, xy_star, xy_star)
+    cov_star_star = matern_2d(3/2, sigma_optimal, length_optimal, xy_star, xy_star)
 
     # Generate Posterior Mean and Variance
     mean_posterior[i] = mu_post(xy_star, cov_overall, cov_star_d, prior_mismatch)
@@ -600,7 +568,7 @@ print('Time taken for Posterior Tabulation =', end_posterior - start_posterior)
 
 # ------------------------------------------Start of import to csv
 # Create numpy array containing mean and variance and convert to dataframe
-combined_posterior_data = np.vstack((mean_posterior_2d, var_posterior_2d))
+combined_posterior_data = np.vstack((mean_posterior, var_posterior))
 posterior_df = pd.DataFrame(combined_posterior_data)
 
 # Import to csv
@@ -609,30 +577,3 @@ print(posterior_df)
 
 # ------------------------------------------End of import to csv
 
-# ------------------------------------------Start of Test Space
-
-# ------------------------------------------End of Test Space
-
-# ------------------------------------------Start of Plots
-start_plot = time.clock()
-fig_m_post = plt.figure()
-post_mean_color = fig_m_post.add_subplot(111)
-post_mean_color.pcolor(sampling_points_x, sampling_points_y, mean_posterior_2d, cmap='YlOrBr')
-post_mean_color.scatter(x_within_window, y_within_window, marker='o', color='black', s=0.3)
-post_mean_color.set_title('Posterior Mean')
-post_mean_color.set_xlabel('UTM Horizontal Coordinate')
-post_mean_color.set_ylabel('UTM Vertical Coordinate')
-# post_mean_color.grid(True)
-
-fig_sd_post = plt.figure()
-post_sd_color = fig_sd_post.add_subplot(111)
-post_sd_color.pcolor(sampling_points_x, sampling_points_y, sd_posterior_2d, cmap='YlOrBr')
-post_sd_color.scatter(x_within_window, y_within_window, marker='o', color='black', s=0.3)
-post_sd_color.set_title('Posterior Standard Deviation')
-post_sd_color.set_xlabel('UTM Horizontal Coordinate')
-post_sd_color.set_ylabel('UTM Vertical Coordinate')
-# post_cov_color.grid(True)
-end_plot = time.clock()
-print('Time taken for plotting =', end_plot - start_plot)
-# ------------------------------------------End of Plots
-plt.show()

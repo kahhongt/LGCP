@@ -198,6 +198,31 @@ def fast_matern_2d(sigma_matern, length_matern, x1, x2):  # there are only two v
     return cov_matrix
 
 
+def fast_matern_1_2d(sigma_matern, length_matern, x1, x2):
+    """
+    Much faster method of obtaining the Matern v=1/2 covariance matrix by exploiting the symmetry of the
+    covariance matrix. This is the once-differentiable (zero mean squared differentiable) matern
+    :param sigma_matern: Coefficient at the front
+    :param length_matern: Length scale
+    :param x1: First set of coordinates for iteration
+    :param x2: Second set of coordinates for iteration
+    :return: Covariance matrix with matern kernel
+    """
+    # Note that this function only takes in 2-D coordinates, make sure there are 2 rows and n columns
+    n = x1.shape[1]
+    cov_matrix = np.zeros((n, n))
+    for i in range(n):
+        cov_matrix[i, i] = sigma_matern ** 2
+        for j in range(i + 1, n):
+            diff = x1[:, i] - x2[:, j]
+            euclidean = np.sqrt(np.matmul(diff, np.transpose(diff)))
+            exp_term = np.exp(-1 * euclidean * (length_matern ** -1))
+            cov_matrix[i, j] = (sigma_matern ** 2) * exp_term
+            cov_matrix[j, i] = cov_matrix[i, j]
+
+    return cov_matrix
+
+
 def log_model_evidence(param, *args):
     """
     ***NOTE THIS IS FOR STANDARD GP REGRESSION - DO NOT USE FOR LGCP. THIS FUNCTION ASSUMES THAT THE LATENT INTENSITY IS
@@ -772,5 +797,58 @@ brazil_cov.set_ylabel('Brazil Aedes Posterior Standard Deviation')
 time_plotting = time.clock() - start_plotting
 print('Time Taken for plotting graphs = ', time_plotting)
 
-plt.show()
 # ------------------------------------------End of 1-D Representation of 2-D Gaussian Process
+
+# ------------------------------------------Start of Individual Plots for posterior - heat-maps and 3-D
+
+
+brazil_scatter = plt.figure()
+# pp_2014 = brazil_scatter.scatter(x_2014, y_2014, marker='.', color='blue', s=0.1)
+pp_2013 = brazil_scatter.scatter(x_2013, y_2013, marker='.', color='red', s=0.1)
+# plt.legend([pp_2014, pp_2013], ["2014", "2013"])
+brazil_scatter.set_title('Brazil 2013 Aedes Scatter Plot')
+brazil_scatter.set_xlim(x_lower, x_upper)
+brazil_scatter.set_ylim(y_lower, y_upper)
+brazil_scatter.set_xlabel('UTM Horizontal Coordinate')
+brazil_scatter.set_ylabel('UTM Vertical Coordinate')
+
+brazil_histogram = plt.figure()
+brazil_histogram.pcolor(x_mesh_centralise_all, y_mesh_centralise_all, histo, cmap='YlOrBr')
+brazil_histogram.set_title('Brazil 2013 Aedes Histogram Plot')
+brazil_histogram.set_xlim(x_lower, x_upper)
+brazil_histogram.set_ylim(y_lower, y_upper)
+brazil_histogram.set_xlabel('UTM Horizontal Coordinate')
+brazil_histogram.set_ylabel('UTM Vertical Coordinate')
+
+
+brazil_lambda = plt.figure()
+brazil_lambda.pcolor(x_mesh_centralise_all, y_mesh_centralise_all, latent_intensity_mean_mesh, cmap='YlOrBr')
+brazil_histogram.set_title('Brazil 2013 Aedes Histogram Plot')
+brazil_histogram.set_xlim(x_lower, x_upper)
+brazil_histogram.set_ylim(y_lower, y_upper)
+brazil_histogram.set_xlabel('UTM Horizontal Coordinate')
+brazil_histogram.set_ylabel('UTM Vertical Coordinate')
+
+brazil_sd = brazil_fig.add_subplot(224)
+brazil_sd.pcolor(x_mesh_centralise_all, y_mesh_centralise_all, latent_intensity_sd_mesh, cmap='YlOrBr')
+
+# Plot 3-D Posterior Mean and Posterior Covariance
+brazil_3d = plt.figure()
+brazil_3d.canvas.set_window_title('Posterior Mean and Covariance in 3-D')
+brazil_mean_3d = brazil_3d.add_subplot(121, projection='3d')
+brazil_mean_3d.plot_surface(x_mesh_centralise_all, y_mesh_centralise_all, latent_intensity_mean_mesh, cmap='YlOrBr')
+brazil_mean_3d.set_title('Posterior Mean')
+brazil_mean_3d.set_xlabel('x-axis')
+brazil_mean_3d.set_ylabel('y-axis')
+brazil_mean_3d.grid(True)
+
+brazil_mean_3d = brazil_3d.add_subplot(122, projection='3d')
+brazil_mean_3d.plot_surface(x_mesh_centralise_all, y_mesh_centralise_all, latent_intensity_sd_mesh, cmap='YlOrBr')
+brazil_mean_3d.set_title('Posterior Standard Deviation')
+brazil_mean_3d.set_xlabel('x-axis')
+brazil_mean_3d.set_ylabel('y-axis')
+brazil_mean_3d.grid(True)
+
+# ------------------------------------------Start of Individual Plots for posterior - heat-maps and 3-D
+
+plt.show()

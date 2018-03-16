@@ -270,7 +270,8 @@ def log_gp_likelihood_zero_mean(param, *args):
     prior_mu = mean_func_zero(xy_coordinates)  # This creates a matrix with 2 rows
 
     # Tabulate auto-covariance matrix using fast matern function plus noise
-    c_auto = fast_matern_2d(sigma, length, xy_coordinates, xy_coordinates)
+    # c_auto = fast_matern_2d(sigma, length, xy_coordinates, xy_coordinates)
+    c_auto = fast_matern_1_2d(sigma, length, xy_coordinates, xy_coordinates)
     # c_auto = fast_squared_exp_2d(sigma, length, xy_coordinates, xy_coordinates)
     c_noise = np.eye(c_auto.shape[0]) * (noise ** 2)  # Fronecker delta function
     c_overall = c_auto + c_noise
@@ -284,14 +285,14 @@ def log_gp_likelihood_zero_mean(param, *args):
 
     # Taking the minimum of the negative log_gp_likelihood, to obtain the maximum of log_gp_likelihood
     return -log_model_evid
-# Matern Covariance
+# Matern Covariance 1/2
 
 
 def short_log_integrand_data(param, *args):
     """
     1. Shorter version that tabulates only the log of the GP prior. Includes only terms
     containing the covariance matrix elements that are made up of the kernel hyper-parameters
-    2. Kernel: Matern(3/2)
+    2. Kernel: Matern(3/2), Matern(1/2), Squared Exponential
     3. Assume a constant latent intensity, even at locations without any incidences
     :param param: hyperparameters - sigma, length scale and noise, prior scalar mean - array of 4 elements
     :param args: xy coordinates for input into the covariance function and the histogram
@@ -310,6 +311,8 @@ def short_log_integrand_data(param, *args):
 
     # Set up inputs for generation of objective function
     p_mean = mean_func_scalar(scalar_mean, xy_coordinates)
+
+    # Change_Param
     # c_auto = fast_matern_2d(sigma, length, xy_coordinates, xy_coordinates)
     c_auto = fast_matern_1_2d(sigma, length, xy_coordinates, xy_coordinates)
     # c_auto = fast_squared_exp_2d(sigma, length, xy_coordinates, xy_coordinates)
@@ -331,7 +334,7 @@ def short_log_integrand_data(param, *args):
     log_gp = det_term + euclidean_term
     log_gp_minimization = -1 * log_gp  # Make the function convex for minimization
     return log_gp_minimization
-# Matern 1/2 Covariance
+# Matern 3/2
 
 
 # ------------------------------------------Start of Data Collection
@@ -365,7 +368,7 @@ y_2013_2014 = aedes_brazil_2013_2014.values[:, 4].astype('float64')
 # ------------------------------------------Start of Selective Binning
 
 # *** Decide on the year to consider ***
-year = 2013
+year = 2014
 if year == 2013:
     y_values, x_values = y_2013, x_2013
 elif year == 2014:
@@ -501,7 +504,7 @@ args_hyperparam = (xy_quad, k_quad)
 # Start Optimization Algorithm for GP Hyperparameters
 hyperparam_solution = scopt.minimize(fun=short_log_integrand_data, args=args_hyperparam, x0=initial_hyperparam,
                                      method='Nelder-Mead',
-                                     options={'xatol': 1, 'fatol': 1, 'disp': True, 'maxfev': 100})
+                                     options={'xatol': 1, 'fatol': 1, 'disp': True, 'maxfev': 300})
 
 # List optimal hyper-parameters
 sigma_optimal = hyperparam_solution.x[0]
@@ -522,7 +525,7 @@ time_opt = end_opt - start_opt
 # ------------------------------------------Start of Sampling Points Creation
 
 # Define number of points for y_*
-intervals = 20
+intervals = 100
 
 cut_decision = 'yes'
 if cut_decision == 'yes':
@@ -555,7 +558,11 @@ sampling_xy = np.vstack((sampling_x_row, sampling_y_row))
 start_posterior = time.clock()
 
 # Generate auto-covariance function from the data set
-cov_dd = fast_squared_exp_2d(sigma_optimal, length_optimal, xy_quad, xy_quad)
+# Change_Param
+# cov_dd = fast_matern_2d(sigma_optimal, length_optimal, xy_quad, xy_quad)
+cov_dd = fast_matern_1_2d(sigma_optimal, length_optimal, xy_quad, xy_quad)
+# cov_dd = fast_squared_exp_2d(sigma_optimal, length_optimal, xy_quad, xy_quad)
+
 cov_noise = np.eye(cov_dd.shape[0]) * (noise_optimal ** 2)
 cov_overall = cov_dd + cov_noise
 prior_mean = mean_func_scalar(0, xy_quad)
@@ -572,13 +579,17 @@ for i in range(sampling_xy.shape[1]):
     if i % 100 == 0:  # if i is a multiple of 50,
         print('Tabulating Prediction Point', i)
 
+    # Change_Param
     # At each data point,
     xy_star = sampling_xy[:, i]
     # cov_star_d = squared_exp_2d(sigma_optimal, length_optimal, xy_star, xy_quad)  # Cross-covariance Matrix
+    # cov_star_d = matern_2d(3/2, sigma_optimal, length_optimal, xy_star, xy_quad)
     cov_star_d = matern_2d(1/2, sigma_optimal, length_optimal, xy_star, xy_quad)
 
+    # Change_Param
     # auto-covariance between the same data point - adaptive function for both scalar and vectors
     # cov_star_star = squared_exp_2d(sigma_optimal, length_optimal, xy_star, xy_star)
+    # cov_star_star = matern_2d(3/2, sigma_optimal, length_optimal, xy_star, xy_star)
     cov_star_star = matern_2d(1/2, sigma_optimal, length_optimal, xy_star, xy_star)
 
     # Generate Posterior Mean and Variance

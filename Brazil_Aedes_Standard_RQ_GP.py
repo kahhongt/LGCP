@@ -3,6 +3,7 @@ import math
 import matplotlib
 import numpy as np
 import functions as fn
+
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
@@ -106,7 +107,7 @@ def matern_2d(v_value, sigma_matern, length_matern, x1, x2):  # there are only t
 
     c = np.zeros((rows, columns))
 
-    if v_value == 1/2:
+    if v_value == 1 / 2:
         for i in range(c.shape[0]):
             for j in range(c.shape[1]):
                 if np.array([x1.shape]).size == 1 and np.array([x2.shape]).size != 1:
@@ -122,7 +123,7 @@ def matern_2d(v_value, sigma_matern, length_matern, x1, x2):  # there are only t
                 exp_term = np.exp(-1 * euclidean * (length_matern ** -1))
                 c[i, j] = (sigma_matern ** 2) * exp_term
 
-    if v_value == 3/2:
+    if v_value == 3 / 2:
         for i in range(c.shape[0]):
             for j in range(c.shape[1]):
                 if np.array([x1.shape]).size == 1 and np.array([x2.shape]).size != 1:
@@ -139,6 +140,8 @@ def matern_2d(v_value, sigma_matern, length_matern, x1, x2):  # there are only t
                 exp_term = np.exp(-1 * np.sqrt(3) * euclidean * (length_matern ** -1))
                 c[i, j] = (sigma_matern ** 2) * coefficient_term * exp_term
     return c
+
+
 # Both kernel functions take in numpy arrays of one row (create a single column first)
 
 
@@ -271,7 +274,7 @@ def log_gp_likelihood(param, *args):  # Param includes both sigma and l, arg is 
     model_fit = - 0.5 * fn.matmulmul(histogram_data - prior_mu, np.linalg.inv(c_overall),
                                      np.transpose(histogram_data - prior_mu))
     model_complexity = - 0.5 * math.log(np.linalg.det(c_overall))
-    model_constant = - 0.5 * len(histogram_data) * math.log(2*np.pi)
+    model_constant = - 0.5 * len(histogram_data) * math.log(2 * np.pi)
     log_model_evid = model_fit + model_complexity + model_constant
 
     # Taking the minimum of the negative log_gp_likelihood, to obtain the maximum of log_gp_likelihood
@@ -310,11 +313,13 @@ def log_gp_likelihood_zero_mean(param, *args):
     model_fit = - 0.5 * fn.matmulmul(histogram_data - prior_mu, np.linalg.inv(c_overall),
                                      np.transpose(histogram_data - prior_mu))
     model_complexity = - 0.5 * math.log(np.linalg.det(c_overall))
-    model_constant = - 0.5 * len(histogram_data) * math.log(2*np.pi)
+    model_constant = - 0.5 * len(histogram_data) * math.log(2 * np.pi)
     log_model_evid = model_fit + model_complexity + model_constant
 
     # Taking the minimum of the negative log_gp_likelihood, to obtain the maximum of log_gp_likelihood
     return -log_model_evid
+
+
 # Matern Covariance 1/2
 
 
@@ -364,6 +369,8 @@ def short_log_integrand_data(param, *args):
     log_gp = det_term + euclidean_term
     log_gp_minimization = -1 * log_gp  # Make the function convex for minimization
     return log_gp_minimization
+
+
 # Matern 3/2
 
 
@@ -570,26 +577,25 @@ elif opt_method == 'differential_evolution':
 """
 
 # This method uses the log-det which is much faster - and is also able to calculate the scalar mean
-initial_hyperparam = np.array([3, 2, 1, 1])  # Note that this initial condition should be close to actual
+initial_hyperparam = np.array([3, 2, 1, 1])  # alpha, length scale, noise and scalar mean
 # Set up tuple for arguments
 args_hyperparam = (xy_quad, k_quad)
 # Start Optimization Algorithm for GP Hyperparameters
 
 # Change Covariance Function and corresponding optimization method
-hyperparam_solution = scopt.minimize(fun=short_log_integrand_data, args=args_hyperparam, x0=initial_hyperparam,
+hyperparam_solution = scopt.minimize(fun=short_log_integrand_data_rq, args=args_hyperparam, x0=initial_hyperparam,
                                      method='Nelder-Mead',
                                      options={'xatol': 1, 'fatol': 1, 'disp': True, 'maxfev': 300})
 
-
 # List optimal hyper-parameters
-sigma_optimal = hyperparam_solution.x[0]
+alpha_optimal = hyperparam_solution.x[0]
 length_optimal = hyperparam_solution.x[1]
 noise_optimal = hyperparam_solution.x[2]
 mean_optimal = hyperparam_solution.x[3]
 print(hyperparam_solution)
 print('Last function evaluation is ', hyperparam_solution.fun)
-print('optimal sigma is ', sigma_optimal)
-print('optimal length-scale is ', length_optimal)
+print('optimal alpha is ', alpha_optimal)
+print('optimal length scale is ', length_optimal)
 print('optimal noise amplitude is ', noise_optimal)
 print('optimal scalar mean value is ', mean_optimal)
 
@@ -635,7 +641,7 @@ start_posterior = time.clock()
 # Generate auto-covariance function from the data set
 # Change_Param
 # cov_dd = fast_matern_2d(sigma_optimal, length_optimal, xy_quad, xy_quad)
-cov_dd = fast_matern_1_2d(sigma_optimal, length_optimal, xy_quad, xy_quad)
+cov_dd = fast_matern_1_2d(alpha_optimal, length_optimal, xy_quad, xy_quad)
 # cov_dd = fast_squared_exp_2d(sigma_optimal, length_optimal, xy_quad, xy_quad)
 
 cov_noise = np.eye(cov_dd.shape[0]) * (noise_optimal ** 2)
@@ -659,18 +665,17 @@ for i in range(sampling_xy.shape[1]):
     xy_star = sampling_xy[:, i]
     # cov_star_d = squared_exp_2d(sigma_optimal, length_optimal, xy_star, xy_quad)  # Cross-covariance Matrix
     # cov_star_d = matern_2d(3/2, sigma_optimal, length_optimal, xy_star, xy_quad)
-    cov_star_d = matern_2d(1/2, sigma_optimal, length_optimal, xy_star, xy_quad)
+    cov_star_d = matern_2d(1 / 2, alpha_optimal, length_optimal, xy_star, xy_quad)
 
     # Change_Param
     # auto-covariance between the same data point - adaptive function for both scalar and vectors
     # cov_star_star = squared_exp_2d(sigma_optimal, length_optimal, xy_star, xy_star)
     # cov_star_star = matern_2d(3/2, sigma_optimal, length_optimal, xy_star, xy_star)
-    cov_star_star = matern_2d(1/2, sigma_optimal, length_optimal, xy_star, xy_star)
+    cov_star_star = matern_2d(1 / 2, alpha_optimal, length_optimal, xy_star, xy_star)
 
     # Generate Posterior Mean and Variance
     mean_posterior[i] = mu_post(xy_star, cov_overall, cov_star_d, prior_mismatch)
     var_posterior[i] = var_post(cov_star_star, cov_star_d, cov_overall)
-
 
 sampling_x_2d = sampling_x_row.reshape(intervals_final, intervals_final)
 sampling_y_2d = sampling_y_row.reshape(intervals_final, intervals_final)

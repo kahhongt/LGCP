@@ -539,9 +539,70 @@ else:
 
 # ------------------------------------------Start of Marginal Log Likelihood Tabulation
 # Initialise optimized Hyper-parameters using Brazil 2013 Aedes Occurrences Data
+# Parameters = sigma, length, noise, scalar
 
+kernel = 'rational_quad'
 
+# Set up cases for kernel function hyper-parameter selection
+if kernel == 'matern3':
+    sigma_opt = 4.1068
+    length_opt = 1.7953
+    noise_opt = 0.9748
+    mean_opt = 0.8770
 
+elif kernel == 'matern1':
+    sigma_opt = 3.9887
+    length_opt = 2.9283
+    noise_opt = 0.2979
+    mean_opt = 2.1738
+
+elif kernel == 'squared_exp':
+    sigma_opt = 3.3216
+    length_opt = 1.5590
+    noise_opt = 1.2912
+    mean_opt = 0.8887
+
+elif kernel == 'rational_quad':  # Note there is no sigma in rational quadratic function
+    sigma_opt = 1.9537  # This is actually alpha
+    length_opt = 3.4939  # This is actually l, which is also length scale
+    noise_opt = 2.3361
+    mean_opt = 0.5137
+
+print('Optimal sigma = ', sigma_opt)
+print('Optimal length = ', length_opt)
+print('Optimal noise =', noise_opt)
+print('Optimal Mean = ', mean_opt)
+
+# Set up inputs for generation of objective function
+p_mean = mean_func_scalar(mean_opt, xy_quad)
+
+# Set up cases for covariance matrix computation
+if kernel == 'matern3':
+    c_auto = fast_matern_2d(sigma_opt, length_opt, xy_quad, xy_quad)
+elif kernel == 'matern1':
+    c_auto = fast_matern_1_2d(sigma_opt, length_opt, xy_quad, xy_quad)
+elif kernel == 'squared_exp':
+    c_auto = fast_squared_exp_2d(sigma_opt, length_opt, xy_quad, xy_quad)
+elif kernel == 'rational_quad':
+    c_auto = rational_quadratic_2d(sigma_opt, length_opt, xy_quad, xy_quad)
+
+c_noise = np.eye(c_auto.shape[0]) * (noise_opt ** 2)  # Fro-necker delta function
+cov_matrix = c_auto + c_noise
+
+"""Generate Objective Function = log[g(v)]"""
+# Generate Determinant Term (after taking log)
+determinant = np.exp(np.linalg.slogdet(cov_matrix))[1]
+det_term = -0.5 * np.log(2 * np.pi * determinant)
+
+# Generate Euclidean Term (after taking log)
+data_diff = k_quad - p_mean
+inv_covariance_matrix = np.linalg.inv(cov_matrix)
+euclidean_term = -0.5 * fn.matmulmul(data_diff, inv_covariance_matrix, data_diff)
+
+"""Summation of all terms change to correct form to find minimum point"""
+marginal_log_likelihood = det_term + euclidean_term
+
+print('The Marginal Log Likelihood is ', marginal_log_likelihood)
 # ------------------------------------------End of Marginal Log Likelihood Tabulation
 
 

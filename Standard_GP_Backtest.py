@@ -3,14 +3,13 @@ import math
 import matplotlib
 import numpy as np
 import functions as fn
-
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import scipy.optimize as scopt
 import time
 
-"""Methodology for Conducting Gaussian Regression for 2-D"""
+"""Script for conducting Back-testing after obtaining Hyperparameters from 2013 data"""
 
 
 def mean_func_zero(c):  # Prior mean function taken as 0 for the entire sampling range
@@ -107,7 +106,7 @@ def matern_2d(v_value, sigma_matern, length_matern, x1, x2):  # there are only t
 
     c = np.zeros((rows, columns))
 
-    if v_value == 1 / 2:
+    if v_value == 1/2:
         for i in range(c.shape[0]):
             for j in range(c.shape[1]):
                 if np.array([x1.shape]).size == 1 and np.array([x2.shape]).size != 1:
@@ -123,7 +122,7 @@ def matern_2d(v_value, sigma_matern, length_matern, x1, x2):  # there are only t
                 exp_term = np.exp(-1 * euclidean * (length_matern ** -1))
                 c[i, j] = (sigma_matern ** 2) * exp_term
 
-    if v_value == 3 / 2:
+    if v_value == 3/2:
         for i in range(c.shape[0]):
             for j in range(c.shape[1]):
                 if np.array([x1.shape]).size == 1 and np.array([x2.shape]).size != 1:
@@ -140,8 +139,6 @@ def matern_2d(v_value, sigma_matern, length_matern, x1, x2):  # there are only t
                 exp_term = np.exp(-1 * np.sqrt(3) * euclidean * (length_matern ** -1))
                 c[i, j] = (sigma_matern ** 2) * coefficient_term * exp_term
     return c
-
-
 # Both kernel functions take in numpy arrays of one row (create a single column first)
 
 
@@ -274,7 +271,7 @@ def log_gp_likelihood(param, *args):  # Param includes both sigma and l, arg is 
     model_fit = - 0.5 * fn.matmulmul(histogram_data - prior_mu, np.linalg.inv(c_overall),
                                      np.transpose(histogram_data - prior_mu))
     model_complexity = - 0.5 * math.log(np.linalg.det(c_overall))
-    model_constant = - 0.5 * len(histogram_data) * math.log(2 * np.pi)
+    model_constant = - 0.5 * len(histogram_data) * math.log(2*np.pi)
     log_model_evid = model_fit + model_complexity + model_constant
 
     # Taking the minimum of the negative log_gp_likelihood, to obtain the maximum of log_gp_likelihood
@@ -313,13 +310,11 @@ def log_gp_likelihood_zero_mean(param, *args):
     model_fit = - 0.5 * fn.matmulmul(histogram_data - prior_mu, np.linalg.inv(c_overall),
                                      np.transpose(histogram_data - prior_mu))
     model_complexity = - 0.5 * math.log(np.linalg.det(c_overall))
-    model_constant = - 0.5 * len(histogram_data) * math.log(2 * np.pi)
+    model_constant = - 0.5 * len(histogram_data) * math.log(2*np.pi)
     log_model_evid = model_fit + model_complexity + model_constant
 
     # Taking the minimum of the negative log_gp_likelihood, to obtain the maximum of log_gp_likelihood
     return -log_model_evid
-
-
 # Matern Covariance 1/2
 
 
@@ -369,8 +364,6 @@ def short_log_integrand_data(param, *args):
     log_gp = det_term + euclidean_term
     log_gp_minimization = -1 * log_gp  # Make the function convex for minimization
     return log_gp_minimization
-
-
 # Matern 3/2
 
 
@@ -447,7 +440,7 @@ y_2013_2014 = aedes_brazil_2013_2014.values[:, 4].astype('float64')
 # ------------------------------------------Start of Selective Binning
 
 # *** Decide on the year to consider ***
-year = 2013
+year = 2014
 if year == 2013:
     y_values, x_values = y_2013, x_2013
 elif year == 2014:
@@ -544,186 +537,11 @@ else:
 
 # ------------------------------------------End of SELECTION FOR EXCLUSION OF ZERO POINTS
 
-# ------------------------------------------Start of Hyper-parameter Optimization
+# ------------------------------------------Start of Marginal Log Likelihood Tabulation
+# Initialise optimized Hyper-parameters using Brazil 2013 Aedes Occurrences Data
 
-# Checking dimensions of histo and quad after selection of window and points above a certain threshold
-print('The quad coordinates are ', xy_quad_all)
-print('The shape of quad coordinates are ', xy_quad_all.shape)
-print('The histogram array is ', k_quad)
-print('The shape of histogram array is ', k_quad.shape)  # should be the square of the number of quads on side
 
-# Initialise arguments to be entered into objective function
-xyz_data = (xy_quad, k_quad)
 
-# Check time for optimization process
-start_opt = time.clock()
+# ------------------------------------------End of Marginal Log Likelihood Tabulation
 
-# Decide on optimization method
-opt_method = 'fast'
-"""
-# No bounds needed for Nelder-Mead Simplex Algorithm
-if opt_method == 'nelder-mead':
-    # Initialise parameters to be optimized - could have used Latin-Hypercube
-    initial_param = np.array([20, 5, 5, 20])  # Sigma amplitude, length scale, noise amplitude and scalar mean
-    hyperparam_solution = scopt.minimize(fun=log_gp_likelihood_zero_mean, args=xyz_data, x0=initial_param, 
-                                         method='Nelder-Mead')
 
-# Differential Evolution Method - which can be shown to give the same result as Nelder-Mead
-elif opt_method == 'differential_evolution':
-    # boundary = [(20, 40), (0, 5), (0, 10), (20, 30)]  # if zero mean, the last element of tuple will not be used
-    boundary = [(0, 30), (0, 10), (0, 10)]  # for zero mean
-    hyperparam_solution = scopt.differential_evolution(func=log_gp_likelihood_zero_mean, bounds=boundary, args=xyz_data, 
-                                                       init='latinhypercube')
-"""
-
-# This method uses the log-det which is much faster - and is also able to calculate the scalar mean
-initial_hyperparam = np.array([3, 2, 1, 1])  # alpha, length scale, noise and scalar mean
-# Set up tuple for arguments
-args_hyperparam = (xy_quad, k_quad)
-# Start Optimization Algorithm for GP Hyperparameters
-
-# Change Covariance Function and corresponding optimization method
-hyperparam_solution = scopt.minimize(fun=short_log_integrand_data_rq, args=args_hyperparam, x0=initial_hyperparam,
-                                     method='Nelder-Mead',
-                                     options={'xatol': 1, 'fatol': 1, 'disp': True, 'maxfev': 300})
-
-# List optimal hyper-parameters
-alpha_optimal = hyperparam_solution.x[0]
-length_optimal = hyperparam_solution.x[1]
-noise_optimal = hyperparam_solution.x[2]
-mean_optimal = hyperparam_solution.x[3]
-print(hyperparam_solution)
-print('Last function evaluation is ', hyperparam_solution.fun)
-print('optimal alpha is ', alpha_optimal)
-print('optimal length scale is ', length_optimal)
-print('optimal noise amplitude is ', noise_optimal)
-print('optimal scalar mean value is ', mean_optimal)
-
-end_opt = time.clock()
-time_opt = end_opt - start_opt
-# ------------------------------------------End of Hyper-parameter Optimization
-
-# ------------------------------------------Start of Sampling Points Creation
-
-# Define number of points for y_*
-intervals = 100
-
-cut_decision = 'yes'
-if cut_decision == 'yes':
-    # Define sampling points beyond the data set
-    cut_off_x = (x_upper - x_lower) / (intervals * 2)
-    cut_off_y = (y_upper - y_lower) / (intervals * 2)
-else:
-    cut_off_x = 0
-    cut_off_y = 0
-
-intervals_final = intervals + 1
-# Expressing posterior away from the data set by the cut-off values
-sampling_points_x = np.linspace(x_lower - cut_off_x, x_upper + cut_off_x, intervals_final)
-sampling_points_y = np.linspace(y_lower - cut_off_y, y_upper + cut_off_y, intervals_final)
-
-# Centralising coordinates so that we tabulate values at centre of quad
-# sampling_half_length = 0.5 * (x_upper - x_lower) / intervals
-# sampling_points_x = sampling_points_x + sampling_half_length
-# sampling_points_y = sampling_points_y + sampling_half_length
-
-# Create iteration for coordinates using mesh-grid - for plotting
-sampling_points_xmesh, sampling_points_ymesh = np.meshgrid(sampling_points_x, sampling_points_y)
-sampling_x_row = fn.row_create(sampling_points_xmesh)
-sampling_y_row = fn.row_create(sampling_points_ymesh)
-sampling_xy = np.vstack((sampling_x_row, sampling_y_row))
-
-# ------------------------------------------End of Sampling Points Creation
-
-# ------------------------------------------Start of Posterior Tabulation
-start_posterior = time.clock()
-
-# Generate auto-covariance function from the data set
-# Change_Param
-# cov_dd = fast_matern_2d(sigma_optimal, length_optimal, xy_quad, xy_quad)
-cov_dd = fast_matern_1_2d(alpha_optimal, length_optimal, xy_quad, xy_quad)
-# cov_dd = fast_squared_exp_2d(sigma_optimal, length_optimal, xy_quad, xy_quad)
-
-cov_noise = np.eye(cov_dd.shape[0]) * (noise_optimal ** 2)
-cov_overall = cov_dd + cov_noise
-prior_mean = mean_func_scalar(0, xy_quad)
-prior_mismatch = k_quad - prior_mean
-
-# Initialise mean_posterior and var_posterior array
-mean_posterior = np.zeros(sampling_xy.shape[1])
-var_posterior = np.zeros(sampling_xy.shape[1])
-
-# Generate mean and covariance array
-for i in range(sampling_xy.shape[1]):
-
-    # Generate status output
-    if i % 100 == 0:  # if i is a multiple of 50,
-        print('Tabulating Prediction Point', i)
-
-    # Change_Param
-    # At each data point,
-    xy_star = sampling_xy[:, i]
-    # cov_star_d = squared_exp_2d(sigma_optimal, length_optimal, xy_star, xy_quad)  # Cross-covariance Matrix
-    # cov_star_d = matern_2d(3/2, sigma_optimal, length_optimal, xy_star, xy_quad)
-    cov_star_d = matern_2d(1 / 2, alpha_optimal, length_optimal, xy_star, xy_quad)
-
-    # Change_Param
-    # auto-covariance between the same data point - adaptive function for both scalar and vectors
-    # cov_star_star = squared_exp_2d(sigma_optimal, length_optimal, xy_star, xy_star)
-    # cov_star_star = matern_2d(3/2, sigma_optimal, length_optimal, xy_star, xy_star)
-    cov_star_star = matern_2d(1 / 2, alpha_optimal, length_optimal, xy_star, xy_star)
-
-    # Generate Posterior Mean and Variance
-    mean_posterior[i] = mu_post(xy_star, cov_overall, cov_star_d, prior_mismatch)
-    var_posterior[i] = var_post(cov_star_star, cov_star_d, cov_overall)
-
-sampling_x_2d = sampling_x_row.reshape(intervals_final, intervals_final)
-sampling_y_2d = sampling_y_row.reshape(intervals_final, intervals_final)
-mean_posterior_2d = mean_posterior.reshape(intervals_final, intervals_final)
-var_posterior_2d = var_posterior.reshape(intervals_final, intervals_final)
-sd_posterior_2d = np.sqrt(var_posterior_2d)
-
-end_posterior = time.clock()
-print('Time taken for optimization =', time_opt)
-print('Time taken for Posterior Tabulation =', end_posterior - start_posterior)
-
-# ------------------------------------------End of Posterior Tabulation
-
-# ------------------------------------------Start of import to csv
-# Create numpy array containing mean and variance and convert to dataframe
-combined_posterior_data = np.vstack((mean_posterior_2d, var_posterior_2d))
-posterior_df = pd.DataFrame(combined_posterior_data)
-
-# Import to csv
-posterior_df.to_csv('posterior_dataframe.csv', index=False, header=False)
-print(posterior_df)
-
-# ------------------------------------------End of import to csv
-
-# ------------------------------------------Start of Test Space
-
-# ------------------------------------------End of Test Space
-
-# ------------------------------------------Start of Plots
-start_plot = time.clock()
-fig_m_post = plt.figure()
-post_mean_color = fig_m_post.add_subplot(111)
-post_mean_color.pcolor(sampling_points_x, sampling_points_y, mean_posterior_2d, cmap='YlOrBr')
-post_mean_color.scatter(x_within_window, y_within_window, marker='o', color='black', s=0.3)
-post_mean_color.set_title('Posterior Mean')
-post_mean_color.set_xlabel('UTM Horizontal Coordinate')
-post_mean_color.set_ylabel('UTM Vertical Coordinate')
-# post_mean_color.grid(True)
-
-fig_sd_post = plt.figure()
-post_sd_color = fig_sd_post.add_subplot(111)
-post_sd_color.pcolor(sampling_points_x, sampling_points_y, sd_posterior_2d, cmap='YlOrBr')
-post_sd_color.scatter(x_within_window, y_within_window, marker='o', color='black', s=0.3)
-post_sd_color.set_title('Posterior Standard Deviation')
-post_sd_color.set_xlabel('UTM Horizontal Coordinate')
-post_sd_color.set_ylabel('UTM Vertical Coordinate')
-# post_cov_color.grid(True)
-end_plot = time.clock()
-print('Time taken for plotting =', end_plot - start_plot)
-# ------------------------------------------End of Plots
-plt.show()

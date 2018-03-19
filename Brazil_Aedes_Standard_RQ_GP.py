@@ -447,7 +447,7 @@ y_2013_2014 = aedes_brazil_2013_2014.values[:, 4].astype('float64')
 # ------------------------------------------Start of Selective Binning
 
 # *** Decide on the year to consider ***
-year = 2013
+year = 2014
 if year == 2013:
     y_values, x_values = y_2013, x_2013
 elif year == 2014:
@@ -577,7 +577,7 @@ elif opt_method == 'differential_evolution':
 """
 
 # This method uses the log-det which is much faster - and is also able to calculate the scalar mean
-initial_hyperparam = np.array([3, 2, 1, 1])  # alpha, length scale, noise and scalar mean
+initial_hyperparam = np.array([2, 2, 2, 1])  # alpha, length scale, noise and scalar mean
 # Set up tuple for arguments
 args_hyperparam = (xy_quad, k_quad)
 # Start Optimization Algorithm for GP Hyperparameters

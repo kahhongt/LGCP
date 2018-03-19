@@ -343,8 +343,8 @@ def short_log_integrand_data(param, *args):
     p_mean = mean_func_scalar(scalar_mean, xy_coordinates)
 
     # Change_Param
-    # c_auto = fast_matern_2d(sigma, length, xy_coordinates, xy_coordinates)
-    c_auto = fast_matern_1_2d(sigma, length, xy_coordinates, xy_coordinates)
+    c_auto = fast_matern_2d(sigma, length, xy_coordinates, xy_coordinates)
+    # c_auto = fast_matern_1_2d(sigma, length, xy_coordinates, xy_coordinates)
     # c_auto = fast_squared_exp_2d(sigma, length, xy_coordinates, xy_coordinates)
     c_noise = np.eye(c_auto.shape[0]) * (noise ** 2)  # Fro-necker delta function
     cov_matrix = c_auto + c_noise
@@ -440,7 +440,7 @@ y_2013_2014 = aedes_brazil_2013_2014.values[:, 4].astype('float64')
 # ------------------------------------------Start of Selective Binning
 
 # *** Decide on the year to consider ***
-year = 2014
+year = 2013
 if year == 2013:
     y_values, x_values = y_2013, x_2013
 elif year == 2014:
@@ -634,8 +634,8 @@ start_posterior = time.clock()
 
 # Generate auto-covariance function from the data set
 # Change_Param
-# cov_dd = fast_matern_2d(sigma_optimal, length_optimal, xy_quad, xy_quad)
-cov_dd = fast_matern_1_2d(sigma_optimal, length_optimal, xy_quad, xy_quad)
+cov_dd = fast_matern_2d(sigma_optimal, length_optimal, xy_quad, xy_quad)
+# cov_dd = fast_matern_1_2d(sigma_optimal, length_optimal, xy_quad, xy_quad)
 # cov_dd = fast_squared_exp_2d(sigma_optimal, length_optimal, xy_quad, xy_quad)
 
 cov_noise = np.eye(cov_dd.shape[0]) * (noise_optimal ** 2)
@@ -658,14 +658,14 @@ for i in range(sampling_xy.shape[1]):
     # At each data point,
     xy_star = sampling_xy[:, i]
     # cov_star_d = squared_exp_2d(sigma_optimal, length_optimal, xy_star, xy_quad)  # Cross-covariance Matrix
-    # cov_star_d = matern_2d(3/2, sigma_optimal, length_optimal, xy_star, xy_quad)
-    cov_star_d = matern_2d(1/2, sigma_optimal, length_optimal, xy_star, xy_quad)
+    cov_star_d = matern_2d(3/2, sigma_optimal, length_optimal, xy_star, xy_quad)
+    # cov_star_d = matern_2d(1/2, sigma_optimal, length_optimal, xy_star, xy_quad)
 
     # Change_Param
     # auto-covariance between the same data point - adaptive function for both scalar and vectors
     # cov_star_star = squared_exp_2d(sigma_optimal, length_optimal, xy_star, xy_star)
-    # cov_star_star = matern_2d(3/2, sigma_optimal, length_optimal, xy_star, xy_star)
-    cov_star_star = matern_2d(1/2, sigma_optimal, length_optimal, xy_star, xy_star)
+    cov_star_star = matern_2d(3/2, sigma_optimal, length_optimal, xy_star, xy_star)
+    # cov_star_star = matern_2d(1/2, sigma_optimal, length_optimal, xy_star, xy_star)
 
     # Generate Posterior Mean and Variance
     mean_posterior[i] = mu_post(xy_star, cov_overall, cov_star_d, prior_mismatch)
@@ -718,6 +718,25 @@ post_sd_color.set_title('Posterior Standard Deviation')
 post_sd_color.set_xlabel('UTM Horizontal Coordinate')
 post_sd_color.set_ylabel('UTM Vertical Coordinate')
 # post_cov_color.grid(True)
+
+fig_m_3d = plt.figure()
+m_3d = fig_m_3d.add_subplot(111, projection='3d')
+m_3d.plot_surface(sampling_x_2d, sampling_y_2d, mean_posterior_2d, cmap='YlOrBr')
+m_3d.set_title('Posterior Mean 3D-Plot')
+m_3d.set_xlabel('UTM Horizontal Coordinate')
+m_3d.set_ylabel('UTM Vertical Coordinate')
+m_3d.set_zlabel('Posterior Mean')
+m_3d.grid(True)
+
+fig_sd_3d = plt.figure()
+sd_3d = fig_sd_3d.add_subplot(111, projection='3d')
+sd_3d.plot_surface(sampling_x_2d, sampling_y_2d, sd_posterior_2d, cmap='YlOrBr')
+sd_3d.set_title('Posterior Standard Deviation 3D-Plot')
+sd_3d.set_xlabel('UTM Horizontal Coordinate')
+sd_3d.set_ylabel('UTM Vertical Coordinate')
+sd_3d.set_zlabel('Posterior Standard Deviation')
+sd_3d.grid(True)
+
 end_plot = time.clock()
 print('Time taken for plotting =', end_plot - start_plot)
 # ------------------------------------------End of Plots

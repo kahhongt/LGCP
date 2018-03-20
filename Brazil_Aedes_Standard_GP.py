@@ -343,8 +343,8 @@ def short_log_integrand_data(param, *args):
     p_mean = mean_func_scalar(scalar_mean, xy_coordinates)
 
     # Change_Param
-    c_auto = fast_matern_2d(sigma, length, xy_coordinates, xy_coordinates)
-    # c_auto = fast_matern_1_2d(sigma, length, xy_coordinates, xy_coordinates)
+    # c_auto = fast_matern_2d(sigma, length, xy_coordinates, xy_coordinates)
+    c_auto = fast_matern_1_2d(sigma, length, xy_coordinates, xy_coordinates)
     # c_auto = fast_squared_exp_2d(sigma, length, xy_coordinates, xy_coordinates)
     c_noise = np.eye(c_auto.shape[0]) * (noise ** 2)  # Fro-necker delta function
     cov_matrix = c_auto + c_noise
@@ -634,8 +634,8 @@ start_posterior = time.clock()
 
 # Generate auto-covariance function from the data set
 # Change_Param
-cov_dd = fast_matern_2d(sigma_optimal, length_optimal, xy_quad, xy_quad)
-# cov_dd = fast_matern_1_2d(sigma_optimal, length_optimal, xy_quad, xy_quad)
+# cov_dd = fast_matern_2d(sigma_optimal, length_optimal, xy_quad, xy_quad)
+cov_dd = fast_matern_1_2d(sigma_optimal, length_optimal, xy_quad, xy_quad)
 # cov_dd = fast_squared_exp_2d(sigma_optimal, length_optimal, xy_quad, xy_quad)
 
 cov_noise = np.eye(cov_dd.shape[0]) * (noise_optimal ** 2)
@@ -658,14 +658,14 @@ for i in range(sampling_xy.shape[1]):
     # At each data point,
     xy_star = sampling_xy[:, i]
     # cov_star_d = squared_exp_2d(sigma_optimal, length_optimal, xy_star, xy_quad)  # Cross-covariance Matrix
-    cov_star_d = matern_2d(3/2, sigma_optimal, length_optimal, xy_star, xy_quad)
-    # cov_star_d = matern_2d(1/2, sigma_optimal, length_optimal, xy_star, xy_quad)
+    # cov_star_d = matern_2d(3/2, sigma_optimal, length_optimal, xy_star, xy_quad)
+    cov_star_d = matern_2d(1/2, sigma_optimal, length_optimal, xy_star, xy_quad)
 
     # Change_Param
     # auto-covariance between the same data point - adaptive function for both scalar and vectors
     # cov_star_star = squared_exp_2d(sigma_optimal, length_optimal, xy_star, xy_star)
-    cov_star_star = matern_2d(3/2, sigma_optimal, length_optimal, xy_star, xy_star)
-    # cov_star_star = matern_2d(1/2, sigma_optimal, length_optimal, xy_star, xy_star)
+    # cov_star_star = matern_2d(3/2, sigma_optimal, length_optimal, xy_star, xy_star)
+    cov_star_star = matern_2d(1/2, sigma_optimal, length_optimal, xy_star, xy_star)
 
     # Generate Posterior Mean and Variance
     mean_posterior[i] = mu_post(xy_star, cov_overall, cov_star_d, prior_mismatch)

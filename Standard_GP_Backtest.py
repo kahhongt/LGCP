@@ -194,7 +194,7 @@ def fast_matern_1_2d(sigma_matern, length_matern, x1, x2):
     return cov_matrix
 
 
-def rational_quadratic_2d(alpha_rq, length_rq, x1, x2):
+def fast_rational_quadratic_2d(alpha_rq, length_rq, x1, x2):
     """
     Rational Quadratic Coveriance function with 2 parameters to be optimized, using
     power alpha and length scale l. The Rational Quadratic Kernel is used to model the
@@ -211,17 +211,52 @@ def rational_quadratic_2d(alpha_rq, length_rq, x1, x2):
     """
     # Note that this function only takes in 2-D coordinates, make sure there are 2 rows and n columns
     n = x1.shape[1]
-    cov_matrix = np.zeros((n, n))
+    covariance_matrix = np.zeros((n, n))
     for i in range(n):
-        cov_matrix[i, i] = 1
+        covariance_matrix[i, i] = 1
         for j in range(i + 1, n):
             diff = x1[:, i] - x2[:, j]
             euclidean_squared = np.matmul(diff, np.transpose(diff))
             fraction_term = euclidean_squared / (2 * alpha_rq * (length_rq ** 2))
-            cov_matrix[i, j] = (1 + fraction_term) ** (-1 * alpha_rq)
-            cov_matrix[j, i] = cov_matrix[i, j]
+            covariance_matrix[i, j] = (1 + fraction_term) ** (-1 * alpha_rq)
+            covariance_matrix[j, i] = covariance_matrix[i, j]
 
-    return cov_matrix
+    return covariance_matrix
+
+
+def rational_quadratic_2d(alpha_rq, length_rq, x1, x2):  # Only for 2-D
+    # Define horizontal and vertical dimensions of covariance matrix c
+    if np.array([x1.shape]).size == 1 and np.array([x2.shape]).size != 1 and x1.size == x2.shape[0]:
+        rows = 1
+        columns = x2.shape[1]
+    elif np.array([x2.shape]).size == 1 and np.array([x1.shape]).size != 1 and x2.size == x1.shape[0]:
+        rows = x1.shape[1]
+        columns = 1
+    elif np.array([x1.shape]).size == 1 and np.array([x2.shape]).size == 1 and x1.size == x2.size:
+        rows = 1
+        columns = 1
+    else:
+        rows = x1.shape[1]
+        columns = x2.shape[1]
+
+    c = np.zeros((rows, columns))
+
+    for i in range(c.shape[0]):
+        for j in range(c.shape[1]):
+            if np.array([x1.shape]).size == 1 and np.array([x2.shape]).size != 1:
+                diff = x1 - x2[:, j]
+            elif np.array([x1.shape]).size != 1 and np.array([x2.shape]).size == 1:
+                diff = x1[:, i] - x2
+            elif np.array([x1.shape]).size == 1 and np.array([x2.shape]).size == 1:
+                diff = x1 - x2
+            else:
+                diff = x1[:, i] - x2[:, j]
+
+            euclidean_squared = np.matmul(diff, np.transpose(diff))
+            fraction_term = euclidean_squared / (2 * alpha_rq * (length_rq ** 2))
+            c[i, j] = (1 + fraction_term) ** (-1 * alpha_rq)
+
+    return c
 
 
 def mu_post(xy_next, c_auto, c_cross, mismatch):  # Posterior mean
@@ -440,6 +475,7 @@ y_2013_2014 = aedes_brazil_2013_2014.values[:, 4].astype('float64')
 # ------------------------------------------Start of Selective Binning
 
 # *** Decide on the year to consider ***
+# Change_Param
 year = 2014
 if year == 2013:
     y_values, x_values = y_2013, x_2013
@@ -541,7 +577,8 @@ else:
 # Initialise optimized Hyper-parameters using Brazil 2013 Aedes Occurrences Data
 # Parameters = sigma, length, noise, scalar
 
-kernel = 'rational_quad'
+# Change_Param
+kernel = 'squared_exp'
 
 # Set up cases for kernel function hyper-parameter selection
 if kernel == 'matern3':
@@ -584,11 +621,14 @@ elif kernel == 'matern1':
 elif kernel == 'squared_exp':
     c_auto = fast_squared_exp_2d(sigma_opt, length_opt, xy_quad, xy_quad)
 elif kernel == 'rational_quad':
-    c_auto = rational_quadratic_2d(sigma_opt, length_opt, xy_quad, xy_quad)
+    c_auto = fast_rational_quadratic_2d(sigma_opt, length_opt, xy_quad, xy_quad)
+    # even though sigma is actually alpha here
 
+# Add noise using kronecker delta to covariance matrix
 c_noise = np.eye(c_auto.shape[0]) * (noise_opt ** 2)  # Fro-necker delta function
 cov_matrix = c_auto + c_noise
 
+# ------------------------------------------ Start of Marginal Log Likelihood Tabulation
 """Generate Objective Function = log[g(v)]"""
 # Generate Determinant Term (after taking log)
 determinant = np.exp(np.linalg.slogdet(cov_matrix))[1]
@@ -603,6 +643,104 @@ euclidean_term = -0.5 * fn.matmulmul(data_diff, inv_covariance_matrix, data_diff
 marginal_log_likelihood = det_term + euclidean_term
 
 print('The Marginal Log Likelihood is ', marginal_log_likelihood)
-# ------------------------------------------End of Marginal Log Likelihood Tabulation
+
+# ------------------------------------------ End of Marginal Log Likelihood Tabulation
+# Start tabulating the Posterior Mean and Posterior Covariance
+
+# Define number of points for y_*
+intervals = 20
+
+cut_decision = 'no'
+if cut_decision == 'yes':
+    # Define sampling points beyond the data set to show regression values at the edge
+    cut_off_x = (x_upper - x_lower) / (intervals * 2)
+    cut_off_y = (y_upper - y_lower) / (intervals * 2)
+    intervals_final = intervals + 1
+else:
+    cut_off_x = 0
+    cut_off_y = 0
+    intervals_final = intervals
+
+
+# Expressing posterior away from the data set by the cut-off values
+sampling_points_x = np.linspace(x_lower - cut_off_x, x_upper + cut_off_x, intervals_final)
+sampling_points_y = np.linspace(y_lower - cut_off_y, y_upper + cut_off_y, intervals_final)
+
+# Centralising coordinates so that we tabulate values at centre of quad
+# sampling_half_length = 0.5 * (x_upper - x_lower) / intervals
+# sampling_points_x = sampling_points_x + sampling_half_length
+# sampling_points_y = sampling_points_y + sampling_half_length
+
+# Create iteration for coordinates using mesh-grid - for plotting
+sampling_points_xmesh, sampling_points_ymesh = np.meshgrid(sampling_points_x, sampling_points_y)
+sampling_x_row = fn.row_create(sampling_points_xmesh)
+sampling_y_row = fn.row_create(sampling_points_ymesh)
+sampling_xy = np.vstack((sampling_x_row, sampling_y_row))
+
+# ------------------------------------------End of Sampling Points Creation
+
+# ------------------------------------------Start of Posterior Tabulation
+start_posterior = time.clock()
+
+# Calculate prior components
+prior_mean = mean_func_scalar(mean_opt, xy_quad)
+prior_mismatch = k_quad - prior_mean
+
+# Initialise mean_posterior and var_posterior array
+mean_posterior = np.zeros(sampling_xy.shape[1])
+var_posterior = np.zeros(sampling_xy.shape[1])
+
+
+# Generate mean and covariance array
+for i in range(sampling_xy.shape[1]):
+
+    # Generate status output
+    if i % 100 == 0:  # if i is a multiple of 50,
+        print('Tabulating Prediction Point', i)
+
+    # Change_Param
+    # At each data point,
+    xy_star = sampling_xy[:, i]
+
+    if kernel == 'matern3':
+        cov_star_d = matern_2d(3/2, sigma_opt, length_opt, xy_star, xy_quad)
+        cov_star_star = matern_2d(3/2, sigma_opt, length_opt, xy_star, xy_star)
+    elif kernel == 'matern1':
+        cov_star_d = matern_2d(1/2, sigma_opt, length_opt, xy_star, xy_quad)
+        cov_star_star = matern_2d(1/2, sigma_opt, length_opt, xy_star, xy_star)
+    elif kernel == 'squared_exp':
+        cov_star_d = squared_exp_2d(sigma_opt, length_opt, xy_star, xy_quad)
+        cov_star_star = squared_exp_2d(sigma_opt, length_opt, xy_star, xy_star)
+    elif kernel == 'rational_quad':
+        cov_star_d = rational_quadratic_2d(sigma_opt, length_opt, xy_star, xy_quad)
+        cov_star_star = rational_quadratic_2d(sigma_opt, length_opt, xy_star, xy_star)
+
+    # Generate Posterior Mean and Variance
+    mean_posterior[i] = mu_post(xy_star, cov_matrix, cov_star_d, prior_mismatch)
+    var_posterior[i] = var_post(cov_star_star, cov_star_d, cov_matrix)
+
+
+sampling_x_2d = sampling_x_row.reshape(intervals_final, intervals_final)
+sampling_y_2d = sampling_y_row.reshape(intervals_final, intervals_final)
+mean_posterior_2d = mean_posterior.reshape(intervals_final, intervals_final)
+var_posterior_2d = var_posterior.reshape(intervals_final, intervals_final)
+sd_posterior_2d = np.sqrt(var_posterior_2d)
+
+# ------------------------------------------ End of Posterior Tabulation
+# ------------------------------------------ Start of Mean Squared Error Calculation
+# Subtracting actual data from the posterior mean, take the squared value, and compute the mean
+
+# Check posterior dimensions
+print(mean_posterior.shape)
+print(var_posterior.shape)
+
+# Calculate Mean Squared Error
+squared_error = (k_quad - mean_posterior) * (k_quad - mean_posterior)
+mean_squared_error = sum(squared_error) / mean_posterior.size
+print('Individual Squared Error = ', squared_error)
+print('Mean Squared Error = ', mean_squared_error)
+
+
+
 
 

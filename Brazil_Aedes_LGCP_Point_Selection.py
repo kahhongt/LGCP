@@ -547,6 +547,7 @@ y_2013_2014 = aedes_brazil_2013_2014.values[:, 4].astype('float64')
 
 # ------------------------------------------Start of Selective Binning
 
+# ChangeParam
 # *** Decide on the year to consider ***
 year = 2013
 if year == 2013:
@@ -564,6 +565,7 @@ maximum_y = 4.72
 minimum_y = -32.21
 
 # To allow for selection of range for regression, ignoring the presence of all other data points
+# ChangeParam
 x_upper = -43
 x_lower = -63
 y_upper = -2
@@ -577,6 +579,7 @@ print(x_within_window.shape)
 print(y_within_window.shape)
 
 # First conduct a regression on the 2014 data set
+# ChangeParam
 quads_on_side = 20  # define the number of quads along each dimension
 # histo, x_edges, y_edges = np.histogram2d(theft_x, theft_y, bins=quads_on_side)  # create histogram
 histo, y_edges, x_edges = np.histogram2d(y_within_window, x_within_window, bins=quads_on_side)
@@ -609,6 +612,7 @@ y_mesh_centralise_all = y_quad_all.reshape(y_mesh.shape)
 # Plan is to exclude the points where the histogram is zero
 
 # Create Boolean variable to identify only points with non-zero incidences
+# ChangeParam
 non_zero = (k_quad_all > -1)
 x_quad_non_zero = x_quad_all[non_zero]
 y_quad_non_zero = y_quad_all[non_zero]
@@ -625,7 +629,7 @@ y_mesh_centralise_non_zero = y_mesh_centralise_all[non_zero_mesh]
 # ------------------------------------------End of Zero Point Exclusion
 
 # ------------------------------------------Start of SELECTION FOR EXCLUSION OF ZERO POINTS
-
+# ChangeParam
 exclusion_sign = 'include'  # Toggle between exclusion(1) and inclusion(0) of 'out-of-boundary' points
 
 if exclusion_sign == 'exclude':
@@ -639,6 +643,7 @@ else:
     x_mesh_centralise = x_mesh_centralise_all
     y_mesh_centralise = y_mesh_centralise_all
 
+print('Data Collection and Binning Completed')
 # ------------------------------------------End of SELECTION FOR EXCLUSION OF ZERO POINTS
 
 # ------------------------------------------Start of Optimization of latent v_array using only the log-likelihood
@@ -671,6 +676,8 @@ print(k_quad.shape)
 print(x_mesh_centralise_all.shape)
 print(x_mesh_centralise.shape)
 
+print('Latent Intensity Array Optimization Completed')
+
 time_v_opt = time.clock() - start_v_opt
 # ------------------------------------------Start of Optimization of GP Hyper-parameters
 start_gp_opt = time.clock()
@@ -678,6 +685,7 @@ start_gp_opt = time.clock()
 initial_hyperparam = np.array([1, 1, 1, 1])
 
 # Set up tuple for arguments
+# ChangeParam
 kernel = 'matern3'
 args_hyperparam = (xy_quad, latent_v_array, kernel)
 
@@ -706,6 +714,7 @@ time_gp_opt = time.clock() - start_gp_opt
 
 print('Time Taken for v optimization = ', time_v_opt)
 print('TIme Taken for hyper-parameter optimization = ', time_gp_opt)
+print('GP Hyper-parameter Optimization Completed')
 
 # ------------------------------------------End of Optimization of GP Hyper-parameters
 
@@ -743,13 +752,14 @@ for i in range(hess_length):
         hess_matrix[i, j] = -0.5 * (inv_cov_overall[i, j] + inv_cov_overall[j, i])
         hess_matrix[j, i] = hess_matrix[i, j]
 
-# The hessian H of the log-likelihood at vhap is the negative of the laplacian
+# The hessian H of the log-likelihood at vhap is the negative of the Laplacian
 hess_matrix = - hess_matrix
 
 # Generate Posterior Covariance Matrix of log-intensity v *** Check this part
 posterior_cov_matrix_v = np.linalg.inv(hess_matrix)
 print('Posterior Covariance Matrix of v is ', posterior_cov_matrix_v)
 
+print('Posterior Covariance Calculation Completed')
 # ------------------------------------------End of Posterior Covariance Calculation
 
 # ------------------------------------------Start of Conversion into Latent Intensity
@@ -784,6 +794,7 @@ time_posterior_tab = time.clock() - start_posterior_tab
 
 print('Time Taken for Conversion into Latent Intensity = ', time_posterior_tab)
 
+print('Latent Intensity Conversion Completed')
 # ------------------------------------------End of Conversion into Latent Intensity
 
 start_plotting = time.clock()
@@ -868,10 +879,10 @@ print('Time Taken for plotting graphs = ', time_plotting)
 
 # ------------------------------------------Start of Individual Plots for posterior - heat-maps and 3-D
 
-
+# ChangeParam
 brazil_scatter = plt.figure()
-# pp_2014 = brazil_scatter.scatter(x_2014, y_2014, marker='.', color='blue', s=0.1)
-pp_2013 = brazil_scatter.scatter(x_2013, y_2013, marker='.', color='red', s=0.1)
+# brazil_scatter.scatter(x_2014, y_2014, marker='.', color='blue', s=0.1)
+brazil_scatter.scatter(x_2013, y_2013, marker='.', color='red', s=0.1)
 # plt.legend([pp_2014, pp_2013], ["2014", "2013"])
 brazil_scatter.set_title('Brazil 2013 Aedes Scatter Plot')
 brazil_scatter.set_xlim(x_lower, x_upper)

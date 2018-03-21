@@ -578,7 +578,7 @@ else:
 # Parameters = sigma, length, noise, scalar
 
 # Change_Param - this is for Brazil 2013 Data
-kernel = 'rational_quad_2014'
+kernel = 'squared_exp_2014'
 
 # Set up cases for kernel function hyper-parameter selection
 if kernel == 'matern3_2013':

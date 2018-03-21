@@ -223,6 +223,61 @@ def fast_matern_1_2d(sigma_matern, length_matern, x1, x2):
     return cov_matrix
 
 
+def fast_squared_exp_2d(sigma_exp, length_exp, x1, x2):  # there are only two variables in the matern function
+    """
+    This is much much faster than iteration over every point beyond n = 10. This function takes advantage of the
+    symmetry in the covariance matrix and allows for fast regeneration.
+    :param sigma_exp: coefficient factor at the front
+    :param length_exp: length scale
+    :param x1: First set of coordinates for iteration
+    :param x2: Second set of coordinates for iteration
+    :return: Covariance matrix with squared exponential kernel - indicating infinite differentiability
+    """
+    # Note that this function only takes in 2-D coordinates, make sure there are 2 rows and n columns
+    n = x1.shape[1]
+    cov_matrix = np.zeros((n, n))
+    for i in range(n):
+        cov_matrix[i, i] = sigma_exp ** 2
+        for j in range(i + 1, n):
+            diff = x1[:, i] - x2[:, j]
+            euclidean = np.sqrt(np.matmul(diff, np.transpose(diff)))
+            exp_power = np.exp(-1 * (euclidean ** 2) * (length_exp ** -2))
+            cov_matrix[i, j] = (sigma_exp ** 2) * exp_power
+            cov_matrix[j, i] = cov_matrix[i, j]
+
+    return cov_matrix
+
+
+def fast_rational_quadratic_2d(alpha_rq, length_rq, x1, x2):
+    """
+    Rational Quadratic Coveriance function with 2 parameters to be optimized, using
+    power alpha and length scale l. The Rational Quadratic Kernel is used to model the
+    volatility of equity index returns, which is equivalent to a sum of Squared
+    Exponential Kernels. This kernel is used to model multi-scale data
+
+    This is a fast method of generating the rational quadratic kernel, by exploiting the symmetry
+    of the covariance matrix
+    :param alpha_rq: power and denominator
+    :param length_rq: length scale
+    :param x1: First set of coordinates for iteration
+    :param x2: Second set of coordinates for iteration
+    :return: Covariance matrix with Rational Quadratic Kernel
+    """
+    # Note that this function only takes in 2-D coordinates, make sure there are 2 rows and n columns
+    n = x1.shape[1]
+    covariance_matrix = np.zeros((n, n))
+    for i in range(n):
+        covariance_matrix[i, i] = 1
+        for j in range(i + 1, n):
+            diff = x1[:, i] - x2[:, j]
+            euclidean_squared = np.matmul(diff, np.transpose(diff))
+            fraction_term = euclidean_squared / (2 * alpha_rq * (length_rq ** 2))
+            covariance_matrix[i, j] = (1 + fraction_term) ** (-1 * alpha_rq)
+            covariance_matrix[j, i] = covariance_matrix[i, j]
+
+    return covariance_matrix
+
+
 def log_model_evidence(param, *args):
     """
     ***NOTE THIS IS FOR STANDARD GP REGRESSION - DO NOT USE FOR LGCP. THIS FUNCTION ASSUMES THAT THE LATENT INTENSITY IS
@@ -349,7 +404,7 @@ def short_log_integrand_v(param, *args):
     """
     1. Shorter version that tabulates only the log of the GP prior behind the Poisson distribution. Includes only terms
     containing the covariance matrix elements that are made up of the kernel hyper-parameters
-    2. Kernel: Matern(3/2)
+    2. Kernel: Matern 3/2, Matern 1/2, Squared Exponential and Rational Quadratic Kernels
     3. Assume a constant latent intensity, even at locations without any incidences
     :param param: hyperparameters - sigma, length scale and noise, prior scalar mean - array of 4 elements
     :param args: xy coordinates for input into the covariance function and the optimised v_array
@@ -365,10 +420,21 @@ def short_log_integrand_v(param, *args):
     # Enter Arguments
     xy_coordinates = args[0]
     v_array = args[1]  # Note that this is refers to the optimised log-intensity array
+    kernel_choice = args[2]
 
-    # Set up inputs for generation of objective function
+    # The Covariance Matrix and Prior mean are created here as a component of the objective function
     prior_mean = mean_func_scalar(scalar_mean, xy_coordinates)
-    c_auto = fast_matern_2d(sigma, length, xy_coordinates, xy_coordinates)
+
+    # Select Kernel and Construct Covariance Matrix
+    if kernel_choice == 'matern3':
+        c_auto = fast_matern_2d(sigma, length, xy_coordinates, xy_coordinates)
+    elif kernel_choice == 'matern1':
+        c_auto = fast_matern_1_2d(sigma, length, xy_coordinates, xy_coordinates)
+    elif kernel_choice == 'squared_exponential':
+        c_auto = fast_squared_exp_2d(sigma, length, xy_coordinates, xy_coordinates)
+    elif kernel_choice == 'rational_quad':
+        c_auto = fast_rational_quadratic_2d(sigma, length, xy_coordinates, xy_coordinates)
+
     c_noise = np.eye(c_auto.shape[0]) * (noise ** 2)  # Fro-necker delta function
     cov_matrix = c_auto + c_noise
 
@@ -560,7 +626,7 @@ y_mesh_centralise_non_zero = y_mesh_centralise_all[non_zero_mesh]
 
 # ------------------------------------------Start of SELECTION FOR EXCLUSION OF ZERO POINTS
 
-exclusion_sign = 'exclude'  # Toggle between exclusion(1) and inclusion(0) of 'out-of-boundary' points
+exclusion_sign = 'include'  # Toggle between exclusion(1) and inclusion(0) of 'out-of-boundary' points
 
 if exclusion_sign == 'exclude':
     xy_quad = xy_quad_non_zero
@@ -612,7 +678,8 @@ start_gp_opt = time.clock()
 initial_hyperparam = np.array([1, 1, 1, 1])
 
 # Set up tuple for arguments
-args_hyperparam = (xy_quad, latent_v_array)
+kernel = 'matern3'
+args_hyperparam = (xy_quad, latent_v_array, kernel)
 
 # Start Optimization Algorithm for GP Hyperparameters
 hyperparam_solution = scopt.minimize(fun=short_log_integrand_v, args=args_hyperparam, x0=initial_hyperparam,

@@ -188,13 +188,42 @@ def inv_eigenval(eigenvalue_matrix):
     return inv_eigenval_matrix
 
 
-def inv_cholesky(matrix):
+def mean_squared_error(regression_points, data_points):
     """
-    Generates the inverse of the covariance matrix - only Hermitian/symmetric and Positive Definite matrices
-    Note that this will be much faster than explicit inversion
-    :param matrix: The covariance matrix to be inverted quickly
-    :return: inverse of the covariance matrix
+    Returns the mean squared error from the regression points and the data points.
+    Have to make sure that both inputs are of the same size
+    :param regression_points: predicted/ regressed values on the regression line
+    :param data_points: actual observations
+    :return: a single value which is the mean squared error
     """
+
+    # Conduct check to see if they are of the same size
+    if regression_points.size != data_points.size:
+        print('Input arrays are not of the same size')
+    else:
+        n = regression_points.size
+        error_vector = regression_points - data_points
+        squared_error_vector = error_vector * error_vector
+        mse = sum(squared_error_vector) / n
+
+    return mse
+
+
+def log_special(array):
+    """
+    If the element in the array is zero, then take the log as zero as well
+    :param array: any data
+    :return: log of the array
+    """
+    log_array = np.zeros_like(array)
+    for i in range(array.size):
+        if array[i] == 0:
+            log_array[i] = 0
+        else:
+            log_array[i] = np.log(array[i])
+
+    return log_array
+
 
 
 

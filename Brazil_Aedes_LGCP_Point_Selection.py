@@ -389,7 +389,7 @@ def short_log_integrand_v(param, *args):
     return log_gp_minimization
 
 
-def log_likelihood(param, *args):
+def log_poisson_likelihood_opt(param, *args):
     """
     Considers only the log-likelihood of the Poisson distribution in front of the gaussian process to optimize
     latent values - note that there are no hyper-parameters here to consider. The log-likelhood is taken as
@@ -593,7 +593,7 @@ initial_p_array = np.ones_like(k_quad)
 arguments_v = (k_quad, initial_p_array)
 
 # Start Optimization Algorithm for latent intensities
-v_solution = scopt.minimize(fun=log_likelihood, args=arguments_v, x0=initial_v_array, method='Newton-CG',
+v_solution = scopt.minimize(fun=log_poisson_likelihood_opt, args=arguments_v, x0=initial_v_array, method='Newton-CG',
                             jac=gradient_log_likelihood, hessp=hessianproduct_log_likelihood,
                             options={'xtol': 0.01, 'disp': True, 'maxiter': 100000})
 

@@ -577,35 +577,60 @@ else:
 # Initialise optimized Hyper-parameters using Brazil 2013 Aedes Occurrences Data
 # Parameters = sigma, length, noise, scalar
 
-# Change_Param
-kernel = 'squared_exp'
+# Change_Param - this is for Brazil 2013 Data
+kernel = 'rational_quad_2014'
 
 # Set up cases for kernel function hyper-parameter selection
-if kernel == 'matern3':
+if kernel == 'matern3_2013':
     sigma_opt = 4.1068
     length_opt = 1.7953
     noise_opt = 0.9748
     mean_opt = 0.8770
 
-elif kernel == 'matern1':
+elif kernel == 'matern1_2013':
     sigma_opt = 3.9887
     length_opt = 2.9283
     noise_opt = 0.2979
     mean_opt = 2.1738
 
-elif kernel == 'squared_exp':
+elif kernel == 'squared_exp_2013':
     sigma_opt = 3.3216
     length_opt = 1.5590
     noise_opt = 1.2912
     mean_opt = 0.8887
 
-elif kernel == 'rational_quad':  # Note there is no sigma in rational quadratic function
+elif kernel == 'rational_quad_2013':  # Note there is no sigma in rational quadratic function
     sigma_opt = 1.9537  # This is actually alpha
     length_opt = 3.4939  # This is actually l, which is also length scale
     noise_opt = 2.3361
     mean_opt = 0.5137
 
-print('Optimal sigma = ', sigma_opt)
+if kernel == 'matern3_2014':
+    sigma_opt = 5.0139
+    length_opt = 1.8981
+    noise_opt = 0.4548
+    mean_opt = 0.9215
+
+elif kernel == 'matern1_2014':
+    sigma_opt = 6.8399
+    length_opt = 9.3106
+    noise_opt = 0.3254
+    mean_opt = 1.7847
+
+elif kernel == 'squared_exp_2014':
+    sigma_opt = 4.1350
+    length_opt = 1.5575
+    noise_opt = 0.9438
+    mean_opt = 1.4694
+
+elif kernel == 'rational_quad_2014':  # Note there is no sigma in rational quadratic function
+    sigma_opt = 1.3675  # This is actually alpha
+    length_opt = 3.0288  # This is actually l, which is also length scale
+    noise_opt = 2.3273
+    mean_opt = 0.7375
+
+
+print('Optimal sigma = ', sigma_opt)  # Note this is alpha for rational quadratic
 print('Optimal length = ', length_opt)
 print('Optimal noise =', noise_opt)
 print('Optimal Mean = ', mean_opt)
@@ -614,13 +639,21 @@ print('Optimal Mean = ', mean_opt)
 p_mean = mean_func_scalar(mean_opt, xy_quad)
 
 # Set up cases for covariance matrix computation
-if kernel == 'matern3':
+if kernel == 'matern3_2013':
     c_auto = fast_matern_2d(sigma_opt, length_opt, xy_quad, xy_quad)
-elif kernel == 'matern1':
+elif kernel == 'matern1_2013':
     c_auto = fast_matern_1_2d(sigma_opt, length_opt, xy_quad, xy_quad)
-elif kernel == 'squared_exp':
+elif kernel == 'squared_exp_2013':
     c_auto = fast_squared_exp_2d(sigma_opt, length_opt, xy_quad, xy_quad)
-elif kernel == 'rational_quad':
+elif kernel == 'rational_quad_2013':
+    c_auto = fast_rational_quadratic_2d(sigma_opt, length_opt, xy_quad, xy_quad)
+elif kernel == 'matern3_2014':
+    c_auto = fast_matern_2d(sigma_opt, length_opt, xy_quad, xy_quad)
+elif kernel == 'matern1_2014':
+    c_auto = fast_matern_1_2d(sigma_opt, length_opt, xy_quad, xy_quad)
+elif kernel == 'squared_exp_2014':
+    c_auto = fast_squared_exp_2d(sigma_opt, length_opt, xy_quad, xy_quad)
+elif kernel == 'rational_quad_2014':
     c_auto = fast_rational_quadratic_2d(sigma_opt, length_opt, xy_quad, xy_quad)
     # even though sigma is actually alpha here
 
@@ -702,19 +735,30 @@ for i in range(sampling_xy.shape[1]):
     # At each data point,
     xy_star = sampling_xy[:, i]
 
-    if kernel == 'matern3':
+    if kernel == 'matern3_2013':
         cov_star_d = matern_2d(3/2, sigma_opt, length_opt, xy_star, xy_quad)
         cov_star_star = matern_2d(3/2, sigma_opt, length_opt, xy_star, xy_star)
-    elif kernel == 'matern1':
+    elif kernel == 'matern1_2013':
         cov_star_d = matern_2d(1/2, sigma_opt, length_opt, xy_star, xy_quad)
         cov_star_star = matern_2d(1/2, sigma_opt, length_opt, xy_star, xy_star)
-    elif kernel == 'squared_exp':
+    elif kernel == 'squared_exp_2013':
         cov_star_d = squared_exp_2d(sigma_opt, length_opt, xy_star, xy_quad)
         cov_star_star = squared_exp_2d(sigma_opt, length_opt, xy_star, xy_star)
-    elif kernel == 'rational_quad':
+    elif kernel == 'rational_quad_2013':
         cov_star_d = rational_quadratic_2d(sigma_opt, length_opt, xy_star, xy_quad)
         cov_star_star = rational_quadratic_2d(sigma_opt, length_opt, xy_star, xy_star)
-
+    elif kernel == 'matern3_2014':
+        cov_star_d = matern_2d(3/2, sigma_opt, length_opt, xy_star, xy_quad)
+        cov_star_star = matern_2d(3/2, sigma_opt, length_opt, xy_star, xy_star)
+    elif kernel == 'matern1_2014':
+        cov_star_d = matern_2d(1/2, sigma_opt, length_opt, xy_star, xy_quad)
+        cov_star_star = matern_2d(1/2, sigma_opt, length_opt, xy_star, xy_star)
+    elif kernel == 'squared_exp_2014':
+        cov_star_d = squared_exp_2d(sigma_opt, length_opt, xy_star, xy_quad)
+        cov_star_star = squared_exp_2d(sigma_opt, length_opt, xy_star, xy_star)
+    elif kernel == 'rational_quad_2014':
+        cov_star_d = rational_quadratic_2d(sigma_opt, length_opt, xy_star, xy_quad)
+        cov_star_star = rational_quadratic_2d(sigma_opt, length_opt, xy_star, xy_star)
     # Generate Posterior Mean and Variance
     mean_posterior[i] = mu_post(xy_star, cov_matrix, cov_star_d, prior_mismatch)
     var_posterior[i] = var_post(cov_star_star, cov_star_d, cov_matrix)
@@ -737,7 +781,7 @@ print(var_posterior.shape)
 # Calculate Mean Squared Error
 squared_error = (k_quad - mean_posterior) * (k_quad - mean_posterior)
 mean_squared_error = sum(squared_error) / mean_posterior.size
-print('Individual Squared Error = ', squared_error)
+print('Sum of Individual Squared Error = ', sum(squared_error))
 print('Mean Squared Error = ', mean_squared_error)
 
 

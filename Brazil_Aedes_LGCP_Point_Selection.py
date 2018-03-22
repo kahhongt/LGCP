@@ -797,53 +797,6 @@ print('Time Taken for Conversion into Latent Intensity = ', time_posterior_tab)
 print('Latent Intensity Conversion Completed')
 # ------------------------------------------End of Conversion into Latent Intensity
 
-start_plotting = time.clock()
-
-# ------------------------------------------Start of Plotting Process of Point Patterns, Histogram and Posterior Mean
-
-brazil_fig = plt.figure()
-brazil_fig.canvas.set_window_title('Brazil Aedes Occurrences')
-
-brazil_scatter = brazil_fig.add_subplot(221)
-# pp_2014 = brazil_scatter.scatter(x_2014, y_2014, marker='.', color='blue', s=0.1)
-pp_2013 = brazil_scatter.scatter(x_2013, y_2013, marker='.', color='red', s=0.1)
-# plt.legend([pp_2014, pp_2013], ["2014", "2013"])
-brazil_scatter.set_xlim(x_lower, x_upper)
-brazil_scatter.set_ylim(y_lower, y_upper)
-
-brazil_histogram = brazil_fig.add_subplot(222)
-brazil_histogram.pcolor(x_mesh_centralise_all, y_mesh_centralise_all, histo, cmap='YlOrBr')
-# brazil_histogram.set_xlim(x_lower, x_upper)
-# brazil_histogram.set_ylim(y_lower, y_upper)
-
-
-brazil_lambda = brazil_fig.add_subplot(223)
-brazil_lambda.pcolor(x_mesh_centralise_all, y_mesh_centralise_all, latent_intensity_mean_mesh, cmap='YlOrBr')
-# brazil_lambda.set_xlim(x_lower, x_upper)
-# brazil_lambda.set_ylim(y_lower, y_upper)
-
-brazil_sd = brazil_fig.add_subplot(224)
-brazil_sd.pcolor(x_mesh_centralise_all, y_mesh_centralise_all, latent_intensity_sd_mesh, cmap='YlOrBr')
-
-# Plot 3-D Posterior Mean and Posterior Covariance
-brazil_3d = plt.figure()
-brazil_3d.canvas.set_window_title('Posterior Mean and Covariance in 3-D')
-brazil_mean_3d = brazil_3d.add_subplot(121, projection='3d')
-brazil_mean_3d.plot_surface(x_mesh_centralise_all, y_mesh_centralise_all, latent_intensity_mean_mesh, cmap='YlOrBr')
-brazil_mean_3d.set_title('Posterior Mean')
-brazil_mean_3d.set_xlabel('x-axis')
-brazil_mean_3d.set_ylabel('y-axis')
-brazil_mean_3d.grid(True)
-
-brazil_mean_3d = brazil_3d.add_subplot(122, projection='3d')
-brazil_mean_3d.plot_surface(x_mesh_centralise_all, y_mesh_centralise_all, latent_intensity_sd_mesh, cmap='YlOrBr')
-brazil_mean_3d.set_title('Posterior Standard Deviation')
-brazil_mean_3d.set_xlabel('x-axis')
-brazil_mean_3d.set_ylabel('y-axis')
-brazil_mean_3d.grid(True)
-
-# ------------------------------------------End of Plotting Process of Point Patterns, Histogram and Posteriors
-
 # ------------------------------------------Start of 1-D Representation of 2-D Gaussian Process
 # Involves creating an index so as to provide a representation of how the standard deviation varies for the location
 # of each histogram data point
@@ -853,6 +806,9 @@ index = np.arange(0, latent_intensity_mean.size, 1)
 
 upper_bound = posterior_lambda_upper
 lower_bound = posterior_lambda_lower
+
+# Start Time for Plotting Figures
+start_plotting = time.clock()
 
 brazil_1d = plt.figure()
 brazil_1d.canvas.set_window_title('Brazil Reshaped to 1-D')
@@ -875,58 +831,72 @@ brazil_cov.set_ylabel('Brazil Aedes Posterior Standard Deviation')
 time_plotting = time.clock() - start_plotting
 print('Time Taken for plotting graphs = ', time_plotting)
 
-# ------------------------------------------End of 1-D Representation of 2-D Gaussian Process
+# ------------------------------------------ End of 1-D Representation of 2-D Gaussian Process
 
-# ------------------------------------------Start of Individual Plots for posterior - heat-maps and 3-D
+# ------------------------------------------ Start of Individual Plots for posterior - heat-maps and 3-D
 
 # ChangeParam
-brazil_scatter = plt.figure()
+fig_brazil_scatter = plt.figure()
+brazil_scatter = fig_brazil_scatter.add_subplot(111)
 # brazil_scatter.scatter(x_2014, y_2014, marker='.', color='blue', s=0.1)
-brazil_scatter.scatter(x_2013, y_2013, marker='.', color='red', s=0.1)
+brazil_scatter.scatter(x_2013, y_2013, marker='.', color='red', s=0.3)
 # plt.legend([pp_2014, pp_2013], ["2014", "2013"])
-brazil_scatter.set_title('Brazil 2013 Aedes Scatter Plot')
+brazil_scatter.set_title('Brazil 2013 Aedes Scatter')
 brazil_scatter.set_xlim(x_lower, x_upper)
 brazil_scatter.set_ylim(y_lower, y_upper)
 brazil_scatter.set_xlabel('UTM Horizontal Coordinate')
 brazil_scatter.set_ylabel('UTM Vertical Coordinate')
 
-brazil_histogram = plt.figure()
+fig_brazil_histogram = plt.figure()
+brazil_histogram = fig_brazil_histogram.add_subplot(111)
 brazil_histogram.pcolor(x_mesh_centralise_all, y_mesh_centralise_all, histo, cmap='YlOrBr')
-brazil_histogram.set_title('Brazil 2013 Aedes Histogram Plot')
+brazil_histogram.scatter(x_2013, y_2013, marker='.', color='black', s=0.3)
+brazil_histogram.set_title('Brazil 2013 Aedes Histogram')
 brazil_histogram.set_xlim(x_lower, x_upper)
 brazil_histogram.set_ylim(y_lower, y_upper)
 brazil_histogram.set_xlabel('UTM Horizontal Coordinate')
 brazil_histogram.set_ylabel('UTM Vertical Coordinate')
 
 
-brazil_lambda = plt.figure()
+fig_brazil_lambda = plt.figure()
+brazil_lambda = fig_brazil_lambda.add_subplot(111)
 brazil_lambda.pcolor(x_mesh_centralise_all, y_mesh_centralise_all, latent_intensity_mean_mesh, cmap='YlOrBr')
-brazil_histogram.set_title('Brazil 2013 Aedes Histogram Plot')
-brazil_histogram.set_xlim(x_lower, x_upper)
-brazil_histogram.set_ylim(y_lower, y_upper)
-brazil_histogram.set_xlabel('UTM Horizontal Coordinate')
-brazil_histogram.set_ylabel('UTM Vertical Coordinate')
+brazil_lambda.scatter(x_2013, y_2013, marker='.', color='black', s=0.3)
+brazil_lambda.set_title('Brazil 2013 Aedes Latent Intensity')
+brazil_lambda.set_xlim(x_lower, x_upper)
+brazil_lambda.set_ylim(y_lower, y_upper)
+brazil_lambda.set_xlabel('UTM Horizontal Coordinate')
+brazil_lambda.set_ylabel('UTM Vertical Coordinate')
 
-brazil_sd = brazil_fig.add_subplot(224)
+fig_brazil_sd = plt.figure()
+brazil_sd = fig_brazil_sd.add_subplot(111)
 brazil_sd.pcolor(x_mesh_centralise_all, y_mesh_centralise_all, latent_intensity_sd_mesh, cmap='YlOrBr')
+brazil_sd.scatter(x_2013, y_2013, marker='.', color='black', s=0.3)
+brazil_sd.set_title('Brazil 2013 Aedes Standard Deviation')
+brazil_sd.set_xlim(x_lower, x_upper)
+brazil_sd.set_ylim(y_lower, y_upper)
+brazil_sd.set_xlabel('UTM Horizontal Coordinate')
+brazil_sd.set_ylabel('UTM Vertical Coordinate')
 
 # Plot 3-D Posterior Mean and Posterior Covariance
-brazil_3d = plt.figure()
-brazil_3d.canvas.set_window_title('Posterior Mean and Covariance in 3-D')
-brazil_mean_3d = brazil_3d.add_subplot(121, projection='3d')
-brazil_mean_3d.plot_surface(x_mesh_centralise_all, y_mesh_centralise_all, latent_intensity_mean_mesh, cmap='YlOrBr')
-brazil_mean_3d.set_title('Posterior Mean')
-brazil_mean_3d.set_xlabel('x-axis')
-brazil_mean_3d.set_ylabel('y-axis')
-brazil_mean_3d.grid(True)
+fig_brazil_3d_mean = plt.figure()
+fig_brazil_3d_mean.canvas.set_window_title('Posterior Mean in 3-D')
+brazil_3d_mean = fig_brazil_3d_mean.add_subplot(111, projection='3d')
+brazil_3d_mean.plot_surface(x_mesh_centralise_all, y_mesh_centralise_all, latent_intensity_mean_mesh, cmap='YlOrBr')
+brazil_3d_mean.set_title('Posterior Mean - 3D Plot')
+brazil_3d_mean.set_xlabel('UTM Horizontal Coordinate')
+brazil_3d_mean.set_ylabel('UTM Vertical Coordinate')
+brazil_3d_mean.grid(True)
 
-brazil_mean_3d = brazil_3d.add_subplot(122, projection='3d')
-brazil_mean_3d.plot_surface(x_mesh_centralise_all, y_mesh_centralise_all, latent_intensity_sd_mesh, cmap='YlOrBr')
-brazil_mean_3d.set_title('Posterior Standard Deviation')
-brazil_mean_3d.set_xlabel('x-axis')
-brazil_mean_3d.set_ylabel('y-axis')
-brazil_mean_3d.grid(True)
+fig_brazil_3d_sd = plt.figure()
+fig_brazil_3d_sd.canvas.set_window_title('Posterior Standard Deviation in 3-D')
+brazil_3d_sd = fig_brazil_3d_sd.add_subplot(111, projection='3d')
+brazil_3d_sd.plot_surface(x_mesh_centralise_all, y_mesh_centralise_all, latent_intensity_sd_mesh, cmap='YlOrBr')
+brazil_3d_sd.set_title('Posterior Standard Deviation - 3D Plot')
+brazil_3d_sd.set_xlabel('UTM Horizontal Coordinate')
+brazil_3d_sd.set_ylabel('UTM Vertical Coordinate')
+brazil_3d_sd.grid(True)
 
-# ------------------------------------------Start of Individual Plots for posterior - heat-maps and 3-D
+# ------------------------------------------ End of Individual Plots for posterior - heat-maps and 3-D
 
 plt.show()

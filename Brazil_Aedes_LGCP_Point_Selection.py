@@ -581,8 +581,9 @@ print(y_within_window.shape)
 # First conduct a regression on the 2014 data set
 # ChangeParam
 quads_on_side = 20  # define the number of quads along each dimension
+histogram_range = np.array([x_lower, x_upper], [y_lower, y_upper])
 # histo, x_edges, y_edges = np.histogram2d(theft_x, theft_y, bins=quads_on_side)  # create histogram
-histo, y_edges, x_edges = np.histogram2d(y_within_window, x_within_window, bins=quads_on_side)
+histo, y_edges, x_edges = np.histogram2d(y_within_window, x_within_window, bins=quads_on_side, range=histogram_range)
 print(y_edges)
 print(x_edges)
 x_mesh, y_mesh = np.meshgrid(x_edges, y_edges)  # creating mesh-grid for use
@@ -688,7 +689,7 @@ initial_hyperparam = np.array([1, 1, 1, 1])
 
 # Set up tuple for arguments
 # ChangeParam
-kernel = 'matern3'
+kernel = 'matern1'
 args_hyperparam = (xy_quad, latent_v_array, kernel)
 
 # Start Optimization Algorithm for GP Hyperparameters

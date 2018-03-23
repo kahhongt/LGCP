@@ -558,7 +558,7 @@ else:
     y_values, x_values = y_2013_2014, x_2013_2014  # Have to check this out! ***
 
 # Define Regression Space by specifying intervals and creating boolean variables for filter
-# Note this is for 2014
+# Note this is for 2014 - entire Brazil Data
 maximum_x = -32.43
 minimum_x = -72.79
 maximum_y = 4.72
@@ -583,6 +583,8 @@ print(y_within_window.shape)
 quads_on_side = 20  # define the number of quads along each dimension
 # histo, x_edges, y_edges = np.histogram2d(theft_x, theft_y, bins=quads_on_side)  # create histogram
 histo, y_edges, x_edges = np.histogram2d(y_within_window, x_within_window, bins=quads_on_side)
+print(y_edges)
+print(x_edges)
 x_mesh, y_mesh = np.meshgrid(x_edges, y_edges)  # creating mesh-grid for use
 x_mesh = x_mesh[:-1, :-1]  # Removing extra rows and columns due to edges
 y_mesh = y_mesh[:-1, :-1]
@@ -591,8 +593,8 @@ y_quad_all = fn.row_create(y_mesh)
 
 # *** Centralising the coordinates to be at the centre of the quads
 # Note that the quads will not be of equal length, depending on the data set
-quad_length_x = (x_quad_all[-1] - x_quad_all[0]) / quads_on_side
-quad_length_y = (y_quad_all[-1] - y_quad_all[0]) / quads_on_side
+quad_length_x = (x_edges[-1] - x_edges[0]) / quads_on_side
+quad_length_y = (y_edges[-1] - y_edges[0]) / quads_on_side
 x_quad_all = x_quad_all + 0.5 * quad_length_x
 y_quad_all = y_quad_all + 0.5 * quad_length_y
 xy_quad_all = np.vstack((x_quad_all, y_quad_all))  # stacking the x and y coordinates vertically together

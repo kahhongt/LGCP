@@ -473,8 +473,7 @@ def log_poisson_likelihood_opt(param, *args):
     product_term = np.matmul(v_array, np.transpose(k_array))
 
     factorial_k = scispec.gamma(k_array + np.ones_like(k_array))
-    # factorial_term = - np.sum(np.log(factorial_k))  # summation of logs = log of product
-    factorial_term = - np.sum(fn.log_special(factorial_k))  # summation of logs = log of product
+    factorial_term = - np.sum(np.log(factorial_k))  # summation of logs = log of product
 
     log_p_likelihood = exp_term + product_term + factorial_term
     log_p_likelihood_convex = -1 * log_p_likelihood
@@ -593,66 +592,26 @@ x_mesh = x_mesh_plot[:-1, :-1]  # Removing extra rows and columns due to edges
 y_mesh = y_mesh_plot[:-1, :-1]
 print('x_mesh shape is ', x_mesh.shape)
 print('y_mesh shape is ', y_mesh.shape)
-x_quad_all = fn.row_create(x_mesh)  # Creating the rows from the mesh
-y_quad_all = fn.row_create(y_mesh)
-
-# *** Centralising the coordinates to be at the centre of the quads
-# Note that the quads will not be of equal length, depending on the data set
-quad_length_x = (x_edges[-1] - x_edges[0]) / quads_on_side
-quad_length_y = (y_edges[-1] - y_edges[0]) / quads_on_side
-# x_quad_all = x_quad_all + 0.5 * quad_length_x
-# y_quad_all = y_quad_all + 0.5 * quad_length_y
-
-xy_quad_all = np.vstack((x_quad_all, y_quad_all))  # stacking the x and y coordinates vertically together
-k_quad_all = fn.row_create(histo)  # histogram array
 
 # For graphical plotting
-x_mesh_centralise_all = x_quad_all.reshape(x_mesh.shape)
-y_mesh_centralise_all = y_quad_all.reshape(y_mesh.shape)
+x_quad = fn.row_create(x_mesh)  # Creating the rows from the mesh
+y_quad = fn.row_create(y_mesh)
+print('shape of x_quad_all is ', x_quad.shape)
+print('shape of y_quad_all is ', y_quad.shape)
+
+
+# For Posterior Calculation
+xy_quad = np.vstack((x_quad, y_quad))  # stacking the x and y coordinates vertically together
+k_quad = fn.row_create(histo)  # histogram array
+
+# For Histogram and Heat-map Plotting,
+# x_mesh_plot and y_mesh_plot are used
+
+# However, for 3-D plotting,
+# x_mesh and y_mesh will be used
+
 
 # ------------------------------------------End of Selective Binning
-
-# ------------------------------------------Start of Zero Point Exclusion
-
-# This is so as to account for boundaries whereby the probability of incidence is definitely zero in some areas
-# of the map - such as on the sea, etc
-
-# Plan is to exclude the points where the histogram is zero
-
-# Create Boolean variable to identify only points with non-zero incidences
-# ChangeParam
-non_zero = (k_quad_all > -1)
-x_quad_non_zero = x_quad_all[non_zero]
-y_quad_non_zero = y_quad_all[non_zero]
-k_quad_non_zero = k_quad_all[non_zero]
-xy_quad_non_zero = np.vstack((x_quad_non_zero, y_quad_non_zero))
-
-k_mesh = histo
-
-# Another Boolean variable for the mesh shape
-non_zero_mesh = (k_mesh > -1)
-x_mesh_centralise_non_zero = x_mesh_centralise_all[non_zero_mesh]
-y_mesh_centralise_non_zero = y_mesh_centralise_all[non_zero_mesh]
-
-# ------------------------------------------End of Zero Point Exclusion
-
-# ------------------------------------------Start of SELECTION FOR EXCLUSION OF ZERO POINTS
-# ChangeParam
-exclusion_sign = 'include'  # Toggle between exclusion(1) and inclusion(0) of 'out-of-boundary' points
-
-if exclusion_sign == 'exclude':
-    xy_quad = xy_quad_non_zero
-    k_quad = k_quad_non_zero
-    x_mesh_centralise = x_mesh_centralise_non_zero
-    y_mesh_centralise = y_mesh_centralise_non_zero
-else:
-    xy_quad = xy_quad_all
-    k_quad = k_quad_all
-    x_mesh_centralise = x_mesh_centralise_all
-    y_mesh_centralise = y_mesh_centralise_all
-
-print('Data Collection and Binning Completed')
-# ------------------------------------------End of SELECTION FOR EXCLUSION OF ZERO POINTS
 
 # ------------------------------------------Start of Optimization of latent v_array using only the log-likelihood
 
@@ -674,241 +633,9 @@ arguments_v = (k_quad, initial_p_array)
 # Start Optimization Algorithm for latent intensities
 v_solution = scopt.minimize(fun=log_poisson_likelihood_opt, args=arguments_v, x0=initial_v_array, method='Newton-CG',
                             jac=gradient_log_likelihood, hessp=hessianproduct_log_likelihood,
-                            options={'xtol': 0.001, 'disp': True, 'maxiter': 10000})
+                            options={'xtol': 0.00000000000000000001, 'disp': True, 'maxiter': 100000})
 
 latent_v_array = v_solution.x  # v_array is the log of the latent intensity
 
-print("Initial Data Points are ", k_quad)
-print('The Latent Intensity Array is ', latent_v_array)
-print(latent_v_array.shape)
-print(k_quad.shape)
-print(x_mesh_centralise_all.shape)
-print(x_mesh_centralise.shape)
-
+print('Latent v array is ', latent_v_array)
 print('Latent Intensity Array Optimization Completed')
-
-time_v_opt = time.clock() - start_v_opt
-# ------------------------------------------Start of Optimization of GP Hyper-parameters
-start_gp_opt = time.clock()
-# Initialise Hyper-parameters for the Gaussian Process
-initial_hyperparam = np.array([1, 1, 1, 1])
-
-# Set up tuple for arguments
-# ChangeParam
-kernel = 'matern1'
-args_hyperparam = (xy_quad, latent_v_array, kernel)
-
-# Start Optimization Algorithm for GP Hyperparameters
-
-hyperparam_solution = scopt.minimize(fun=short_log_integrand_v, args=args_hyperparam, x0=initial_hyperparam,
-                                     method='Nelder-Mead',
-                                     options={'xatol': 1, 'fatol': 1, 'disp': True, 'maxfev': 1000})
-
-# options={'xatol': 0.1, 'fatol': 1, 'disp': True, 'maxfev': 10000})
-# No bounds needed for Nelder-Mead
-# solution = scopt.minimize(fun=log_model_evidence, args=xyz_data, x0=initial_param, method='Nelder-Mead')
-print(hyperparam_solution)
-
-# List optimal hyper-parameters
-sigma_optimal = hyperparam_solution.x[0]
-length_optimal = hyperparam_solution.x[1]
-noise_optimal = hyperparam_solution.x[2]
-mean_optimal = hyperparam_solution.x[3]
-print('Last function evaluation is ', hyperparam_solution.fun)
-print('optimal sigma is ', sigma_optimal)
-print('optimal length-scale is ', length_optimal)
-print('optimal noise amplitude is ', noise_optimal)
-print('optimal scalar mean value is ', mean_optimal)
-
-time_gp_opt = time.clock() - start_gp_opt
-
-print('Time Taken for v optimization = ', time_v_opt)
-print('TIme Taken for hyper-parameter optimization = ', time_gp_opt)
-print('GP Hyper-parameter Optimization Completed')
-
-# ------------------------------------------End of Optimization of GP Hyper-parameters
-
-# ------------------------------------------Start of Posterior Covariance Calculation
-# Note Hessian = second derivative of the log[g(v)]
-# Posterior Distribution follows N(v; v_hap, -1 * Hessian)
-
-start_posterior_tab = time.clock()
-
-# Extract optimized hyper-parameters
-hyperparam_opt = hyperparam_solution.x
-sigma_opt = hyperparam_opt[0]
-length_opt = hyperparam_opt[1]
-noise_opt = hyperparam_opt[2]
-prior_mean_opt = hyperparam_opt[3]
-
-# Generate prior covariance matrix with kronecker noise
-cov_auto = fast_matern_2d(sigma_opt, length_opt, xy_quad, xy_quad)  # Basic Covariance Matrix
-cov_noise = (noise_opt ** 2) * np.eye(cov_auto.shape[0])  # Addition of noise
-cov_overall = cov_auto + cov_noise
-
-# Generate inverse of covariance matrix and set up the hessian matrix using symmetry
-inv_cov_overall = np.linalg.inv(cov_overall)
-inv_cov_diagonal_array = np.diag(inv_cov_overall)
-hess_diagonal = -1 * (np.exp(latent_v_array) + inv_cov_diagonal_array)
-
-# Initialise and generate hessian matrix
-hess_matrix = np.zeros_like(inv_cov_overall)
-hess_length = inv_cov_overall.shape[0]
-
-# Fill in values
-for i in range(hess_length):
-    hess_matrix[i, i] = -1 * (np.exp(latent_v_array[i]) + inv_cov_overall[i, i])
-    for j in range(i + 1, hess_length):
-        hess_matrix[i, j] = -0.5 * (inv_cov_overall[i, j] + inv_cov_overall[j, i])
-        hess_matrix[j, i] = hess_matrix[i, j]
-
-# The hessian H of the log-likelihood at vhap is the negative of the Laplacian
-hess_matrix = - hess_matrix
-
-# Generate Posterior Covariance Matrix of log-intensity v *** Check this part
-posterior_cov_matrix_v = np.linalg.inv(hess_matrix)
-print('Posterior Covariance Matrix of v is ', posterior_cov_matrix_v)
-
-print('Posterior Covariance Calculation Completed')
-# ------------------------------------------End of Posterior Covariance Calculation
-
-# ------------------------------------------Start of Conversion into Latent Intensity
-# Tabulating posterior mean and covariance of the latent intensity - using the Log-Normal Conversion
-# latent_v_array = optimized mean of log-Normal distribution, posterior_cov_matrix_v = covariance matrix of the
-# log-normal distribution. Posterior Variance = exp(2 * mean + variance_v) * ( exp(variance) - 1)
-
-# Tabulation of Posterior Latent Intensity Mean
-variance_v = np.diag(posterior_cov_matrix_v)  # Extracting diagonals which refer to the variances
-latent_intensity_mean = np.exp(latent_v_array + 0.5 * variance_v)
-
-# Tabulation of Posterior Latent Intensity Variance
-latent_intensity_var = np.exp((2 * latent_v_array) + variance_v) * (np.exp(variance_v) - 1)
-latent_intensity_sd = np.sqrt(latent_intensity_var)
-
-# Define upper and lower boundaries
-posterior_lambda_upper = latent_intensity_mean + latent_intensity_sd
-posterior_lambda_lower = latent_intensity_mean - latent_intensity_sd
-
-# Mesh Matrix containing posterior mean and standard deviation for plotting purposes
-latent_intensity_mean_mesh = latent_intensity_mean.reshape(x_mesh.shape)
-latent_intensity_sd_mesh = latent_intensity_sd.reshape(x_mesh.shape)
-# Note that we cannot recreate the mesh after the zero points have been excluded
-
-
-print('Log-Intensity Variances are ', variance_v)
-print('Latent Intensity Values are ', latent_intensity_mean)
-print('Latent Intensity Variances are ', latent_intensity_var)
-
-# Measure time taken for covariance matrix and final standard deviation tabulation
-time_posterior_tab = time.clock() - start_posterior_tab
-
-print('Time Taken for Conversion into Latent Intensity = ', time_posterior_tab)
-
-print('Latent Intensity Conversion Completed')
-# ------------------------------------------End of Conversion into Latent Intensity
-
-# ------------------------------------------Start of 1-D Representation of 2-D Gaussian Process
-# Involves creating an index so as to provide a representation of how the standard deviation varies for the location
-# of each histogram data point
-
-# Create an index to label each data point so as to make it 1-D
-index = np.arange(0, latent_intensity_mean.size, 1)
-
-upper_bound = posterior_lambda_upper
-lower_bound = posterior_lambda_lower
-
-# Start Time for Plotting Figures
-start_plotting = time.clock()
-
-brazil_1d = plt.figure()
-brazil_1d.canvas.set_window_title('Brazil Reshaped to 1-D')
-
-brazil_post = brazil_1d.add_subplot(211)
-brazil_post.fill_between(index, lower_bound, upper_bound, color='lavender')
-brazil_post.scatter(index, k_quad, color='darkblue', marker='x', s=1)
-brazil_post.scatter(index, latent_intensity_mean, color='darkred', marker='.', s=1)
-brazil_post.set_title('Brazil Aedes Regression Posterior')
-brazil_post.set_xlabel('Index of Histogram')
-brazil_post.set_ylabel('Brazil Aedes Spread Posterior Distribution')
-
-brazil_cov = brazil_1d.add_subplot(212)
-brazil_cov.plot(index, latent_intensity_var, color='darkblue')
-brazil_cov.plot(index, latent_intensity_mean, color='darkred')
-brazil_cov.set_title('Brazil Aedes Posterior Standard Deviation')
-brazil_cov.set_xlabel('Index of Histogram')
-brazil_cov.set_ylabel('Brazil Aedes Posterior Standard Deviation')
-
-time_plotting = time.clock() - start_plotting
-print('Time Taken for plotting graphs = ', time_plotting)
-
-# ------------------------------------------ End of 1-D Representation of 2-D Gaussian Process
-
-# ------------------------------------------ Start of Individual Plots for posterior - heat-maps and 3-D
-
-# ChangeParam
-fig_brazil_scatter = plt.figure()
-brazil_scatter = fig_brazil_scatter.add_subplot(111)
-# brazil_scatter.scatter(x_2014, y_2014, marker='.', color='blue', s=0.1)
-brazil_scatter.scatter(x_2013, y_2013, marker='.', color='red', s=0.3)
-# plt.legend([pp_2014, pp_2013], ["2014", "2013"])
-brazil_scatter.set_title('Brazil 2013 Aedes Scatter')
-brazil_scatter.set_xlim(x_lower, x_upper)
-brazil_scatter.set_ylim(y_lower, y_upper)
-brazil_scatter.set_xlabel('UTM Horizontal Coordinate')
-brazil_scatter.set_ylabel('UTM Vertical Coordinate')
-
-fig_brazil_histogram = plt.figure()
-brazil_histogram = fig_brazil_histogram.add_subplot(111)
-brazil_histogram.pcolor(x_mesh_plot, y_mesh_plot, histo, cmap='YlOrBr')
-brazil_histogram.scatter(x_2013, y_2013, marker='.', color='black', s=0.3)
-brazil_histogram.set_title('Brazil 2013 Aedes Histogram')
-brazil_histogram.set_xlim(x_lower, x_upper)
-brazil_histogram.set_ylim(y_lower, y_upper)
-brazil_histogram.set_xlabel('UTM Horizontal Coordinate')
-brazil_histogram.set_ylabel('UTM Vertical Coordinate')
-
-
-fig_brazil_lambda = plt.figure()
-brazil_lambda = fig_brazil_lambda.add_subplot(111)
-brazil_lambda.pcolor(x_mesh_plot, y_mesh_plot, latent_intensity_mean_mesh, cmap='YlOrBr')
-brazil_lambda.scatter(x_2013, y_2013, marker='.', color='black', s=0.3)
-brazil_lambda.set_title('Brazil 2013 Aedes Latent Intensity')
-brazil_lambda.set_xlim(x_lower, x_upper)
-brazil_lambda.set_ylim(y_lower, y_upper)
-brazil_lambda.set_xlabel('UTM Horizontal Coordinate')
-brazil_lambda.set_ylabel('UTM Vertical Coordinate')
-
-fig_brazil_sd = plt.figure()
-brazil_sd = fig_brazil_sd.add_subplot(111)
-brazil_sd.pcolor(x_mesh_plot, y_mesh_plot, latent_intensity_sd_mesh, cmap='YlOrBr')
-brazil_sd.scatter(x_2013, y_2013, marker='.', color='black', s=0.3)
-brazil_sd.set_title('Brazil 2013 Aedes Standard Deviation')
-brazil_sd.set_xlim(x_lower, x_upper)
-brazil_sd.set_ylim(y_lower, y_upper)
-brazil_sd.set_xlabel('UTM Horizontal Coordinate')
-brazil_sd.set_ylabel('UTM Vertical Coordinate')
-
-# Plot 3-D Posterior Mean and Posterior Covariance
-fig_brazil_3d_mean = plt.figure()
-fig_brazil_3d_mean.canvas.set_window_title('Posterior Mean in 3-D')
-brazil_3d_mean = fig_brazil_3d_mean.add_subplot(111, projection='3d')
-brazil_3d_mean.plot_surface(x_mesh, y_mesh, latent_intensity_mean_mesh, cmap='YlOrBr')
-brazil_3d_mean.set_title('Posterior Mean - 3D Plot')
-brazil_3d_mean.set_xlabel('UTM Horizontal Coordinate')
-brazil_3d_mean.set_ylabel('UTM Vertical Coordinate')
-brazil_3d_mean.grid(True)
-
-fig_brazil_3d_sd = plt.figure()
-fig_brazil_3d_sd.canvas.set_window_title('Posterior Standard Deviation in 3-D')
-brazil_3d_sd = fig_brazil_3d_sd.add_subplot(111, projection='3d')
-brazil_3d_sd.plot_surface(x_mesh, y_mesh, latent_intensity_sd_mesh, cmap='YlOrBr')
-brazil_3d_sd.set_title('Posterior Standard Deviation - 3D Plot')
-brazil_3d_sd.set_xlabel('UTM Horizontal Coordinate')
-brazil_3d_sd.set_ylabel('UTM Vertical Coordinate')
-brazil_3d_sd.grid(True)
-
-# ------------------------------------------ End of Individual Plots for posterior - heat-maps and 3-D
-
-plt.show()
-
-print('x_mesh_centralise_all shape is ', x_mesh_centralise_all.shape)

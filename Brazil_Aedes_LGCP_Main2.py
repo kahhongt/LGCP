@@ -593,66 +593,15 @@ x_mesh = x_mesh_plot[:-1, :-1]  # Removing extra rows and columns due to edges
 y_mesh = y_mesh_plot[:-1, :-1]
 print('x_mesh shape is ', x_mesh.shape)
 print('y_mesh shape is ', y_mesh.shape)
-x_quad_all = fn.row_create(x_mesh)  # Creating the rows from the mesh
-y_quad_all = fn.row_create(y_mesh)
+x_quad = fn.row_create(x_mesh)  # Creating the rows from the mesh
+y_quad = fn.row_create(y_mesh)
 
-# *** Centralising the coordinates to be at the centre of the quads
-# Note that the quads will not be of equal length, depending on the data set
-quad_length_x = (x_edges[-1] - x_edges[0]) / quads_on_side
-quad_length_y = (y_edges[-1] - y_edges[0]) / quads_on_side
-# x_quad_all = x_quad_all + 0.5 * quad_length_x
-# y_quad_all = y_quad_all + 0.5 * quad_length_y
 
-xy_quad_all = np.vstack((x_quad_all, y_quad_all))  # stacking the x and y coordinates vertically together
-k_quad_all = fn.row_create(histo)  # histogram array
+xy_quad = np.vstack((x_quad, y_quad))  # stacking the x and y coordinates vertically together
+k_quad = fn.row_create(histo)  # histogram array
 
-# For graphical plotting
-x_mesh_centralise_all = x_quad_all.reshape(x_mesh.shape)
-y_mesh_centralise_all = y_quad_all.reshape(y_mesh.shape)
 
 # ------------------------------------------End of Selective Binning
-
-# ------------------------------------------Start of Zero Point Exclusion
-
-# This is so as to account for boundaries whereby the probability of incidence is definitely zero in some areas
-# of the map - such as on the sea, etc
-
-# Plan is to exclude the points where the histogram is zero
-
-# Create Boolean variable to identify only points with non-zero incidences
-# ChangeParam
-non_zero = (k_quad_all > -1)
-x_quad_non_zero = x_quad_all[non_zero]
-y_quad_non_zero = y_quad_all[non_zero]
-k_quad_non_zero = k_quad_all[non_zero]
-xy_quad_non_zero = np.vstack((x_quad_non_zero, y_quad_non_zero))
-
-k_mesh = histo
-
-# Another Boolean variable for the mesh shape
-non_zero_mesh = (k_mesh > -1)
-x_mesh_centralise_non_zero = x_mesh_centralise_all[non_zero_mesh]
-y_mesh_centralise_non_zero = y_mesh_centralise_all[non_zero_mesh]
-
-# ------------------------------------------End of Zero Point Exclusion
-
-# ------------------------------------------Start of SELECTION FOR EXCLUSION OF ZERO POINTS
-# ChangeParam
-exclusion_sign = 'include'  # Toggle between exclusion(1) and inclusion(0) of 'out-of-boundary' points
-
-if exclusion_sign == 'exclude':
-    xy_quad = xy_quad_non_zero
-    k_quad = k_quad_non_zero
-    x_mesh_centralise = x_mesh_centralise_non_zero
-    y_mesh_centralise = y_mesh_centralise_non_zero
-else:
-    xy_quad = xy_quad_all
-    k_quad = k_quad_all
-    x_mesh_centralise = x_mesh_centralise_all
-    y_mesh_centralise = y_mesh_centralise_all
-
-print('Data Collection and Binning Completed')
-# ------------------------------------------End of SELECTION FOR EXCLUSION OF ZERO POINTS
 
 # ------------------------------------------Start of Optimization of latent v_array using only the log-likelihood
 
@@ -680,11 +629,6 @@ latent_v_array = v_solution.x  # v_array is the log of the latent intensity
 
 print("Initial Data Points are ", k_quad)
 print('The Latent Intensity Array is ', latent_v_array)
-print(latent_v_array.shape)
-print(k_quad.shape)
-print(x_mesh_centralise_all.shape)
-print(x_mesh_centralise.shape)
-
 print('Latent Intensity Array Optimization Completed')
 
 time_v_opt = time.clock() - start_v_opt

@@ -580,7 +580,7 @@ print(y_within_window.shape)
 
 # First conduct a regression on the 2014 data set
 # ChangeParam
-quads_on_side = 10  # define the number of quads along each dimension
+quads_on_side = 15  # define the number of quads along each dimension
 histogram_range = np.array([[y_lower, y_upper], [x_lower, x_upper]])
 # histo, x_edges, y_edges = np.histogram2d(theft_x, theft_y, bins=quads_on_side)  # create histogram
 histo, y_edges, x_edges = np.histogram2d(y_within_window, x_within_window, bins=quads_on_side, range=histogram_range)
@@ -594,15 +594,15 @@ print('x_mesh shape is ', x_mesh.shape)
 print('y_mesh shape is ', y_mesh.shape)
 
 # For graphical plotting
-x_quad_all = fn.row_create(x_mesh)  # Creating the rows from the mesh
-y_quad_all = fn.row_create(y_mesh)
-print('shape of x_quad_all is ', x_quad_all.shape)
-print('shape of y_quad_all is ', y_quad_all.shape)
+x_quad = fn.row_create(x_mesh)  # Creating the rows from the mesh
+y_quad = fn.row_create(y_mesh)
+print('shape of x_quad_all is ', x_quad.shape)
+print('shape of y_quad_all is ', y_quad.shape)
 
 
 # For Posterior Calculation
-xy_quad_all = np.vstack((x_quad_all, y_quad_all))  # stacking the x and y coordinates vertically together
-k_quad_all = fn.row_create(histo)  # histogram array
+xy_quad = np.vstack((x_quad, y_quad))  # stacking the x and y coordinates vertically together
+k_quad = fn.row_create(histo)  # histogram array
 
 # For Histogram and Heat-map Plotting,
 # x_mesh_plot and y_mesh_plot are used
@@ -612,13 +612,6 @@ k_quad_all = fn.row_create(histo)  # histogram array
 
 
 # ------------------------------------------End of Selective Binning
-
-k_quad = k_quad_all
-xy_quad = xy_quad_all
-
-print('k_quad shape is ', k_quad.shape)
-print('xy_quad shape is ', xy_quad.shape)
-
 
 # ------------------------------------------Start of Optimization of latent v_array using only the log-likelihood
 
@@ -640,12 +633,11 @@ arguments_v = (k_quad, initial_p_array)
 # Start Optimization Algorithm for latent intensities
 v_solution = scopt.minimize(fun=log_poisson_likelihood_opt, args=arguments_v, x0=initial_v_array, method='Newton-CG',
                             jac=gradient_log_likelihood, hessp=hessianproduct_log_likelihood,
-                            options={'xtol': 0.01, 'disp': True, 'maxiter': 100000})
+                            options={'xtol': 0.00001, 'disp': True, 'maxiter': 100000})
 
 latent_v_array = v_solution.x  # v_array is the log of the latent intensity
 
-print("Initial Data Points are ", k_quad)
-
+print('Latent v array is ', latent_v_array)
 print('Latent Intensity Array Optimization Completed')
 
 time_v_opt = time.clock() - start_v_opt
@@ -662,7 +654,7 @@ args_hyperparam = (xy_quad, latent_v_array, kernel)
 # Start Optimization Algorithm for GP Hyperparameters
 hyperparam_solution = scopt.minimize(fun=short_log_integrand_v, args=args_hyperparam, x0=initial_hyperparam,
                                      method='Nelder-Mead',
-                                     options={'xatol': 1, 'fatol': 1, 'disp': True, 'maxfev': 1000})
+                                     options={'xatol': 0.1, 'fatol': 0.1, 'disp': True, 'maxfev': 1000})
 
 # options={'xatol': 0.1, 'fatol': 1, 'disp': True, 'maxfev': 10000})
 # No bounds needed for Nelder-Mead

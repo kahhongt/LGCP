@@ -434,6 +434,8 @@ def short_log_integrand_v(param, *args):
         c_auto = fast_squared_exp_2d(sigma, length, xy_coordinates, xy_coordinates)
     elif kernel_choice == 'rational_quad':
         c_auto = fast_rational_quadratic_2d(sigma, length, xy_coordinates, xy_coordinates)
+    else:
+        c_auto = fast_matern_2d(sigma, length, xy_coordinates, xy_coordinates)
 
     c_noise = np.eye(c_auto.shape[0]) * (noise ** 2)  # Fro-necker delta function
     cov_matrix = c_auto + c_noise
@@ -550,7 +552,7 @@ y_2013_2014 = aedes_brazil_2013_2014.values[:, 4].astype('float64')
 
 # ChangeParam
 # *** Decide on the year to consider ***
-year = 2014
+year = 2013
 if year == 2013:
     y_values, x_values = y_2013, x_2013
 elif year == 2014:
@@ -581,7 +583,7 @@ print(y_within_window.shape)
 
 # First conduct a regression on the 2014 data set
 # ChangeParam
-quads_on_side = 10  # define the number of quads along each dimension
+quads_on_side = 20  # define the number of quads along each dimension
 # histogram_range = np.array([[y_lower, y_upper], [x_lower, x_upper]])
 # histo, x_edges, y_edges = np.histogram2d(theft_x, theft_y, bins=quads_on_side)  # create histogram
 histo, y_edges, x_edges = np.histogram2d(y_within_window, x_within_window, bins=quads_on_side)
@@ -653,17 +655,6 @@ hyperparam_solution = scopt.minimize(fun=short_log_integrand_v, args=args_hyperp
 # solution = scopt.minimize(fun=log_model_evidence, args=xyz_data, x0=initial_param, method='Nelder-Mead')
 print(hyperparam_solution)
 
-# List optimal hyper-parameters
-sigma_optimal = hyperparam_solution.x[0]
-length_optimal = hyperparam_solution.x[1]
-noise_optimal = hyperparam_solution.x[2]
-mean_optimal = hyperparam_solution.x[3]
-print('Last function evaluation is ', hyperparam_solution.fun)
-print('optimal sigma is ', sigma_optimal)
-print('optimal length-scale is ', length_optimal)
-print('optimal noise amplitude is ', noise_optimal)
-print('optimal scalar mean value is ', mean_optimal)
-
 time_gp_opt = time.clock() - start_gp_opt
 
 print('Time Taken for v optimization = ', time_v_opt)
@@ -685,8 +676,26 @@ length_opt = hyperparam_opt[1]
 noise_opt = hyperparam_opt[2]
 prior_mean_opt = hyperparam_opt[3]
 
-# Generate prior covariance matrix with kronecker noise
-cov_auto = fast_matern_2d(sigma_opt, length_opt, xy_quad, xy_quad)  # Basic Covariance Matrix
+# Print out optimized hyper-parameters
+print('Last function evaluation is ', hyperparam_solution.fun)
+print('optimal sigma is ', sigma_opt)
+print('optimal length-scale is ', length_opt)
+print('optimal noise amplitude is ', noise_opt)
+print('optimal scalar mean value is ', prior_mean_opt)
+
+# Generate prior covariance matrix with kronecker noise, but using cases for each kernel
+if kernel == 'matern3':
+    cov_auto = fast_matern_2d(sigma_opt, length_opt, xy_quad, xy_quad)  # Basic Covariance Matrix
+elif kernel == 'matern1':
+    cov_auto = fast_matern_1_2d(sigma_opt)
+elif kernel == 'squared_exponential':
+    cov_auto = fast_squared_exp_2d(sigma_opt, length_opt, xy_quad, xy_quad)
+elif kernel == 'rational_quad':
+    cov_auto = fast_rational_quadratic_2d(sigma_opt, length_opt, xy_quad, xy_quad)
+else:
+    cov_auto = fast_matern_2d(sigma_opt, length_opt, xy_quad, xy_quad)  # Basic Covariance Matrix
+
+
 cov_noise = (noise_opt ** 2) * np.eye(cov_auto.shape[0])  # Addition of noise
 cov_overall = cov_auto + cov_noise
 

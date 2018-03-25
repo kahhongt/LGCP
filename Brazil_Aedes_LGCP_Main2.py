@@ -550,7 +550,7 @@ y_2013_2014 = aedes_brazil_2013_2014.values[:, 4].astype('float64')
 
 # ChangeParam
 # *** Decide on the year to consider ***
-year = 2013
+year = 2014
 if year == 2013:
     y_values, x_values = y_2013, x_2013
 elif year == 2014:
@@ -581,7 +581,7 @@ print(y_within_window.shape)
 
 # First conduct a regression on the 2014 data set
 # ChangeParam
-quads_on_side = 20  # define the number of quads along each dimension
+quads_on_side = 10  # define the number of quads along each dimension
 # histogram_range = np.array([[y_lower, y_upper], [x_lower, x_upper]])
 # histo, x_edges, y_edges = np.histogram2d(theft_x, theft_y, bins=quads_on_side)  # create histogram
 histo, y_edges, x_edges = np.histogram2d(y_within_window, x_within_window, bins=quads_on_side)
@@ -639,14 +639,14 @@ initial_hyperparam = np.array([1, 1, 1, 1])
 
 # Set up tuple for arguments
 # ChangeParam
-kernel = 'matern1'
+kernel = 'matern3'
 args_hyperparam = (xy_quad, latent_v_array, kernel)
 
 # Start Optimization Algorithm for GP Hyperparameters
-
+# ChangeParam
 hyperparam_solution = scopt.minimize(fun=short_log_integrand_v, args=args_hyperparam, x0=initial_hyperparam,
                                      method='Nelder-Mead',
-                                     options={'xatol': 1, 'fatol': 1, 'disp': True, 'maxfev': 1000})
+                                     options={'xatol': 0.01, 'fatol': 0.01, 'disp': True, 'maxfev': 1000})
 
 # options={'xatol': 0.1, 'fatol': 1, 'disp': True, 'maxfev': 10000})
 # No bounds needed for Nelder-Mead
@@ -771,16 +771,16 @@ brazil_post = brazil_1d.add_subplot(211)
 brazil_post.fill_between(index, lower_bound, upper_bound, color='lavender')
 brazil_post.scatter(index, k_quad, color='darkblue', marker='x', s=1)
 brazil_post.scatter(index, latent_intensity_mean, color='darkred', marker='.', s=1)
-brazil_post.set_title('Brazil Aedes Regression Posterior')
+# brazil_post.set_title('Brazil Aedes Regression Posterior')
 brazil_post.set_xlabel('Index of Histogram')
-brazil_post.set_ylabel('Brazil Aedes Spread Posterior Distribution')
+brazil_post.set_ylabel('Posterior Distribution')
 
 brazil_cov = brazil_1d.add_subplot(212)
 brazil_cov.plot(index, latent_intensity_var, color='darkblue')
 brazil_cov.plot(index, latent_intensity_mean, color='darkred')
-brazil_cov.set_title('Brazil Aedes Posterior Standard Deviation')
+# brazil_cov.set_title('Brazil Aedes Posterior Standard Deviation')
 brazil_cov.set_xlabel('Index of Histogram')
-brazil_cov.set_ylabel('Brazil Aedes Posterior Standard Deviation')
+brazil_cov.set_ylabel('Posterior Standard Deviation')
 
 time_plotting = time.clock() - start_plotting
 print('Time Taken for plotting graphs = ', time_plotting)
@@ -854,5 +854,3 @@ brazil_3d_sd.grid(True)
 # ------------------------------------------ End of Individual Plots for posterior - heat-maps and 3-D
 
 plt.show()
-
-print('x_mesh_centralise_all shape is ', x_mesh_centralise_all.shape)

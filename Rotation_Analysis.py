@@ -546,7 +546,39 @@ x_2013 = aedes_brazil_2013.values[:, 5].astype('float64')
 y_2013 = aedes_brazil_2013.values[:, 4].astype('float64')
 x_2013_2014 = aedes_brazil_2013_2014.values[:, 5].astype('float64')
 y_2013_2014 = aedes_brazil_2013_2014.values[:, 4].astype('float64')
-# ------------------------------------------End of Data Collection
+# ------------------------------------------ End of Data Collection
+
+# ------------------------------------------ Start of Scatter Point Set
+# Define Scatter Point Boundary
+x_upper_box = -35
+x_lower_box = -65
+y_upper_box = 0
+y_lower_box = -30
+
+# Define Boolean Variable for Scatter Points Selection
+x_range_box = (x_2013 > x_lower_box) & (x_2013 < x_upper_box)
+y_range_box = (y_2013 > y_lower_box) & (y_2013 < y_upper_box)
+
+x_2013 = x_2013[x_range_box & y_range_box]
+y_2013 = y_2013[x_range_box & y_range_box]
+
+# ------------------------------------------ End of Scatter Point Set
+
+# ------------------------------------------ Start of Performing Rotation
+
+# Define the Center and Radius of the Circle
+# ChangeParam
+center = np.array([-50, -15])
+radius = 8
+xy_within_window = np.vstack((x_2013, y_2013))
+
+# ChangeParam
+rotation_degrees = 0
+rotated_xy_within_window = fn.rotate_array(rotation_degrees, xy_within_window, center)
+x_2013 = rotated_xy_within_window[0]
+y_2013 = rotated_xy_within_window[1]
+
+# ------------------------------------------ End of Performing Rotation
 
 # ------------------------------------------Start of Selective Binning
 
@@ -566,11 +598,6 @@ maximum_x = -32.43
 minimum_x = -72.79
 maximum_y = 4.72
 minimum_y = -32.21
-
-# Define the Center and Radius of the Circle
-# ChangeParam
-center = np.array([-50, -15])
-radius = 8
 
 # To allow for selection of range for regression, ignoring the presence of all other data points
 # ChangeParam
@@ -611,7 +638,7 @@ print(y_within_window.shape)
 
 # First conduct a regression on the 2014 data set
 # ChangeParam
-quads_on_side = 40  # define the number of quads along each dimension
+quads_on_side = 20  # define the number of quads along each dimension
 # histogram_range = np.array([[y_lower, y_upper], [x_lower, x_upper]])
 # histo, x_edges, y_edges = np.histogram2d(theft_x, theft_y, bins=quads_on_side)  # create histogram
 histo, y_edges, x_edges = np.histogram2d(y_within_window, x_within_window, bins=quads_on_side)
@@ -677,11 +704,11 @@ indicator_mesh = indicator_array.reshape(x_mesh.shape)
 fig_brazil_scatter = plt.figure()
 brazil_scatter = fig_brazil_scatter.add_subplot(111)
 # brazil_scatter.scatter(x_2014, y_2014, marker='.', color='blue', s=0.1)
-brazil_scatter.scatter(x_2013, y_2013, marker='.', color='red', s=0.3)
+brazil_scatter.scatter(x_2013, y_2013, marker='.', color='black', s=0.3)
 # plt.legend([pp_2014, pp_2013], ["2014", "2013"])
 brazil_scatter.set_title('Brazil 2013 Aedes Scatter')
-brazil_scatter.set_xlim(x_lower, x_upper)
-brazil_scatter.set_ylim(y_lower, y_upper)
+# brazil_scatter.set_xlim(x_lower, x_upper)
+# brazil_scatter.set_ylim(y_lower, y_upper)
 brazil_scatter.set_xlabel('UTM Horizontal Coordinate')
 brazil_scatter.set_ylabel('UTM Vertical Coordinate')
 """
@@ -690,9 +717,11 @@ fig_brazil_histogram = plt.figure()
 brazil_histogram = fig_brazil_histogram.add_subplot(111)
 brazil_histogram.pcolor(x_mesh_plot, y_mesh_plot, histo, cmap='YlOrBr')
 brazil_histogram.scatter(x_2013, y_2013, marker='.', color='black', s=0.3)
+histogram_circle = plt.Circle((-50, -15), 11.3, fill=False, color='orange')
+brazil_histogram.add_patch(histogram_circle)
 brazil_histogram.set_title('Brazil 2013 Aedes Histogram')
-brazil_histogram.set_xlim(x_lower, x_upper)
-brazil_histogram.set_ylim(y_lower, y_upper)
+# brazil_histogram.set_xlim(x_lower, x_upper)
+# brazil_histogram.set_ylim(y_lower, y_upper)
 brazil_histogram.set_xlabel('UTM Horizontal Coordinate')
 brazil_histogram.set_ylabel('UTM Vertical Coordinate')
 
@@ -702,8 +731,8 @@ brazil_circle = fig_brazil_circle.add_subplot(111)
 brazil_circle.pcolormesh(x_mesh_plot, y_mesh_plot, indicator_mesh, cmap='Pastel1')
 brazil_circle.scatter(x_2013, y_2013, marker='.', color='black', s=0.3)
 brazil_circle.set_title('Circular Regression Window W')
-brazil_circle.set_xlim(x_lower, x_upper)
-brazil_circle.set_ylim(y_lower, y_upper)
+# brazil_circle.set_xlim(x_lower, x_upper)
+# brazil_circle.set_ylim(y_lower, y_upper)
 brazil_circle.set_xlabel('UTM Horizontal Coordinate')
 brazil_circle.set_ylabel('UTM Vertical Coordinate')
 # brazil_circle.grid()

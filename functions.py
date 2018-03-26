@@ -243,6 +243,37 @@ def element_counter(element, array):
     return q
 
 
+def rotate_array(angle_degrees, array, center):
+    """
+    Undergoes a 3-stage transformation
+    1. Subtract the centre coordinate from each array point
+    2. Perform rotation by multiplying with rotation matrix
+    3. Add back the centre coordinate from each array point
+    :param angle: Angle of Rotation
+    :param array:
+    :param center:
+    :return: The rotated coordinates
+    """
+    # Convert angle to radians
+    radians = angle_degrees / 180 * np.pi
+
+    # Create rotation matrix
+    rotation_matrix = np.array([[np.cos(radians), - np.sin(radians)], [np.sin(radians), np.cos(radians)]])
+
+    # Subtract center
+    new_array_x = array[0] - center[0]
+    new_array_y = array[1] - center[1]
+    new_array_xy = np.vstack((new_array_x, new_array_y))
+
+    # Rotate
+    rotated_array = np.matmul(rotation_matrix, new_array_xy)
+
+    # Add back center
+    final_array_x = rotated_array[0] + center[0]
+    final_array_y = rotated_array[1] + center[1]
+    final_array = np.vstack((final_array_x, final_array_y))
+    return final_array
+
 
 
 

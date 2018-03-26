@@ -225,6 +225,27 @@ def log_special(array):
     return log_array
 
 
+def element_counter(element, array):
+    """
+    Counts the number of a particular element in an array
+    :param element:
+    :param array:
+    :return: number of times the element appears in the array
+    """
+    # Initialise counter
+    q = 0
+    for i in range(array.size):
+        if array[i] == element:
+            q = q + 1
+        else:
+            q = q + 0
+
+    return q
+
+
+
+
+
 
 
 

@@ -434,6 +434,8 @@ def short_log_integrand_v(param, *args):
         c_auto = fast_squared_exp_2d(sigma, length, xy_coordinates, xy_coordinates)
     elif kernel_choice == 'rational_quad':
         c_auto = fast_rational_quadratic_2d(sigma, length, xy_coordinates, xy_coordinates)
+    else:
+        c_auto = fast_matern_2d(sigma, length, xy_coordinates, xy_coordinates)
 
     c_noise = np.eye(c_auto.shape[0]) * (noise ** 2)  # Fro-necker delta function
     cov_matrix = c_auto + c_noise
@@ -518,6 +520,195 @@ def hessianproduct_log_likelihood(param, *args):
     return hessian_product_convex
 
 
-# Test the model from 2013 using 2014 data using both Log Marginal Likelihood and MSE
-# Note that the MSE is calculated using the Arithmetic mean and not the geometric mean
+# ------------------------------------------Start of Data Collection
+
+# Aedes Occurrences in Brazil
+aedes_df = pd.read_csv('Aedes_PP_Data.csv')  # generates dataframe from csv - zika data
+
+# Setting boolean variables required for the data
+brazil = aedes_df['COUNTRY'] == "Brazil"
+taiwan = aedes_df['COUNTRY'] == "Taiwan"
+aegyp = aedes_df['VECTOR'] == "Aedes aegypti"
+albop = aedes_df['VECTOR'] == "Aedes albopictus"
+year_2014 = aedes_df['YEAR'] == "2014"
+year_2013 = aedes_df['YEAR'] == "2013"
+year_2012 = aedes_df['YEAR'] == "2012"
+
+# Extract data for Brazil and make sure to convert data type to float64
+aedes_brazil = aedes_df[brazil]  # Extracting Brazil Data
+aedes_brazil_2014 = aedes_df[brazil & year_2014]
+aedes_brazil_2013 = aedes_df[brazil & year_2013]
+aedes_brazil_2012 = aedes_df[brazil & year_2012]
+aedes_brazil_2013_2014 = aedes_brazil_2013 & aedes_brazil_2014
+x_2014 = aedes_brazil_2014.values[:, 5].astype('float64')
+y_2014 = aedes_brazil_2014.values[:, 4].astype('float64')
+x_2013 = aedes_brazil_2013.values[:, 5].astype('float64')
+y_2013 = aedes_brazil_2013.values[:, 4].astype('float64')
+x_2013_2014 = aedes_brazil_2013_2014.values[:, 5].astype('float64')
+y_2013_2014 = aedes_brazil_2013_2014.values[:, 4].astype('float64')
+# ------------------------------------------End of Data Collection
+
+# ------------------------------------------Start of Selective Binning
+
+# ChangeParam
+# *** Decide on the year to consider ***
+year = 2013
+if year == 2013:
+    y_values, x_values = y_2013, x_2013
+elif year == 2014:
+    y_values, x_values = y_2014, x_2014
+else:
+    y_values, x_values = y_2013_2014, x_2013_2014  # Have to check this out! ***
+
+# Define Regression Space by specifying intervals and creating boolean variables for filter
+# Note this is for 2014 - entire Brazil Data
+maximum_x = -32.43
+minimum_x = -72.79
+maximum_y = 4.72
+minimum_y = -32.21
+
+# Define the Center and Radius of the Circle
+# ChangeParam
+center = np.array([-50, -15])
+radius = 8
+
+# To allow for selection of range for regression, ignoring the presence of all other data points
+# ChangeParam
+point_select = 'circle'
+
+if point_select == 'all':
+    x_upper = maximum_x
+    x_lower = minimum_x
+    y_upper = maximum_y
+    y_lower = minimum_y
+elif point_select == 'manual':
+    x_upper = -43
+    x_lower = -63
+    y_upper = -2
+    y_lower = -22
+elif point_select == 'circle':
+    x_upper = center[0] + radius
+    x_lower = center[0] - radius
+    y_upper = center[1] + radius
+    y_lower = center[1] - radius
+else:
+    x_upper = maximum_x
+    x_lower = minimum_x
+    y_upper = maximum_y
+    y_lower = minimum_y
+
+x_window = (x_values > x_lower) & (x_values < x_upper)
+y_window = (y_values > y_lower) & (y_values < y_upper)
+x_within_window = x_values[x_window & y_window]
+y_within_window = y_values[x_window & y_window]
+
+print(x_within_window.shape)
+print(y_within_window.shape)
+
+# ------------------------------------------ End of Selective Binning into a Square
+
+# ------------------------------------------ Start of Binning Process within the Square
+
+# First conduct a regression on the 2014 data set
+# ChangeParam
+quads_on_side = 40  # define the number of quads along each dimension
+# histogram_range = np.array([[y_lower, y_upper], [x_lower, x_upper]])
+# histo, x_edges, y_edges = np.histogram2d(theft_x, theft_y, bins=quads_on_side)  # create histogram
+histo, y_edges, x_edges = np.histogram2d(y_within_window, x_within_window, bins=quads_on_side)
+print(y_edges)
+print(x_edges)
+print('histo shape is ', histo.shape)
+x_mesh_plot, y_mesh_plot = np.meshgrid(x_edges, y_edges)  # creating mesh-grid for use
+x_mesh = x_mesh_plot[:-1, :-1]  # Removing extra rows and columns due to edges
+y_mesh = y_mesh_plot[:-1, :-1]
+print('x_mesh shape is ', x_mesh.shape)
+print('y_mesh shape is ', y_mesh.shape)
+x_quad = fn.row_create(x_mesh)  # Creating the rows from the mesh
+y_quad = fn.row_create(y_mesh)
+
+# ------------------------------------------ End of Binning Process within the Square
+
+# ------------------------------------------ Start of Realignment of Quad Centers
+# Have to shift up the centres by half a quad length
+
+# Measure quad length and correct for quad centers
+quad_length_x = (x_upper - x_lower) / quads_on_side
+quad_length_y = (y_upper - y_lower) / quads_on_side
+x_quad = x_quad + (0.5 * quad_length_x)
+y_quad = y_quad + (0.5 * quad_length_y)
+
+# Stack x and y coordinates together
+xy_quad = np.vstack((x_quad, y_quad))
+# histogram array
+k_quad = fn.row_create(histo)
+# ------------------------------------------ End of Realignment of Quad Centers
+
+# ------------------------------------------ Start of Circle Formation
+
+# Measure distance from each quad center to the center of the circle
+dist_x = x_quad - center[0]
+dist_y = y_quad - center[1]
+dist_center_array = np.sqrt((dist_x ** 2) + (dist_y ** 2))
+
+# Create Boolean variable to indicate being in the circle
+within_circle = dist_center_array <= radius
+
+# Extract quads whose centers are within the circle
+x_quad_circle = x_quad[within_circle]
+y_quad_circle = y_quad[within_circle]
+xy_quad_circle = np.vstack((x_quad_circle, y_quad_circle))
+k_quad_circle = k_quad[within_circle]
+
+print('xy_quad_circle is ', xy_quad_circle.shape)
+print('k_quad_circle is ', k_quad_circle.shape)
+
+# Set up circle quad indicator
+indicator_array = np.zeros_like(k_quad)
+for i in range(indicator_array.size):
+    if dist_center_array[i] <= radius:
+        indicator_array[i] = 1
+
+indicator_mesh = indicator_array.reshape(x_mesh.shape)
+
+# ------------------------------------------ End of Circle Formation
+
+# ChangeParam
+"""
+fig_brazil_scatter = plt.figure()
+brazil_scatter = fig_brazil_scatter.add_subplot(111)
+# brazil_scatter.scatter(x_2014, y_2014, marker='.', color='blue', s=0.1)
+brazil_scatter.scatter(x_2013, y_2013, marker='.', color='red', s=0.3)
+# plt.legend([pp_2014, pp_2013], ["2014", "2013"])
+brazil_scatter.set_title('Brazil 2013 Aedes Scatter')
+brazil_scatter.set_xlim(x_lower, x_upper)
+brazil_scatter.set_ylim(y_lower, y_upper)
+brazil_scatter.set_xlabel('UTM Horizontal Coordinate')
+brazil_scatter.set_ylabel('UTM Vertical Coordinate')
+"""
+
+fig_brazil_histogram = plt.figure()
+brazil_histogram = fig_brazil_histogram.add_subplot(111)
+brazil_histogram.pcolor(x_mesh_plot, y_mesh_plot, histo, cmap='YlOrBr')
+brazil_histogram.scatter(x_2013, y_2013, marker='.', color='black', s=0.3)
+brazil_histogram.set_title('Brazil 2013 Aedes Histogram')
+brazil_histogram.set_xlim(x_lower, x_upper)
+brazil_histogram.set_ylim(y_lower, y_upper)
+brazil_histogram.set_xlabel('UTM Horizontal Coordinate')
+brazil_histogram.set_ylabel('UTM Vertical Coordinate')
+
+# Indicating the Quads within the circle
+fig_brazil_circle = plt.figure()
+brazil_circle = fig_brazil_circle.add_subplot(111)
+brazil_circle.pcolormesh(x_mesh_plot, y_mesh_plot, indicator_mesh, cmap='Pastel1')
+brazil_circle.scatter(x_2013, y_2013, marker='.', color='black', s=0.3)
+brazil_circle.set_title('Circular Regression Window W')
+brazil_circle.set_xlim(x_lower, x_upper)
+brazil_circle.set_ylim(y_lower, y_upper)
+brazil_circle.set_xlabel('UTM Horizontal Coordinate')
+brazil_circle.set_ylabel('UTM Vertical Coordinate')
+# brazil_circle.grid()
+
+plt.show()
+
+
 

@@ -641,7 +641,7 @@ initial_hyperparam = np.array([1, 1, 1, 1])
 
 # Set up tuple for arguments
 # ChangeParam
-kernel = 'matern3'
+kernel = 'squared_exponential'
 args_hyperparam = (xy_quad, latent_v_array, kernel)
 
 # Start Optimization Algorithm for GP Hyperparameters
@@ -687,7 +687,7 @@ print('optimal scalar mean value is ', prior_mean_opt)
 if kernel == 'matern3':
     cov_auto = fast_matern_2d(sigma_opt, length_opt, xy_quad, xy_quad)  # Basic Covariance Matrix
 elif kernel == 'matern1':
-    cov_auto = fast_matern_1_2d(sigma_opt)
+    cov_auto = fast_matern_1_2d(sigma_opt, length_opt, xy_quad, xy_quad)
 elif kernel == 'squared_exponential':
     cov_auto = fast_squared_exp_2d(sigma_opt, length_opt, xy_quad, xy_quad)
 elif kernel == 'rational_quad':
@@ -798,6 +798,7 @@ print('Time Taken for plotting graphs = ', time_plotting)
 
 # ------------------------------------------ Start of Individual Plots for posterior - heat-maps and 3-D
 
+"""
 # ChangeParam
 fig_brazil_scatter = plt.figure()
 brazil_scatter = fig_brazil_scatter.add_subplot(111)
@@ -819,7 +820,7 @@ brazil_histogram.set_xlim(x_lower, x_upper)
 brazil_histogram.set_ylim(y_lower, y_upper)
 brazil_histogram.set_xlabel('UTM Horizontal Coordinate')
 brazil_histogram.set_ylabel('UTM Vertical Coordinate')
-
+"""
 
 fig_brazil_lambda = plt.figure()
 brazil_lambda = fig_brazil_lambda.add_subplot(111)

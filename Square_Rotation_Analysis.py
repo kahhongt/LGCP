@@ -529,7 +529,7 @@ def rotation_likelihood_opt(param, *args):
     :param args: xy_data, center, kernel form (this is a tuple)
     :return: log marginal likelihood based on the standard GP process
     """
-    param = angle
+    angle = param
 
     # Unpack Param Tuple
     center = args[0]
@@ -560,12 +560,11 @@ def rotation_likelihood_opt(param, *args):
     xy_within_box = np.vstack((x_coordinates, y_coordinates))
 
     # Perform rotation
-    rotated_coordinates = fn.rotate_array(rotation_degrees, xy_within_box, center)
+    rotated_coordinates = fn.rotate_array(angle, xy_within_box, center)
     rotated_x = rotated_coordinates[0]
     rotated_y = rotated_coordinates[1]
 
     # Define Regression Space by specifying intervals and creating boolean variables for filter
-
     x_upper_w = -43
     x_lower_w = -63
     y_upper_w = -2
@@ -656,19 +655,6 @@ y_2013 = y_2013[x_range_box & y_range_box]
 
 # ------------------------------------------ End of Scatter Point Set
 
-
-# ------------------------------------------Start of Selective Binning
-
-# ChangeParam
-# *** Decide on the year to consider ***
-year = 2013
-if year == 2013:
-    y_values, x_values = y_2013, x_2013
-elif year == 2014:
-    y_values, x_values = y_2014, x_2014
-else:
-    y_values, x_values = y_2013_2014, x_2013_2014  # Have to check this out! ***
-
 # Define Regression Space by specifying intervals and creating boolean variables for filter
 # Note this is for 2014 - entire Brazil Data
 maximum_x = -32.43
@@ -676,35 +662,8 @@ minimum_x = -72.79
 maximum_y = 4.72
 minimum_y = -32.21
 
-# To allow for selection of range for regression, ignoring the presence of all other data points
-# ChangeParam
-point_select = 'manual'
-
-if point_select == 'all':
-    x_upper = maximum_x
-    x_lower = minimum_x
-    y_upper = maximum_y
-    y_lower = minimum_y
-elif point_select == 'manual':
-    x_upper = -43
-    x_lower = -63
-    y_upper = -2
-    y_lower = -22
-else:
-    x_upper = maximum_x
-    x_lower = minimum_x
-    y_upper = maximum_y
-    y_lower = minimum_y
-
-x_window = (x_values > x_lower) & (x_values < x_upper)
-y_window = (y_values > y_lower) & (y_values < y_upper)
-x_within_window = x_values[x_window & y_window]
-y_within_window = y_values[x_window & y_window]
 
 # ------------------------------------------ End of Selective Binning into a Square
-
-
-
 
 # ChangeParam
 """

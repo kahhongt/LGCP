@@ -530,11 +530,82 @@ def rotation_likelihood_opt(param, *args):
     :return: log marginal likelihood based on the standard GP process
     """
     param = angle
-    args[0] = center
-    args[1] = kernel
-    args[2] = n_quads
-    args[3] = xy_coordinates
-    args[4] = histogram
+
+    # Unpack Param Tuple
+    center = args[0]
+    kernel = args[1]
+    n_quads = args[2]
+    xy_coordinates = args[3] # Make this a tuple, so it will be a tuple within a tuple
+    regression_window = args[4]  # This is an array - x_upper, x_lower, y_upper and y_lower
+
+    # Start of Definition of Scatter Point Set
+    # Define Scatter Point Boundary
+    x_upper_box = regression_window[0]
+    x_lower_box = regression_window[1]
+    y_upper_box = regression_window[2]
+    y_lower_box = regression_window[3]
+
+    # Break up xy_coordinates into x and y
+    x_coordinates = xy_coordinates[0]
+    y_coordinates = xy_coordinates[1]
+
+    # Define Boolean Variable for Scatter Points Selection
+    x_range_box = (x_coordinates > x_lower_box) & (x_coordinates < x_upper_box)
+    y_range_box = (y_coordinates > y_lower_box) & (y_coordinates < y_upper_box)
+
+    x_coordinates = x_coordinates[x_range_box & y_range_box]
+    y_coordinates = y_coordinates[x_range_box & y_range_box]
+
+    # Stack x and y coordinates
+    xy_within_box = np.vstack((x_coordinates, y_coordinates))
+
+    # Perform rotation
+    rotated_coordinates = fn.rotate_array(rotation_degrees, xy_within_box, center)
+    rotated_x = rotated_coordinates[0]
+    rotated_y = rotated_coordinates[1]
+
+    # Define Regression Space by specifying intervals and creating boolean variables for filter
+
+    x_upper_w = -43
+    x_lower_w = -63
+    y_upper_w = -2
+    y_lower_w = -22
+
+    # Create boolean variable
+    x_window_w = (rotated_x > x_lower_w) & (rotated_x < x_upper_w)
+    y_window_w = (rotated_y > y_lower_w) & (rotated_y < y_upper_w)
+    x_window = rotated_x[x_window_w & y_window_w]
+    y_window = rotated_y[x_window_w & y_window_w]
+
+    # First conduct a regression on the 2014 data set
+    # ChangeParam
+    histo_f, y_edges_f, x_edges_f = np.histogram2d(y_window, x_window, bins=n_quads)
+    x_mesh_plot_f, y_mesh_plot_f = np.meshgrid(x_edges_f, y_edges_f)  # creating mesh-grid for use
+    x_mesh_f = x_mesh_plot_f[:-1, :-1]  # Removing extra rows and columns due to edges
+    y_mesh_f = y_mesh_plot_f[:-1, :-1]
+    x_quad_f = fn.row_create(x_mesh_f)  # Creating the rows from the mesh
+    y_quad_f = fn.row_create(y_mesh_f)
+
+    # ------------------------------------------ End of Binning Process within the Square
+
+    # ------------------------------------------ Start of Realignment of Quad Centers
+    # Have to shift up the centres by half a quad length
+
+    # Measure quad length and correct for quad centers
+    quad_length_x_f = (x_upper - x_lower) / quads_on_side
+    quad_length_y_f = (y_upper - y_lower) / quads_on_side
+    x_quad_f = x_quad_f + (0.5 * quad_length_x_f)
+    y_quad_f = y_quad_f + (0.5 * quad_length_y_f)
+
+    # Stack x and y coordinates together
+    xy_quad = np.vstack((x_quad, y_quad))
+    # histogram array
+    k_quad = fn.row_create(histo)
+    # ------------------------------------------ End of Realignment of Quad Centers
+
+
+
+
 
 
 
@@ -585,21 +656,6 @@ y_2013 = y_2013[x_range_box & y_range_box]
 
 # ------------------------------------------ End of Scatter Point Set
 
-# ------------------------------------------ Start of Performing Rotation
-
-# Define the Center and Radius of the Circle
-# ChangeParam
-center = np.array([-50, -15])
-radius = 8
-xy_within_window = np.vstack((x_2013, y_2013))
-
-# ChangeParam
-rotation_degrees = 45
-rotated_xy_within_window = fn.rotate_array(rotation_degrees, xy_within_window, center)
-x_2013 = rotated_xy_within_window[0]
-y_2013 = rotated_xy_within_window[1]
-
-# ------------------------------------------ End of Performing Rotation
 
 # ------------------------------------------Start of Selective Binning
 
@@ -622,7 +678,7 @@ minimum_y = -32.21
 
 # To allow for selection of range for regression, ignoring the presence of all other data points
 # ChangeParam
-point_select = 'circle'
+point_select = 'manual'
 
 if point_select == 'all':
     x_upper = maximum_x
@@ -634,11 +690,6 @@ elif point_select == 'manual':
     x_lower = -63
     y_upper = -2
     y_lower = -22
-elif point_select == 'circle':
-    x_upper = center[0] + radius
-    x_lower = center[0] - radius
-    y_upper = center[1] + radius
-    y_lower = center[1] - radius
 else:
     x_upper = maximum_x
     x_lower = minimum_x
@@ -650,75 +701,10 @@ y_window = (y_values > y_lower) & (y_values < y_upper)
 x_within_window = x_values[x_window & y_window]
 y_within_window = y_values[x_window & y_window]
 
-print(x_within_window.shape)
-print(y_within_window.shape)
-
 # ------------------------------------------ End of Selective Binning into a Square
 
-# ------------------------------------------ Start of Binning Process within the Square
 
-# First conduct a regression on the 2014 data set
-# ChangeParam
-quads_on_side = 20  # define the number of quads along each dimension
-# histogram_range = np.array([[y_lower, y_upper], [x_lower, x_upper]])
-# histo, x_edges, y_edges = np.histogram2d(theft_x, theft_y, bins=quads_on_side)  # create histogram
-histo, y_edges, x_edges = np.histogram2d(y_within_window, x_within_window, bins=quads_on_side)
-print(y_edges)
-print(x_edges)
-print('histo shape is ', histo.shape)
-x_mesh_plot, y_mesh_plot = np.meshgrid(x_edges, y_edges)  # creating mesh-grid for use
-x_mesh = x_mesh_plot[:-1, :-1]  # Removing extra rows and columns due to edges
-y_mesh = y_mesh_plot[:-1, :-1]
-print('x_mesh shape is ', x_mesh.shape)
-print('y_mesh shape is ', y_mesh.shape)
-x_quad = fn.row_create(x_mesh)  # Creating the rows from the mesh
-y_quad = fn.row_create(y_mesh)
 
-# ------------------------------------------ End of Binning Process within the Square
-
-# ------------------------------------------ Start of Realignment of Quad Centers
-# Have to shift up the centres by half a quad length
-
-# Measure quad length and correct for quad centers
-quad_length_x = (x_upper - x_lower) / quads_on_side
-quad_length_y = (y_upper - y_lower) / quads_on_side
-x_quad = x_quad + (0.5 * quad_length_x)
-y_quad = y_quad + (0.5 * quad_length_y)
-
-# Stack x and y coordinates together
-xy_quad = np.vstack((x_quad, y_quad))
-# histogram array
-k_quad = fn.row_create(histo)
-# ------------------------------------------ End of Realignment of Quad Centers
-
-# ------------------------------------------ Start of Circle Formation
-
-# Measure distance from each quad center to the center of the circle
-dist_x = x_quad - center[0]
-dist_y = y_quad - center[1]
-dist_center_array = np.sqrt((dist_x ** 2) + (dist_y ** 2))
-
-# Create Boolean variable to indicate being in the circle
-within_circle = dist_center_array <= radius
-
-# Extract quads whose centers are within the circle
-x_quad_circle = x_quad[within_circle]
-y_quad_circle = y_quad[within_circle]
-xy_quad_circle = np.vstack((x_quad_circle, y_quad_circle))
-k_quad_circle = k_quad[within_circle]
-
-print('xy_quad_circle is ', xy_quad_circle.shape)
-print('k_quad_circle is ', k_quad_circle.shape)
-
-# Set up circle quad indicator
-indicator_array = np.zeros_like(k_quad)
-for i in range(indicator_array.size):
-    if dist_center_array[i] <= radius:
-        indicator_array[i] = 1
-
-indicator_mesh = indicator_array.reshape(x_mesh.shape)
-
-# ------------------------------------------ End of Circle Formation
 
 # ChangeParam
 """
@@ -746,17 +732,6 @@ brazil_histogram.set_title('Brazil 2013 Aedes Histogram')
 brazil_histogram.set_xlabel('UTM Horizontal Coordinate')
 brazil_histogram.set_ylabel('UTM Vertical Coordinate')
 
-# Indicating the Quads within the circle
-fig_brazil_circle = plt.figure()
-brazil_circle = fig_brazil_circle.add_subplot(111)
-brazil_circle.pcolormesh(x_mesh_plot, y_mesh_plot, indicator_mesh, cmap='Pastel1')
-brazil_circle.scatter(x_2013, y_2013, marker='.', color='black', s=0.3)
-brazil_circle.set_title('Circular Regression Window W')
-# brazil_circle.set_xlim(x_lower, x_upper)
-# brazil_circle.set_ylim(y_lower, y_upper)
-brazil_circle.set_xlabel('UTM Horizontal Coordinate')
-brazil_circle.set_ylabel('UTM Vertical Coordinate')
-# brazil_circle.grid()
 
 plt.show()
 

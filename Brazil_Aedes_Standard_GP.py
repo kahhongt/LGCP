@@ -338,14 +338,21 @@ def short_log_integrand_data(param, *args):
     # Enter Arguments
     xy_coordinates = args[0]
     data_array = args[1]  # Note that this is refers to the optimised log-intensity array
+    ker = args[2]
 
     # Set up inputs for generation of objective function
     p_mean = mean_func_scalar(scalar_mean, xy_coordinates)
 
-    # Change_Param
-    # c_auto = fast_matern_2d(sigma, length, xy_coordinates, xy_coordinates)
-    c_auto = fast_matern_1_2d(sigma, length, xy_coordinates, xy_coordinates)
-    # c_auto = fast_squared_exp_2d(sigma, length, xy_coordinates, xy_coordinates)
+    # Change_Param - change kernel by setting cases
+    if ker == 'matern3':
+        c_auto = fast_matern_2d(sigma, length, xy_coordinates, xy_coordinates)
+    elif ker == 'matern1':
+        c_auto = fast_matern_1_2d(sigma, length, xy_coordinates, xy_coordinates)
+    elif ker == 'squared_exponential':
+        c_auto = fast_squared_exp_2d(sigma, length, xy_coordinates, xy_coordinates)
+    else:  # Default kernel is matern1
+        c_auto = fast_matern_1_2d(sigma, length, xy_coordinates, xy_coordinates)
+
     c_noise = np.eye(c_auto.shape[0]) * (noise ** 2)  # Fro-necker delta function
     cov_matrix = c_auto + c_noise
 
@@ -364,7 +371,6 @@ def short_log_integrand_data(param, *args):
     log_gp = det_term + euclidean_term
     log_gp_minimization = -1 * log_gp  # Make the function convex for minimization
     return log_gp_minimization
-# Matern 3/2
 
 
 def short_log_integrand_data_rq(param, *args):
@@ -572,7 +578,8 @@ elif opt_method == 'differential_evolution':
 # This method uses the log-det which is much faster - and is also able to calculate the scalar mean
 initial_hyperparam = np.array([3, 2, 1, 1])  # Note that this initial condition should be close to actual
 # Set up tuple for arguments
-args_hyperparam = (xy_quad, k_quad)
+kernel = 'matern1'
+args_hyperparam = (xy_quad, k_quad, kernel)
 # Start Optimization Algorithm for GP Hyperparameters
 
 # Change Covariance Function and corresponding optimization method

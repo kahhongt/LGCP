@@ -249,32 +249,58 @@ def rotate_array(angle_degrees, array, center):
     1. Subtract the centre coordinate from each array point
     2. Perform rotation by multiplying with rotation matrix
     3. Add back the centre coordinate from each array point
-    :param angle: Angle of Rotation
-    :param array:
-    :param center:
+    :param angle_degrees: Angle of Rotation
+    :param array: x and y coordinates of points to be rotated
+    :param center: center of rotation
     :return: The rotated coordinates
     """
     # Convert angle to radians
     radians = angle_degrees / 180 * np.pi
 
-    # Create rotation matrix
-    rotation_matrix = np.array([[np.cos(radians), - np.sin(radians)], [np.sin(radians), np.cos(radians)]])
-
-    # Subtract center
-    new_array_x = array[0] - center[0]
-    new_array_y = array[1] - center[1]
-    new_array_xy = np.vstack((new_array_x, new_array_y))
-
-    # Rotate
-    rotated_array = np.matmul(rotation_matrix, new_array_xy)
-
-    # Add back center
-    final_array_x = rotated_array[0] + center[0]
-    final_array_y = rotated_array[1] + center[1]
-    final_array = np.vstack((final_array_x, final_array_y))
+    # Start Subtracting Center, Rotate, then add back centre
+    rotation_mat = np.array([[np.cos(radians), - np.sin(radians)], [np.sin(radians), np.cos(radians)]])
+    rotation_mat = np.hstack((rotation_mat[0], rotation_mat[1]))
+    print(rotation_mat.shape)
+    x_box = array[0] - center[0]
+    y_box = array[1] - center[1]
+    xy_box = np.vstack((x_box, y_box))
+    xy_within_box = np.matmul(rotation_mat, xy_box)
+    rotated_x = xy_within_box[0] + center[0]
+    rotated_y = xy_within_box[1] + center[1]
+    final_array = np.vstack((rotated_x, rotated_y))
     return final_array
 
 
+def rotate_array_iterate(angle_degrees, array, center):
+    """
+    Undergoes a 3-stage transformation
+    1. Subtract the centre coordinate from each array point
+    2. Perform rotation by multiplying with rotation matrix
+    3. Add back the centre coordinate from each array point
+    :param angle_degrees: Angle of Rotation
+    :param array: x and y coordinates of points to be rotated
+    :param center: center of rotation
+    :return: The rotated coordinates
+    """
+    # Convert angle to radians
+    radians = angle_degrees / 180 * np.pi
+
+    # Start Subtracting Center, Rotate, then add back centre
+    rotation_mat = np.array([[np.cos(radians), - np.sin(radians)], [np.sin(radians), np.cos(radians)]])
+    x_box = array[0] - center[0]
+    y_box = array[1] - center[1]
+    xy_box = np.vstack((x_box, y_box))
+    xy_within_box = np.matmul(rotation_mat, xy_box)
+    rotated_x = xy_within_box[0] + center[0]
+    rotated_y = xy_within_box[1] + center[1]
+    final_array = np.vstack((rotated_x, rotated_y))
+    return final_array
+
+
+a = np.array([[1, 2, 3, 4], [4, 5, 6, 7]])
+c = np.array([0, 0])
+g = rotate_array_iterate(30, a, c)
+print(g)
 
 
 

@@ -574,7 +574,6 @@ def short_log_integrand_data(param, *args):
     return log_gp_minimization
 
 
-
 def rotation_likelihood_opt(param, *args):
     """
     Objective is to find the angle of rotation that gives the greatest log-likelihood, based on a
@@ -696,34 +695,103 @@ x_2013_2014 = aedes_brazil_2013_2014.values[:, 5].astype('float64')
 y_2013_2014 = aedes_brazil_2013_2014.values[:, 4].astype('float64')
 # ------------------------------------------ End of Data Collection
 
-# Define arguments for optimization
-c = np.array([-50, -15])
-ker = 'matern1'
-quads_on_side = 5
-xy_points = np.vstack((x_2013, y_2013))
-regression_box = (-43, -63, -2, -22)  # x_upper, x_lower, y_upper, y_lower
+# ------------------------------------------ Start of defining scatter point boundary
+# Define Scatter Point Boundary
+x_upper_box = -35
+x_lower_box = -65
+y_upper_box = 0
+y_lower_box = -30
 
-# Combine arguments into a tuple
-arguments = (c, ker, quads_on_side, xy_points, regression_box)
+# Define Boolean Variable for Scatter Points Selection
+x_range_box = (x_2013 > x_lower_box) & (x_2013 < x_upper_box)
+y_range_box = (y_2013 > y_lower_box) & (y_2013 < y_upper_box)
+
+x_points = x_2013[x_range_box & y_range_box]
+y_points = y_2013[x_range_box & y_range_box]
+
+# ------------------------------------------ End of defining scatter point boundary
+
+
+# Define arguments for calculating the Log Marginal Likelihood
+# ChangeParam
+c = np.array([-50, -15])
+radius = 8
+ker = 'matern1'
+quads_on_side = 10
+xy_points = np.vstack((x_points, y_points))  # This refers to all the points that are being rotated
+# reg_limit = (-43, -63, -2, -22)  # x_upper, x_lower, y_upper, y_lower
+# Define regression window which actually remains the same
+x_upper = c[0] + radius
+x_lower = c[0] - radius
+y_upper = c[1] + radius
+y_lower = c[1] - radius
 
 # Starting iteration point for angle
-initial_angle = np.array([35])
+# ChangeParam
+angle_array = np.arange(0, 181, 1)
+print('The angle array is ', angle_array)
 
-# Begin optimization for the rotation angle
-solution = scopt.minimize(fun=rotation_likelihood_opt, args=arguments, x0=initial_angle,
-                          method='Nelder-Mead',
-                          options={'xatol': 0.01, 'fatol': 0.1, 'disp': True, 'maxfev': 10000})
+# Initialise array to store log_likelihood_values
+likelihood_array = np.zeros_like(angle_array)
+print('The Initial likelihood array is ', likelihood_array)
 
-angle_opt = solution.x
-likelihood_opt = solution.fun
+# For each angle, re-tabulate the optimal hyper_parameters and calculate the log_likelihood
+for i in range(angle_array.size):
+    # Rotate Data Points that are beyond the regression window
+    rotated_xy = fn.rotate_array_iterate(angle_array[i], xy_points, c)
+    rotated_x = rotated_xy[0]
+    rotated_y = rotated_xy[1]
 
-print('The Optimal Log_likelihood is ', likelihood_opt)
-print(' The optimal rotation angle is ', angle_opt)
+    print('Rotated xy is ', rotated_xy)
+    # Define regression limits
+    # Create Boolean Variable
+    x_window = (rotated_x > x_lower) & (rotated_x < x_upper)
+    y_window = (rotated_y > y_lower) & (rotated_y < y_upper)
+    x_within_window = rotated_x[x_window & y_window]
+    y_within_window = rotated_y[x_window & y_window]
+    # These are the coordinates of points within the regression window
 
-rotated_xy_within_window = fn.rotate_array(angle_opt, xy_points, c)
+    # Generate Histogram from the coordinates of points above
+    histo, y_edges, x_edges = np.histogram2d(y_within_window, x_within_window, bins=quads_on_side)
+    x_mesh, y_mesh = np.meshgrid(x_edges, y_edges)  # creating mesh-grid for use
+    x_mesh = x_mesh[:-1, :-1]  # Removing extra rows and columns due to edges
+    y_mesh = y_mesh[:-1, :-1]
+    x_quad = fn.row_create(x_mesh)  # Creating the rows from the mesh
+    y_quad = fn.row_create(y_mesh)
+    k_quad = fn.row_create(histo)
+    xy_quad = np.vstack((x_quad, y_quad))
+
+    # Initialise arguments for hyper-parameter optimization
+    arguments = (xy_quad, k_quad, ker)
+
+    # Initialise kernel hyper-parameters
+    initial_hyperparameters = np.array([3, 2, 1, 1])
+
+    # Start optimization
+    solution = scopt.minimize(fun=short_log_integrand_data, args=arguments, x0=initial_hyperparameters,
+                              method='Nelder-Mead',
+                              options={'xatol': 1, 'fatol': 1, 'disp': True, 'maxfev': 1000})
+    # Over here, not really concerned about value of hyper-parameters, just the likelihood
+    likelihood_array[i] = -1 * solution.fun  # A log likelihood value for each i
+
+
+angle_opt = np.argmax(likelihood_array)
+print('The Log_likelihood Array is ', likelihood_array)
+print('The Optimal Angle is ', angle_opt)
+
+rotated_xy_within_window = fn.rotate_array_iterate(angle_opt, xy_points, c)
 x_rotated = rotated_xy_within_window[0]
 y_rotated = rotated_xy_within_window[1]
 
+# ------------------------------------------ Compute the Posterior using angle_opt
+
+# Quick plot for log likelihood versus angle in degrees
+fig_likelihood_plot = plt.figure()
+likelihood_plot = fig_likelihood_plot.add_subplot(111)
+likelihood_plot.plot(angle_array, likelihood_array, color='black')
+likelihood_plot.set_xlabel('Rotation Angle in Degrees')
+likelihood_plot.set_ylabel('Log Marginal Likelihood')
+plt.show()
 
 
 # ------------------------------------------ Start of rebuilding based on optimal angle
@@ -741,7 +809,7 @@ brazil_scatter.set_title('Brazil 2013 Aedes Scatter')
 # brazil_scatter.set_ylim(y_lower, y_upper)
 brazil_scatter.set_xlabel('UTM Horizontal Coordinate')
 brazil_scatter.set_ylabel('UTM Vertical Coordinate')
-"""
+
 
 fig_brazil_histogram = plt.figure()
 brazil_histogram = fig_brazil_histogram.add_subplot(111)
@@ -758,5 +826,6 @@ brazil_histogram.set_ylabel('UTM Vertical Coordinate')
 
 plt.show()
 
+"""
 
 

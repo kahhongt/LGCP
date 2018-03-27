@@ -520,25 +520,95 @@ def hessianproduct_log_likelihood(param, *args):
     return hessian_product_convex
 
 
-def rotation_likelihood_opt(param, *args):
+def short_log_integrand_data(param, *args):
     """
-    Objective is to find the angle of rotation that gives the greatest log-likelihood, based on a
-    standard GP regression. It would be a same assumption that the same optimal angle will be obtained using both
-    standard GP regression and the LGCP. Over here, we do not need to tabulate the posterior so that saves time.
-    :param param: angle of rotation in degrees - note there is only one parameter to optimize
-    :param args: xy_data, center, kernel form (this is a tuple)
-    :return: log marginal likelihood based on the standard GP process
+    1. Shorter version that tabulates only the log of the GP prior. Includes only terms
+    containing the covariance matrix elements that are made up of the kernel hyper-parameters
+    2. Kernel: Matern(3/2), Matern(1/2), Squared Exponential
+    3. Assume a constant latent intensity, even at locations without any incidences
+    :param param: hyperparameters - sigma, length scale and noise, prior scalar mean - array of 4 elements
+    :param args: xy coordinates for input into the covariance function and the histogram
+    :return: the log of the GP Prior, log[N(prior mean, covariance matrix)]
     """
-    param = angle
-    args[0] = center
-    args[1] = kernel
-    args[2] = n_quads
-    args[3] = xy_coordinates
-    args[4] = histogram
+    # Generate Matern Covariance Matrix
+    # Enter parameters
+    sigma = param[0]
+    length = param[1]
+    noise = param[2]
+    scalar_mean = param[3]
+
+    # Enter Arguments
+    xy_coordinates = args[0]
+    data_array = args[1]  # Note that this is refers to the optimised log-intensity array
+
+    # Set up inputs for generation of objective function
+    p_mean = mean_func_scalar(scalar_mean, xy_coordinates)
+
+    # Change_Param
+    # c_auto = fast_matern_2d(sigma, length, xy_coordinates, xy_coordinates)
+    c_auto = fast_matern_1_2d(sigma, length, xy_coordinates, xy_coordinates)
+    # c_auto = fast_squared_exp_2d(sigma, length, xy_coordinates, xy_coordinates)
+    c_noise = np.eye(c_auto.shape[0]) * (noise ** 2)  # Fro-necker delta function
+    cov_matrix = c_auto + c_noise
+
+    """Generate Objective Function = log[g(v)]"""
+
+    # Generate Determinant Term (after taking log)
+    determinant = np.exp(np.linalg.slogdet(cov_matrix))[1]
+    det_term = -0.5 * np.log(2 * np.pi * determinant)
+
+    # Generate Euclidean Term (after taking log)
+    data_diff = data_array - p_mean
+    inv_covariance_matrix = np.linalg.inv(cov_matrix)
+    euclidean_term = -0.5 * fn.matmulmul(data_diff, inv_covariance_matrix, data_diff)
+
+    """Summation of all terms change to correct form to find minimum point"""
+    log_gp = det_term + euclidean_term
+    log_gp_minimization = -1 * log_gp  # Make the function convex for minimization
+    return log_gp_minimization
+# Matern 3/2
 
 
+def short_log_integrand_data_rq(param, *args):
+    """
+    Optimization using the Rational Quadratic Kernel, with hyper-parameters alpha and
+    length scale, while taking in coordinates and histo quad as inputs
+    :param param: alpha, length_scale
+    :param args: Coordinates and values of data points after taking the histogram
+    :return: the negative of the marginal log likelihood (which we then have to minimize)
+    """
+    # Generate Rational Quadratic Covariance Matrix
+    # Enter parameters
+    alpha = param[0]
+    length = param[1]
+    noise = param[2]
+    scalar_mean = param[3]
 
-    return log_likelihood
+    # Enter Arguments
+    xy_coordinates = args[0]
+    data_array = args[1]  # Note that this is refers to the optimised log-intensity array
+
+    # Set up inputs for generation of objective function
+    p_mean = mean_func_scalar(scalar_mean, xy_coordinates)
+
+    # Create Rational Quadratic Covariance Matrix including noise
+    c_auto = rational_quadratic_2d(alpha, length, xy_coordinates, xy_coordinates)
+    c_noise = np.eye(c_auto.shape[0]) * (noise ** 2)  # Fro-necker delta function
+    cov_matrix = c_auto + c_noise
+
+    # Generate Determinant Term (after taking log)
+    determinant = np.exp(np.linalg.slogdet(cov_matrix))[1]
+    det_term = -0.5 * np.log(2 * np.pi * determinant)
+
+    # Generate Euclidean Term (after taking log)
+    data_diff = data_array - p_mean
+    inv_covariance_matrix = np.linalg.inv(cov_matrix)
+    euclidean_term = -0.5 * fn.matmulmul(data_diff, inv_covariance_matrix, data_diff)
+
+    """Summation of all terms change to correct form to find minimum point"""
+    log_gp = det_term + euclidean_term
+    log_gp_minimization = -1 * log_gp  # Make the function convex for minimization
+    return log_gp_minimization
 
 
 # ------------------------------------------Start of Data Collection
@@ -596,6 +666,7 @@ xy_within_window = np.vstack((x_2013, y_2013))
 # ChangeParam
 rotation_degrees = 0
 rotated_xy_within_window = fn.rotate_array(rotation_degrees, xy_within_window, center)
+print(rotated_xy_within_window.shape)
 x_2013 = rotated_xy_within_window[0]
 y_2013 = rotated_xy_within_window[1]
 
@@ -678,6 +749,7 @@ y_quad = fn.row_create(y_mesh)
 
 # ------------------------------------------ Start of Realignment of Quad Centers
 # Have to shift up the centres by half a quad length
+# *** Note that I can skip this step if not using the circular regression window
 
 # Measure quad length and correct for quad centers
 quad_length_x = (x_upper - x_lower) / quads_on_side

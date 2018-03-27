@@ -1,5 +1,6 @@
 import numpy as np
 from numpy.lib import scimath
+import time
 import scipy.optimize as scopt
 import matplotlib
 matplotlib.use('TkAgg')
@@ -302,6 +303,7 @@ c = np.array([0, 0])
 g = rotate_array_iterate(30, a, c)
 print(g)
 
+print(time.clock())
 
 
 

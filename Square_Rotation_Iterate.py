@@ -716,7 +716,7 @@ y_points = y_2013[x_range_box & y_range_box]
 # ChangeParam
 c = np.array([-50, -15])
 radius = 8
-ker = 'matern1'
+ker = 'rational_quad'
 quads_on_side = 10
 xy_points = np.vstack((x_points, y_points))  # This refers to all the points that are being rotated
 # reg_limit = (-43, -63, -2, -22)  # x_upper, x_lower, y_upper, y_lower
@@ -728,12 +728,15 @@ y_lower = c[1] - radius
 
 # Starting iteration point for angle
 # ChangeParam
-angle_array = np.arange(0, 181, 1)
+angle_limit = 90
+angle_array = np.arange(0, angle_limit+1, 1)
 print('The angle array is ', angle_array)
 
 # Initialise array to store log_likelihood_values
 likelihood_array = np.zeros_like(angle_array)
 print('The Initial likelihood array is ', likelihood_array)
+
+start_likelihood_tab = time.clock()
 
 # For each angle, re-tabulate the optimal hyper_parameters and calculate the log_likelihood
 for i in range(angle_array.size):
@@ -767,6 +770,7 @@ for i in range(angle_array.size):
     # Initialise kernel hyper-parameters
     initial_hyperparameters = np.array([3, 2, 1, 1])
 
+    print('The current angle of rotation is ', angle_array[i])
     # Start optimization
     solution = scopt.minimize(fun=short_log_integrand_data, args=arguments, x0=initial_hyperparameters,
                               method='Nelder-Mead',
@@ -775,24 +779,41 @@ for i in range(angle_array.size):
     likelihood_array[i] = -1 * solution.fun  # A log likelihood value for each i
 
 
-angle_opt = np.argmax(likelihood_array)
+angle_opt_index = np.argmax(likelihood_array)  # This gives the index of the maximum angle
+angle_opt = angle_array[angle_opt_index]
 print('The Log_likelihood Array is ', likelihood_array)
 print('The Optimal Angle is ', angle_opt)
+
+time_likelihood_tab = time.clock() - start_likelihood_tab
+print('Time taken for Angle Iteration =', time_likelihood_tab)
 
 rotated_xy_within_window = fn.rotate_array_iterate(angle_opt, xy_points, c)
 x_rotated = rotated_xy_within_window[0]
 y_rotated = rotated_xy_within_window[1]
 
 # ------------------------------------------ Compute the Posterior using angle_opt
+# Create Likelihood Array for Plotting
+likelihood_array_plot = np.hstack((likelihood_array, likelihood_array[1:]))
+angle_array_plot = np.arange(0, (2*angle_limit) + 1, 1)
+
 
 # Quick plot for log likelihood versus angle in degrees
 fig_likelihood_plot = plt.figure()
 likelihood_plot = fig_likelihood_plot.add_subplot(111)
 likelihood_plot.plot(angle_array, likelihood_array, color='black')
+likelihood_plot.set_title('Plot of Log Marginal Likelihood against Rotation Angle')
 likelihood_plot.set_xlabel('Rotation Angle in Degrees')
 likelihood_plot.set_ylabel('Log Marginal Likelihood')
-plt.show()
 
+# Quick Plot for 2 periods
+fig_likelihood_plot_2 = plt.figure()
+likelihood_plot_2 = fig_likelihood_plot_2.add_subplot(111)
+likelihood_plot_2.plot(angle_array_plot, likelihood_array_plot, color='black')
+likelihood_plot_2.set_title('Plot of Log Marginal Likelihood against Rotation Angle')
+likelihood_plot_2.set_xlabel('Rotation Angle in Degrees')
+likelihood_plot_2.set_ylabel('Log Marginal Likelihood')
+
+plt.show()
 
 # ------------------------------------------ Start of rebuilding based on optimal angle
 

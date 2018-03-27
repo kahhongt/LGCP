@@ -782,7 +782,7 @@ k_quad_circle = k_quad[within_circle]
 print('xy_quad_circle is ', xy_quad_circle.shape)
 print('k_quad_circle is ', k_quad_circle.shape)
 
-# Set up circle quad indicator
+# Set up circle quad indicator to show which quads are within the Circular Regression Window
 indicator_array = np.zeros_like(k_quad)
 for i in range(indicator_array.size):
     if dist_center_array[i] <= radius:

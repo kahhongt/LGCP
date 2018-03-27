@@ -520,13 +520,71 @@ def hessianproduct_log_likelihood(param, *args):
     return hessian_product_convex
 
 
+def short_log_integrand_data(param, *args):
+    """
+    1. Shorter version that tabulates only the log of the GP prior. Includes only terms
+    containing the covariance matrix elements that are made up of the kernel hyper-parameters
+    2. Kernel: Matern(3/2), Matern(1/2), Squared Exponential
+    3. Assume a constant latent intensity, even at locations without any incidences
+    :param param: hyperparameters - sigma, length scale and noise, prior scalar mean - array of 4 elements
+    :param args: xy coordinates for input into the covariance function and the histogram
+    :return: the log of the GP Prior, log[N(prior mean, covariance matrix)]
+    """
+    # Generate Matern Covariance Matrix
+    # Enter parameters
+    sigma = param[0]
+    length = param[1]
+    noise = param[2]
+    scalar_mean = param[3]
+
+    # Enter Arguments - entered as a tuple
+    xy_coordinates = args[0]
+    data_array = args[1]  # Note that this is refers to the optimised log-intensity array
+    kernel = args[2]
+
+    # Set up inputs for generation of objective function
+    p_mean = mean_func_scalar(scalar_mean, xy_coordinates)
+
+    # Change_Param - change kernel by setting cases
+    if kernel == 'matern3':
+        c_auto = fast_matern_2d(sigma, length, xy_coordinates, xy_coordinates)
+    elif kernel == 'matern1':
+        c_auto = fast_matern_1_2d(sigma, length, xy_coordinates, xy_coordinates)
+    elif kernel == 'squared_exponential':
+        c_auto = fast_squared_exp_2d(sigma, length, xy_coordinates, xy_coordinates)
+    else:  # Default kernel is matern1
+        c_auto = fast_matern_1_2d(sigma, length, xy_coordinates, xy_coordinates)
+
+    c_noise = np.eye(c_auto.shape[0]) * (noise ** 2)  # Fro-necker delta function
+    cov_matrix = c_auto + c_noise
+
+    """Generate Objective Function = log[g(v)]"""
+    # Generate Determinant Term (after taking log)
+    determinant = np.exp(np.linalg.slogdet(cov_matrix))[1]
+    det_term = -0.5 * np.log(2 * np.pi * determinant)
+
+    # Generate Euclidean Term (after taking log)
+    data_diff = data_array - p_mean
+    inv_covariance_matrix = np.linalg.inv(cov_matrix)
+    euclidean_term = -0.5 * fn.matmulmul(data_diff, inv_covariance_matrix, data_diff)
+
+    """Summation of all terms change to correct form to find minimum point"""
+    log_gp = det_term + euclidean_term
+    log_gp_minimization = -1 * log_gp  # Make the function convex for minimization
+    return log_gp_minimization
+# Matern 3/2
+
+
 def rotation_likelihood_opt(param, *args):
     """
     Objective is to find the angle of rotation that gives the greatest log-likelihood, based on a
     standard GP regression. It would be a same assumption that the same optimal angle will be obtained using both
     standard GP regression and the LGCP. Over here, we do not need to tabulate the posterior so that saves time.
+
+    We are taking the xy_data which is already boxed and a single year will be taken
+
     :param param: angle of rotation in degrees - note there is only one parameter to optimize
-    :param args: xy_data, center, kernel form (this is a tuple)
+    :param args: xy_data, center, kernel form (this is a tuple), regression window
     :return: log marginal likelihood based on the standard GP process
     """
     angle = param
@@ -535,11 +593,10 @@ def rotation_likelihood_opt(param, *args):
     center = args[0]
     kernel = args[1]
     n_quads = args[2]
-    xy_coordinates = args[3] # Make this a tuple, so it will be a tuple within a tuple
+    xy_coordinates = args[3]  # Make this a tuple, so it will be a tuple within a tuple
     regression_window = args[4]  # This is an array - x_upper, x_lower, y_upper and y_lower
 
-    # Start of Definition of Scatter Point Set
-    # Define Scatter Point Boundary
+    # Define regression window
     x_upper_box = regression_window[0]
     x_lower_box = regression_window[1]
     y_upper_box = regression_window[2]
@@ -553,6 +610,7 @@ def rotation_likelihood_opt(param, *args):
     x_range_box = (x_coordinates > x_lower_box) & (x_coordinates < x_upper_box)
     y_range_box = (y_coordinates > y_lower_box) & (y_coordinates < y_upper_box)
 
+    # Obtain data points within the regression window
     x_coordinates = x_coordinates[x_range_box & y_range_box]
     y_coordinates = y_coordinates[x_range_box & y_range_box]
 
@@ -563,12 +621,6 @@ def rotation_likelihood_opt(param, *args):
     rotated_coordinates = fn.rotate_array(angle, xy_within_box, center)
     rotated_x = rotated_coordinates[0]
     rotated_y = rotated_coordinates[1]
-
-    # Define Regression Space by specifying intervals and creating boolean variables for filter
-    x_upper_w = -43
-    x_lower_w = -63
-    y_upper_w = -2
-    y_lower_w = -22
 
     # Create boolean variable
     x_window_w = (rotated_x > x_lower_w) & (rotated_x < x_upper_w)
@@ -585,33 +637,29 @@ def rotation_likelihood_opt(param, *args):
     x_quad_f = fn.row_create(x_mesh_f)  # Creating the rows from the mesh
     y_quad_f = fn.row_create(y_mesh_f)
 
-    # ------------------------------------------ End of Binning Process within the Square
-
-    # ------------------------------------------ Start of Realignment of Quad Centers
-    # Have to shift up the centres by half a quad length
-
-    # Measure quad length and correct for quad centers
-    quad_length_x_f = (x_upper - x_lower) / quads_on_side
-    quad_length_y_f = (y_upper - y_lower) / quads_on_side
-    x_quad_f = x_quad_f + (0.5 * quad_length_x_f)
-    y_quad_f = y_quad_f + (0.5 * quad_length_y_f)
+    # Note that over here, we do not have to consider the alignment of quad centers
 
     # Stack x and y coordinates together
-    xy_quad = np.vstack((x_quad, y_quad))
-    # histogram array
-    k_quad = fn.row_create(histo)
-    # ------------------------------------------ End of Realignment of Quad Centers
+    xy_quad = np.vstack((x_quad_f, y_quad_f))
+    # Create histogram array
+    k_quad = fn.row_create(histo_f)
 
+    # Being tabulating log marginal likelihood after optimizing for kernel hyper-parameters
 
+    initial_hyperparam = np.array([3, 2, 1, 1])  # Note that this initial condition should be close to actual
+    # Set up tuple for arguments
+    args_hyperparam = (xy_quad, k_quad, kernel)
 
+    # Start Optimization Algorithm
+    hyperparam_solution = scopt.minimize(fun=short_log_integrand_data, args=args_hyperparam, x0=initial_hyperparam,
+                                         method='Nelder-Mead',
+                                         options={'xatol': 1, 'fatol': 1, 'disp': True, 'maxfev': 300})
 
+    # Extract Log_likelihood value
+    neg_log_likelihood = hyperparam_solution.fun  # Eventually, we will have to minimize the negative log likelihood
+    # Hence, this is actually an optimization nested within another optimization algorithm
+    return neg_log_likelihood
 
-
-
-    return log_likelihood
-
-
-# ------------------------------------------Start of Data Collection
 
 # Aedes Occurrences in Brazil
 aedes_df = pd.read_csv('Aedes_PP_Data.csv')  # generates dataframe from csv - zika data
@@ -639,31 +687,38 @@ x_2013_2014 = aedes_brazil_2013_2014.values[:, 5].astype('float64')
 y_2013_2014 = aedes_brazil_2013_2014.values[:, 4].astype('float64')
 # ------------------------------------------ End of Data Collection
 
-# ------------------------------------------ Start of Scatter Point Set
-# Define Scatter Point Boundary
-x_upper_box = -35
-x_lower_box = -65
-y_upper_box = 0
-y_lower_box = -30
-
-# Define Boolean Variable for Scatter Points Selection
-x_range_box = (x_2013 > x_lower_box) & (x_2013 < x_upper_box)
-y_range_box = (y_2013 > y_lower_box) & (y_2013 < y_upper_box)
-
-x_2013 = x_2013[x_range_box & y_range_box]
-y_2013 = y_2013[x_range_box & y_range_box]
 
 # ------------------------------------------ End of Scatter Point Set
 
-# Define Regression Space by specifying intervals and creating boolean variables for filter
-# Note this is for 2014 - entire Brazil Data
-maximum_x = -32.43
-minimum_x = -72.79
-maximum_y = 4.72
-minimum_y = -32.21
-
-
 # ------------------------------------------ End of Selective Binning into a Square
+
+# Define arguments for optimization
+c = np.array([-50, -15])
+ker = 'matern1'
+quads_on_side = 20
+xy_points = np.vstack((x_2013, y_2013))
+regression_box = (-43, -63, -2, -22)
+
+# Combine arguments into a tuple
+arguments = (c, ker, quads_on_side, xy_points, regression_box)
+
+# Starting iteration point for angle
+initial_angle = np.array([0])
+
+# Begin optimization for the rotation angle
+solution = scopt.minimize(fun=rotation_likelihood_opt, args=arguments, x0=initial_angle,
+                          method='Nelder-Mead',
+                          options={'xatol': 1, 'fatol': 1, 'disp': True, 'maxfev': 300})
+
+angle_opt = solution.x
+likelihood_opt = solution.fun
+
+print('The Optimal Log_likelihood is ', likelihood_opt)
+print(' The optimal rotation angle is ', angle_opt)
+
+
+
+
 
 # ChangeParam
 """

@@ -594,7 +594,7 @@ radius = 8
 xy_within_window = np.vstack((x_2013, y_2013))
 
 # ChangeParam
-rotation_degrees = 45
+rotation_degrees = 0
 rotated_xy_within_window = fn.rotate_array(rotation_degrees, xy_within_window, center)
 x_2013 = rotated_xy_within_window[0]
 y_2013 = rotated_xy_within_window[1]
@@ -749,7 +749,8 @@ brazil_histogram.set_ylabel('UTM Vertical Coordinate')
 # Indicating the Quads within the circle
 fig_brazil_circle = plt.figure()
 brazil_circle = fig_brazil_circle.add_subplot(111)
-brazil_circle.pcolormesh(x_mesh_plot, y_mesh_plot, indicator_mesh, cmap='Pastel1')
+cmap = matplotlib.colors.ListedColormap(['white', 'orange'])
+brazil_circle.pcolor(x_mesh_plot, y_mesh_plot, indicator_mesh, cmap=cmap, color='#ffffff')
 brazil_circle.scatter(x_2013, y_2013, marker='.', color='black', s=0.3)
 brazil_circle.set_title('Circular Regression Window W')
 # brazil_circle.set_xlim(x_lower, x_upper)

@@ -552,8 +552,11 @@ def short_log_integrand_data(param, *args):
         c_auto = fast_matern_1_2d(sigma, length, xy_coordinates, xy_coordinates)
     elif kernel == 'squared_exponential':
         c_auto = fast_squared_exp_2d(sigma, length, xy_coordinates, xy_coordinates)
+    elif kernel == 'rational_quad':
+        c_auto = fast_rational_quadratic_2d(sigma, length, xy_coordinates, xy_coordinates)
     else:  # Default kernel is matern1
-        c_auto = fast_matern_1_2d(sigma, length, xy_coordinates, xy_coordinates)
+        c_auto = np.eye(data_array.shape[1])
+        print('Check for Appropriate Kernel')
 
     c_noise = np.eye(c_auto.shape[0]) * (noise ** 2)  # Fro-necker delta function
     cov_matrix = c_auto + c_noise
@@ -716,7 +719,7 @@ y_points = y_2013[x_range_box & y_range_box]
 # ChangeParam
 c = np.array([-50, -15])
 radius = 8
-ker = 'squared_exponential'
+ker = 'rational_quad'
 quads_on_side = 10
 xy_points = np.vstack((x_points, y_points))  # This refers to all the points that are being rotated
 # reg_limit = (-43, -63, -2, -22)  # x_upper, x_lower, y_upper, y_lower

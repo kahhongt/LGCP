@@ -537,22 +537,31 @@ def short_log_integrand_data(param, *args):
     noise = param[2]
     scalar_mean = param[3]
 
-    # Enter Arguments
+    # Enter Arguments - entered as a tuple
     xy_coordinates = args[0]
     data_array = args[1]  # Note that this is refers to the optimised log-intensity array
+    kernel = args[2]
 
     # Set up inputs for generation of objective function
     p_mean = mean_func_scalar(scalar_mean, xy_coordinates)
 
-    # Change_Param
-    # c_auto = fast_matern_2d(sigma, length, xy_coordinates, xy_coordinates)
-    c_auto = fast_matern_1_2d(sigma, length, xy_coordinates, xy_coordinates)
-    # c_auto = fast_squared_exp_2d(sigma, length, xy_coordinates, xy_coordinates)
+    # Change_Param - change kernel by setting cases
+    if kernel == 'matern3':
+        c_auto = fast_matern_2d(sigma, length, xy_coordinates, xy_coordinates)
+    elif kernel == 'matern1':
+        c_auto = fast_matern_1_2d(sigma, length, xy_coordinates, xy_coordinates)
+    elif kernel == 'squared_exponential':
+        c_auto = fast_squared_exp_2d(sigma, length, xy_coordinates, xy_coordinates)
+    elif kernel == 'rational_quad':
+        c_auto = fast_rational_quadratic_2d(sigma, length, xy_coordinates, xy_coordinates)
+    else:  # Default kernel is matern1
+        c_auto = np.eye(data_array.shape[1])
+        print('Check for appropriate kernel')
+
     c_noise = np.eye(c_auto.shape[0]) * (noise ** 2)  # Fro-necker delta function
     cov_matrix = c_auto + c_noise
 
     """Generate Objective Function = log[g(v)]"""
-
     # Generate Determinant Term (after taking log)
     determinant = np.exp(np.linalg.slogdet(cov_matrix))[1]
     det_term = -0.5 * np.log(2 * np.pi * determinant)
@@ -566,7 +575,6 @@ def short_log_integrand_data(param, *args):
     log_gp = det_term + euclidean_term
     log_gp_minimization = -1 * log_gp  # Make the function convex for minimization
     return log_gp_minimization
-# Matern 3/2
 
 
 def short_log_integrand_data_rq(param, *args):
@@ -592,7 +600,7 @@ def short_log_integrand_data_rq(param, *args):
     p_mean = mean_func_scalar(scalar_mean, xy_coordinates)
 
     # Create Rational Quadratic Covariance Matrix including noise
-    c_auto = rational_quadratic_2d(alpha, length, xy_coordinates, xy_coordinates)
+    c_auto = fast_rational_quadratic_2d(alpha, length, xy_coordinates, xy_coordinates)
     c_noise = np.eye(c_auto.shape[0]) * (noise ** 2)  # Fro-necker delta function
     cov_matrix = c_auto + c_noise
 
@@ -646,12 +654,24 @@ x_lower_box = -65
 y_upper_box = 0
 y_lower_box = -30
 
-# Define Boolean Variable for Scatter Points Selection
-x_range_box = (x_2013 > x_lower_box) & (x_2013 < x_upper_box)
-y_range_box = (y_2013 > y_lower_box) & (y_2013 < y_upper_box)
+# ChangeParam - select the year to be used
+year = '2013'
+if year == '2013':
+    x = x_2013
+    y = y_2013
+elif year == '2014':
+    x = x_2014
+    y = y_2014
+else:  # taking all years instead
+    x = x_2013_2014
+    y = y_2013_2014
 
-x_2013 = x_2013[x_range_box & y_range_box]
-y_2013 = y_2013[x_range_box & y_range_box]
+# Define Boolean Variable for Scatter Points Selection
+x_range_box = (x > x_lower_box) & (x < x_upper_box)
+y_range_box = (y > y_lower_box) & (y < y_upper_box)
+
+x_points = x[x_range_box & y_range_box]
+y_points = y[x_range_box & y_range_box]
 
 # ------------------------------------------ End of Scatter Point Set
 
@@ -661,11 +681,12 @@ y_2013 = y_2013[x_range_box & y_range_box]
 # ChangeParam
 center = np.array([-50, -15])
 radius = 8
-xy_within_window = np.vstack((x_2013, y_2013))
+xy_within_window = np.vstack((x_2013, y_2013))  # Create the sample points to be rotated
 
 # ChangeParam
 rotation_degrees = 0
 rotated_xy_within_window = fn.rotate_array(rotation_degrees, xy_within_window, center)
+# Note that radius is not used here, only the center is being used
 print(rotated_xy_within_window.shape)
 x_2013 = rotated_xy_within_window[0]
 y_2013 = rotated_xy_within_window[1]
@@ -693,7 +714,7 @@ minimum_y = -32.21
 
 # To allow for selection of range for regression, ignoring the presence of all other data points
 # ChangeParam
-point_select = 'circle'
+point_select = 'circle' # This is for selecting the regression window
 
 if point_select == 'all':
     x_upper = maximum_x

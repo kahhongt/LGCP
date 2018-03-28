@@ -800,16 +800,16 @@ arguments = (xy_quad_circle, k_quad_circle, ker)
 # Initialise kernel hyper-parameters
 initial_hyperparameters = np.array([3, 2, 1, 1])
 
-# Check time taken for the optimization
-start_opt = time.clock()
-
 solution = scopt.minimize(fun=short_log_integrand_data, args=arguments, x0=initial_hyperparameters,
                           method='Nelder-Mead',
                           options={'xatol': 1, 'fatol': 1, 'disp': True, 'maxfev': 1000})
 
-time_opt = time.clock() - start_opt
+likelihood = -1 * solution.fun  # A log likelihood value for each i
 
-# Extract the optimal parameters based on kernel optimization
+# Find the likelihood based on a circular regression window with angle 0
+print('The likelihood is ', likelihood)
+
+# List optimal hyper-parameters
 sigma_optimal = solution.x[0]
 length_optimal = solution.x[1]
 noise_optimal = solution.x[2]

@@ -260,8 +260,8 @@ def rotate_array(angle_degrees, array, center):
 
     # Start Subtracting Center, Rotate, then add back centre
     rotation_mat = np.array([[np.cos(radians), - np.sin(radians)], [np.sin(radians), np.cos(radians)]])
-    rotation_mat = np.hstack((rotation_mat[0], rotation_mat[1]))
-    print(rotation_mat.shape)
+    # rotation_mat = np.hstack((rotation_mat[0], rotation_mat[1]))
+    # print(rotation_mat.shape)
     x_box = array[0] - center[0]
     y_box = array[1] - center[1]
     xy_box = np.vstack((x_box, y_box))

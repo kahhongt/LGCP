@@ -716,7 +716,7 @@ y_points = y_2013[x_range_box & y_range_box]
 # ChangeParam
 c = np.array([-50, -15])
 radius = 8
-ker = 'rational_quad'
+ker = 'squared_exponential'
 quads_on_side = 10
 xy_points = np.vstack((x_points, y_points))  # This refers to all the points that are being rotated
 # reg_limit = (-43, -63, -2, -22)  # x_upper, x_lower, y_upper, y_lower

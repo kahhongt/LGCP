@@ -171,6 +171,36 @@ def matern_2d(v_value, sigma_matern, length_matern, x1, x2):  # there are only t
     return c
 
 
+def rational_quadratic_2d(alpha_rq, length_rq, x1, x2):
+    """
+    Rational Quadratic Coveriance function with 2 parameters to be optimized, using
+    power alpha and length scale l. The Rational Quadratic Kernel is used to model the
+    volatility of equity index returns, which is equivalent to a sum of Squared
+    Exponential Kernels. This kernel is used to model multi-scale data
+
+    This is a fast method of generating the rational quadratic kernel, by exploiting the symmetry
+    of the covariance matrix
+    :param alpha_rq: power and denominator
+    :param length_rq: length scale
+    :param x1: First set of coordinates for iteration
+    :param x2: Second set of coordinates for iteration
+    :return: Covariance matrix with Rational Quadratic Kernel
+    """
+    # Note that this function only takes in 2-D coordinates, make sure there are 2 rows and n columns
+    n = x1.shape[1]
+    cov_matrix = np.zeros((n, n))
+    for i in range(n):
+        cov_matrix[i, i] = 1
+        for j in range(i + 1, n):
+            diff = x1[:, i] - x2[:, j]
+            euclidean_squared = np.matmul(diff, np.transpose(diff))
+            fraction_term = euclidean_squared / (2 * alpha_rq * (length_rq ** 2))
+            cov_matrix[i, j] = (1 + fraction_term) ** (-1 * alpha_rq)
+            cov_matrix[j, i] = cov_matrix[i, j]
+
+    return cov_matrix
+
+
 # This is way faster than the function above beyond n=10
 def fast_matern_2d(sigma_matern, length_matern, x1, x2):  # there are only two variables in the matern function
     """
@@ -619,6 +649,21 @@ def short_log_integrand_data_rq(param, *args):
     return log_gp_minimization
 
 
+def mu_post(xy_next, c_auto, c_cross, mismatch):  # Posterior mean
+    if c_cross.shape[1] != (np.linalg.inv(c_auto)).shape[0]:
+        print('First Dimension Mismatch!')
+    if (np.linalg.inv(c_auto)).shape[1] != (np.transpose(mismatch)).shape[0]:
+        print('Second Dimension Mismatch!')
+    else:
+        mean_post = mean_func_zero(xy_next) + fn.matmulmul(c_cross, np.linalg.inv(c_auto), np.transpose(mismatch))
+        return mean_post
+
+
+def var_post(c_next_auto, c_cross, c_auto):  # Posterior Covariance
+    c_post = c_next_auto - fn.matmulmul(c_cross, np.linalg.inv(c_auto), np.transpose(c_cross))
+    return c_post
+
+
 # ------------------------------------------Start of Data Collection
 
 # Aedes Occurrences in Brazil
@@ -763,10 +808,10 @@ quad_length_y = (y_upper - y_lower) / quads_on_side
 x_quad = x_quad + (0.5 * quad_length_x)
 y_quad = y_quad + (0.5 * quad_length_y)
 
-# Stack x and y coordinates together
-xy_quad = np.vstack((x_quad, y_quad))
+# Stack x and y coordinates together - the box version is not used
+xy_quad_box = np.vstack((x_quad, y_quad))
 # Generate Histogram Array - Histo is in a mesh form
-k_quad = fn.row_create(k_mesh)
+k_quad_box = fn.row_create(k_mesh)
 # ------------------------------------------ End of Realignment of Quad Centers
 
 # ------------------------------------------ Start of Quadrat Selection within Circle
@@ -783,14 +828,31 @@ within_circle = dist_center_array <= radius
 x_quad_circle = x_quad[within_circle]
 y_quad_circle = y_quad[within_circle]
 xy_quad_circle = np.vstack((x_quad_circle, y_quad_circle))
-k_quad_circle = k_quad[within_circle]
+k_quad_circle = k_quad_box[within_circle]
 
 print('The number of quadrats in the Circle is', k_quad_circle.shape)
 # Quads in the Circle within the Box: 10x10 - 80, 20x20 -316, 30x30 - 716, 40x40 - 1264
 
 # ------------------------------------------ End of Quadrat Selection within Circle
 
-# ------------------------------------------ Start of GP Regression
+# ------------------------------------------ Start of Extracting scatter points within the circle
+# Extracting points within the circle purely for plotting purposes
+# Find distance from each point to the center
+dist_x_points = x_points_box - center[0]
+dist_y_points = y_points_box - center[1]
+dist_center_points_array = np.sqrt((dist_x_points ** 2) + (dist_y_points ** 2))
+
+# Create boolean variable to determine which points are within the Circle
+points_within_circle = dist_center_points_array <= radius
+
+# Extract points
+x_points_circle = x_points_box[points_within_circle]
+y_points_circle = y_points_box[points_within_circle]
+
+# ------------------------------------------ End of Extracting scatter points within the circle
+
+# ------------------------------------------ Start of Hyper-parameter Optimization
+# ChangeParam
 # Define kernel
 ker = 'matern1'
 
@@ -822,11 +884,115 @@ print('optimal noise amplitude is ', noise_optimal)
 print('optimal scalar mean value is ', mean_optimal)
 
 
-# ------------------------------------------ End of GP Regression
+# ------------------------------------------ End of Hyper-parameter Optimization
+
+# ------------------------------------------Start of Sampling Points Creation
+
+# Define number of points along each side of box containing the circle
+# ChangeParam
+intervals = 100
+
+# Define the cut-off point beyond the circle - creating sampling points beyond data set
+cut_decision = 'large_range'
+if cut_decision == 'small_range':  # boundary exceeded by half an interval on each axis
+    cut_off_x = (x_upper - x_lower) / (intervals * 2)
+    cut_off_y = (y_upper - y_lower) / (intervals * 2)
+    # intervals_final = intervals + 1
+
+elif cut_decision == 'large_range':  # boundary exceeded by half the entire range on each axis
+    cut_off_x = (x_upper - x_lower) / 4
+    cut_off_y = (y_upper - y_lower) / 4
+else:  # No inclusion of points beyond the circle
+    cut_off_x = 0
+    cut_off_y = 0
+
+# Generate edges within the pre-defined range
+sampling_points_x = np.linspace(x_lower - cut_off_x, x_upper + cut_off_x, intervals)
+sampling_points_y = np.linspace(y_lower - cut_off_y, y_upper + cut_off_y, intervals)
+
+# Create iteration for coordinates using mesh-grid - for plotting
+sampling_points_xmesh, sampling_points_ymesh = np.meshgrid(sampling_points_x, sampling_points_y)
+sampling_x_row = fn.row_create(sampling_points_xmesh)
+sampling_y_row = fn.row_create(sampling_points_ymesh)
+sampling_xy = np.vstack((sampling_x_row, sampling_y_row))
+
+# ------------------------------------------End of Sampling Points Creation
+
+# ------------------------------------------Start of Posterior Tabulation
+start_posterior = time.clock()
+
+# Create cases for kernel selection
+if ker == 'matern1':
+    cov_dd = fast_matern_1_2d(sigma_optimal, length_optimal, xy_quad_circle, xy_quad_circle)
+elif ker == 'matern3':
+    cov_dd = fast_matern_2d(sigma_optimal, length_optimal, xy_quad_circle, xy_quad_circle)
+elif ker == 'squared_exponential':
+    cov_dd = fast_squared_exp_2d(sigma_optimal, length_optimal, xy_quad_circle, xy_quad_circle)
+elif ker == 'rational_quad':
+    cov_dd = fast_rational_quadratic_2d(sigma_optimal, length_optimal, xy_quad_circle, xy_quad_circle)
+else:  # No acceptable kernel defined
+    cov_dd = np.eye(xy_quad_circle.shape[1])  # Generate nonsensical identity matrix
+    print('No acceptable kernel defined. Results should make no sense')
+
+cov_noise = np.eye(cov_dd.shape[0]) * (noise_optimal ** 2)
+cov_overall = cov_dd + cov_noise
+prior_mean = mean_func_scalar(0, xy_quad_circle)
+prior_mismatch = k_quad_circle - prior_mean
+
+# Initialise mean_posterior and var_posterior array
+mean_posterior = np.zeros(sampling_xy.shape[1])
+var_posterior = np.zeros(sampling_xy.shape[1])
+
+# Generate mean and covariance array
+for i in range(sampling_xy.shape[1]):
+
+    # Generate status output
+    if i % 100 == 0:  # if i is a multiple of 50,
+        print('Tabulating Prediction Point', i)
+
+    # Change_Param
+    # At each data point,
+    xy_star = sampling_xy[:, i]
+
+    # Create cases for kernel selection
+    if ker == 'matern1':
+        cov_star_d = matern_2d(1/2, sigma_optimal, length_optimal, xy_star, xy_quad_circle)
+        cov_star_star = matern_2d(1 / 2, sigma_optimal, length_optimal, xy_star, xy_star)
+    elif ker == 'matern3':
+        cov_star_d = matern_2d(3 / 2, sigma_optimal, length_optimal, xy_star, xy_quad_circle)
+        cov_star_star = matern_2d(3 / 2, sigma_optimal, length_optimal, xy_star, xy_star)
+    elif ker == 'squared_exponential':
+        cov_star_d = squared_exp_2d(sigma_optimal, length_optimal, xy_star, xy_quad_circle)
+        cov_star_star = squared_exp_2d(sigma_optimal, length_optimal, xy_star, xy_star)
+    elif ker == 'rational_quad':
+        cov_star_d = rational_quadratic_2d(sigma_optimal, length_optimal, xy_star, xy_quad_circle)
+        cov_star_star = rational_quadratic_2d(sigma_optimal, length_optimal, xy_star, xy_star)
+    else:
+        cov_star_d = 0
+        cov_star_star = 0
+        print('No acceptable kernel entered')
+
+    # Generate Posterior Mean and Variance
+    mean_posterior[i] = mu_post(xy_star, cov_overall, cov_star_d, prior_mismatch)
+    var_posterior[i] = var_post(cov_star_star, cov_star_d, cov_overall)
+
+
+sampling_x_2d = sampling_x_row.reshape(intervals, intervals)
+sampling_y_2d = sampling_y_row.reshape(intervals, intervals)
+mean_posterior_2d = mean_posterior.reshape(intervals, intervals)
+var_posterior_2d = var_posterior.reshape(intervals, intervals)
+sd_posterior_2d = np.sqrt(var_posterior_2d)
+
+time_posterior = time.clock() - start_posterior
+print('Time taken for optimization =', time_opt)
+print('Time taken for Posterior Tabulation =', time_posterior)
+
+# ------------------------------------------End of Posterior Tabulation
+
 
 # ------------------------------------------ Start of Plotting Preparation
 # Set up circle quad indicator to show which quads are within the Circular Regression Window
-indicator_array = np.zeros_like(k_quad)
+indicator_array = np.zeros_like(k_quad_box)
 for i in range(indicator_array.size):
     if dist_center_array[i] <= radius:
         indicator_array[i] = 1
@@ -836,26 +1002,10 @@ indicator_mesh = indicator_array.reshape(x_mesh.shape)
 # ------------------------------------------ End of Plotting Preparation
 
 # ChangeParam
-"""
-fig_brazil_scatter = plt.figure()
-brazil_scatter = fig_brazil_scatter.add_subplot(111)
-# brazil_scatter.scatter(x_2014, y_2014, marker='.', color='blue', s=0.1)
-brazil_scatter.scatter(x_2013, y_2013, marker='.', color='black', s=0.3)
-# plt.legend([pp_2014, pp_2013], ["2014", "2013"])
-brazil_scatter.set_title('Brazil 2013 Aedes Scatter')
-# brazil_scatter.set_xlim(x_lower, x_upper)
-# brazil_scatter.set_ylim(y_lower, y_upper)
-brazil_scatter.set_xlabel('UTM Horizontal Coordinate')
-brazil_scatter.set_ylabel('UTM Vertical Coordinate')
-"""
-
+# Plot Histogram
 fig_brazil_histogram = plt.figure()
 brazil_histogram = fig_brazil_histogram.add_subplot(111)
 brazil_histogram.pcolor(x_mesh_plot, y_mesh_plot, k_mesh, cmap='YlOrBr')
-
-# cmap = matplotlib.colors.ListedColormap(['white', 'orange'])
-# brazil_histogram.pcolor(x_mesh_plot, y_mesh_plot, indicator_mesh, cmap=cmap, color='#ffffff')
-
 brazil_histogram.scatter(x_2013, y_2013, marker='.', color='black', s=0.3)
 histogram_circle = plt.Circle(center, radius, fill=False, color='orange')
 brazil_histogram.add_patch(histogram_circle)
@@ -876,7 +1026,26 @@ brazil_circle.set_title('Circular Regression Window W')
 # brazil_circle.set_ylim(y_lower, y_upper)
 brazil_circle.set_xlabel('UTM Horizontal Coordinate')
 brazil_circle.set_ylabel('UTM Vertical Coordinate')
-# brazil_circle.grid()
+
+# Plot Posterior Mean
+fig_m_post = plt.figure()
+post_mean_color = fig_m_post.add_subplot(111)
+post_mean_color.pcolor(sampling_points_x, sampling_points_y, mean_posterior_2d, cmap='YlOrBr')
+post_mean_color.scatter(x_points_circle, y_points_circle, marker='o', color='black', s=0.3)
+post_mean_color.set_title('Posterior Mean')
+post_mean_color.set_xlabel('UTM Horizontal Coordinate')
+post_mean_color.set_ylabel('UTM Vertical Coordinate')
+# post_mean_color.grid(True)
+
+# Plot Posterior Standard Deviation
+fig_sd_post = plt.figure()
+post_sd_color = fig_sd_post.add_subplot(111)
+post_sd_color.pcolor(sampling_points_x, sampling_points_y, sd_posterior_2d, cmap='YlOrBr')
+post_sd_color.scatter(x_points_circle, y_points_circle, marker='o', color='black', s=0.3)
+post_sd_color.set_title('Posterior Standard Deviation')
+post_sd_color.set_xlabel('UTM Horizontal Coordinate')
+post_sd_color.set_ylabel('UTM Vertical Coordinate')
+# post_cov_color.grid(True)
 
 plt.show()
 

@@ -685,6 +685,26 @@ center = (-50, -15)  # Create tuple
 radius = 8
 xy_within_box = np.vstack((x_points, y_points))  # Create the sample points to be rotated
 
+
+# Starting iteration for angle of rotation
+angle_limit = 90
+angle_array = np.arange(0, angle_limit+1, 1)
+print('The angle array is ', angle_array)
+
+# Initialise array to store log_likelihood_values
+likelihood_array = np.zeros_like(angle_array)
+print('The Initial likelihood array is ', likelihood_array)
+
+start_likelihood_tab = time.clock()
+
+# for each angle, retabulate the optimal hyper-parameters and calculate the log_likelihood
+# that is based of the kernel optimization
+
+for i in range(angle_array.size):
+
+
+
+
 # ChangeParam - Rotate the points within the large box
 rotation_degrees = 0
 rotated_xy_within_box = fn.rotate_array(rotation_degrees, xy_within_box, center)
@@ -814,7 +834,6 @@ sigma_optimal = solution.x[0]
 length_optimal = solution.x[1]
 noise_optimal = solution.x[2]
 mean_optimal = solution.x[3]
-print(solution)
 print('Last function evaluation is ', solution.fun)
 print('optimal sigma is ', sigma_optimal)
 print('optimal length-scale is ', length_optimal)

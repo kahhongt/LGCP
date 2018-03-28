@@ -683,7 +683,7 @@ y_points = y[x_range_box & y_range_box]
 # ChangeParam
 center = (-50, -15)  # Create tuple
 radius = 8
-ker = 'matern1'
+ker = 'squared_exponential'
 quads_on_side = 10
 xy_within_box = np.vstack((x_points, y_points))  # Create the sample points to be rotated
 
@@ -757,12 +757,17 @@ for i in range(angle_array.size):
     xy_quad_circle = np.vstack((x_quad_circle, y_quad_circle))
     k_quad_circle = k_quad[within_circle]
 
+    # Count number of quads inside circle
+    print('The number of quads inside circle is', k_quad_circle.shape)
+
     # Quads in the Circle within the Box: 10x10 - 80, 20x20 -316, 30x30 - 716, 40x40 - 1264
     # Start Optimization
     arguments = (xy_quad_circle, k_quad_circle, ker)
 
     # Initialise kernel hyper-parameters
     initial_hyperparameters = np.array([3, 2, 1, 1])
+
+    print('The current angle of rotation is ', angle_array[i])
 
     solution = scopt.minimize(fun=short_log_integrand_data, args=arguments, x0=initial_hyperparameters,
                               method='Nelder-Mead',
@@ -773,8 +778,10 @@ for i in range(angle_array.size):
 # Extract results
 angle_opt_index = np.argmax(likelihood_array)  # This gives the index of the maximum angle
 angle_opt = angle_array[angle_opt_index]
-print('The Log_likelihood Array is ', likelihood_array)
-print('The Optimal Angle is ', angle_opt)
+likelihood_opt = likelihood_array[angle_opt_index]
+print('The Log_likelihood Array is', likelihood_array)
+print('The Maximum Log Likelihood is', likelihood_opt)
+print('The Optimal Angle is', angle_opt)
 
 time_likelihood_tab = time.clock() - start_likelihood_tab
 print('Time taken for Angle Iteration =', time_likelihood_tab)

@@ -683,12 +683,21 @@ y_points = y[x_range_box & y_range_box]
 # ChangeParam
 center = (-50, -15)  # Create tuple
 radius = 8
+ker = 'matern1'
+quads_on_side = 10
 xy_within_box = np.vstack((x_points, y_points))  # Create the sample points to be rotated
 
+# Define the regression window which actually remains the same
+x_upper = center[0] + radius
+x_lower = center[0] - radius
+y_upper = center[1] + radius
+y_lower = center[1] - radius
 
 # Starting iteration for angle of rotation
+# ChangeParam
 angle_limit = 90
-angle_array = np.arange(0, angle_limit+1, 1)
+angle_step = 1
+angle_array = np.arange(0, angle_limit+1, angle_step)
 print('The angle array is ', angle_array)
 
 # Initialise array to store log_likelihood_values
@@ -697,207 +706,99 @@ print('The Initial likelihood array is ', likelihood_array)
 
 start_likelihood_tab = time.clock()
 
-# for each angle, retabulate the optimal hyper-parameters and calculate the log_likelihood
+# for each angle, re-tabulate the optimal hyper-parameters and calculate the log_likelihood
 # that is based of the kernel optimization
 
+# For each angle of rotation,
 for i in range(angle_array.size):
+    # Perform rotation of points in box
+    rotated_xy_within_box = fn.rotate_array(angle_array[i], xy_within_box, center)
+    x_points_box = rotated_xy_within_box[0]
+    y_points_box = rotated_xy_within_box[1]
+
+    # Define box to generate histogram
+    # Not all the quads will be inside the circle
+    x_window = (x_points_box > x_lower) & (x_points_box < x_upper)
+    y_window = (y_points_box > y_lower) & (y_points_box < y_upper)
+    x_within_window = x_points_box[x_window & y_window]
+    y_within_window = y_points_box[x_window & y_window]
+
+    # Generate histogram from box
+    # Note the range is already specified using the boolean variables above
+    k_mesh, y_edges, x_edges = np.histogram2d(y_within_window, x_within_window, bins=quads_on_side,
+                                              range=[[y_lower, y_upper], [x_lower, x_upper]])
+    x_mesh_plot, y_mesh_plot = np.meshgrid(x_edges, y_edges)  # creating mesh-grid for use
+    x_mesh = x_mesh_plot[:-1, :-1]  # Removing extra rows and columns due to edges
+    y_mesh = y_mesh_plot[:-1, :-1]
+    x_quad = fn.row_create(x_mesh)  # Creating the rows from the mesh
+    y_quad = fn.row_create(y_mesh)
+
+    # Realign the quad coordinates to the centers - shift centers by half a quad length on either dimension
+    quad_length_x = (x_upper - x_lower) / quads_on_side
+    quad_length_y = (y_upper - y_lower) / quads_on_side
+    x_quad = x_quad + (0.5 * quad_length_x)
+    y_quad = y_quad + (0.5 * quad_length_y)
+
+    # Generate Histogram Array - Histo is in a mesh form
+    k_quad = fn.row_create(k_mesh)
+
+    # Selection of quadrats within the circular regression window
+    # Measure distance from each quad center to the center of the circle
+    dist_x = x_quad - center[0]
+    dist_y = y_quad - center[1]
+    dist_center_array = np.sqrt((dist_x ** 2) + (dist_y ** 2))
+
+    # Create Boolean variable to indicate being in the circle
+    within_circle = dist_center_array <= radius
+
+    # Extract quads whose centers are within the circle
+    x_quad_circle = x_quad[within_circle]
+    y_quad_circle = y_quad[within_circle]
+    xy_quad_circle = np.vstack((x_quad_circle, y_quad_circle))
+    k_quad_circle = k_quad[within_circle]
+
+    # Quads in the Circle within the Box: 10x10 - 80, 20x20 -316, 30x30 - 716, 40x40 - 1264
+    # Start Optimization
+    arguments = (xy_quad_circle, k_quad_circle, ker)
+
+    # Initialise kernel hyper-parameters
+    initial_hyperparameters = np.array([3, 2, 1, 1])
+
+    solution = scopt.minimize(fun=short_log_integrand_data, args=arguments, x0=initial_hyperparameters,
+                              method='Nelder-Mead',
+                              options={'xatol': 1, 'fatol': 1, 'disp': True, 'maxfev': 1000})
+
+    likelihood_array[i] = -1 * solution.fun  # A log likelihood value for each i
+
+# Extract results
+angle_opt_index = np.argmax(likelihood_array)  # This gives the index of the maximum angle
+angle_opt = angle_array[angle_opt_index]
+print('The Log_likelihood Array is ', likelihood_array)
+print('The Optimal Angle is ', angle_opt)
+
+time_likelihood_tab = time.clock() - start_likelihood_tab
+print('Time taken for Angle Iteration =', time_likelihood_tab)
+
+# ------------------------------------------ Compute the Posterior using angle_opt
+# Create Likelihood Array for Plotting 2 periods
+likelihood_array_plot = np.hstack((likelihood_array, likelihood_array[1:]))
+angle_array_plot = np.arange(0, (2*angle_limit) + 1, angle_step)
 
 
+# Quick plot for log likelihood versus angle in degrees
+fig_likelihood_plot = plt.figure()
+likelihood_plot = fig_likelihood_plot.add_subplot(111)
+likelihood_plot.plot(angle_array, likelihood_array, color='black')
+likelihood_plot.set_title('Plot of Log Marginal Likelihood against Rotation Angle')
+likelihood_plot.set_xlabel('Rotation Angle in Degrees')
+likelihood_plot.set_ylabel('Log Marginal Likelihood')
 
-
-# ChangeParam - Rotate the points within the large box
-rotation_degrees = 0
-rotated_xy_within_box = fn.rotate_array(rotation_degrees, xy_within_box, center)
-# Note that radius is not used here, only the center is being used
-print(rotated_xy_within_box.shape)
-x_points_box = rotated_xy_within_box[0]
-y_points_box = rotated_xy_within_box[1]
-
-# ------------------------------------------ End of Performing Rotation
-
-# ------------------------------------------Start of Selective Binning
-# Note this is for 2014 - entire Brazil Data - note these are arbitrarily selected
-# Maximum and minimum values of each coordinate for the scattered points
-maximum_x = -32.43
-minimum_x = -72.79
-maximum_y = 4.72
-minimum_y = -32.21
-
-# Technically I can just bin everything first, then select the ones that I want
-
-# Select regression window boundaries
-# ChangeParam
-point_select = 'circle'  # This is for selecting the regression window
-
-if point_select == 'all':  # We bin everything that is in the box
-    x_upper = x_upper_box
-    x_lower = x_lower_box
-    y_upper = y_upper_box
-    y_lower = y_lower_box
-elif point_select == 'manual':  # Check with max and min values above first
-    x_upper = -43
-    x_lower = -63
-    y_upper = -2
-    y_lower = -22
-elif point_select == 'circle':  # Not really necessary
-    x_upper = center[0] + radius
-    x_lower = center[0] - radius
-    y_upper = center[1] + radius
-    y_lower = center[1] - radius
-else:
-    x_upper = maximum_x
-    x_lower = minimum_x
-    y_upper = maximum_y
-    y_lower = minimum_y
-
-x_window = (x_points_box > x_lower) & (x_points_box < x_upper)
-y_window = (y_points_box > y_lower) & (y_points_box < y_upper)
-x_within_window = x_points_box[x_window & y_window]
-y_within_window = y_points_box[x_window & y_window]
-
-print('Number of scatter points in box is', x_within_window.shape)
-
-# ------------------------------------------ End of Selective Binning into a Square
-
-# ------------------------------------------ Start of Histogram Generation from Box
-
-# First conduct a regression on the 2014 data set
-# ChangeParam
-quads_on_side = 20  # define the number of quads along each dimension
-# Note the range is already specified using the boolean variables above
-k_mesh, y_edges, x_edges = np.histogram2d(y_within_window, x_within_window, bins=quads_on_side,
-                                          range=[[y_lower, y_upper], [x_lower, x_upper]])
-x_mesh_plot, y_mesh_plot = np.meshgrid(x_edges, y_edges)  # creating mesh-grid for use
-x_mesh = x_mesh_plot[:-1, :-1]  # Removing extra rows and columns due to edges
-y_mesh = y_mesh_plot[:-1, :-1]
-x_quad = fn.row_create(x_mesh)  # Creating the rows from the mesh
-y_quad = fn.row_create(y_mesh)
-
-# ------------------------------------------ End of Histogram Generation from Box
-
-# ------------------------------------------ Start of Realignment of Quad Centers
-# Have to shift up the centres by half a quad length
-# Measure quad length and correct for quad centers
-quad_length_x = (x_upper - x_lower) / quads_on_side
-quad_length_y = (y_upper - y_lower) / quads_on_side
-x_quad = x_quad + (0.5 * quad_length_x)
-y_quad = y_quad + (0.5 * quad_length_y)
-
-# Stack x and y coordinates together
-xy_quad = np.vstack((x_quad, y_quad))
-# Generate Histogram Array - Histo is in a mesh form
-k_quad = fn.row_create(k_mesh)
-# ------------------------------------------ End of Realignment of Quad Centers
-
-# ------------------------------------------ Start of Quadrat Selection within Circle
-
-# Measure distance from each quad center to the center of the circle
-dist_x = x_quad - center[0]
-dist_y = y_quad - center[1]
-dist_center_array = np.sqrt((dist_x ** 2) + (dist_y ** 2))
-
-# Create Boolean variable to indicate being in the circle
-within_circle = dist_center_array <= radius
-
-# Extract quads whose centers are within the circle
-x_quad_circle = x_quad[within_circle]
-y_quad_circle = y_quad[within_circle]
-xy_quad_circle = np.vstack((x_quad_circle, y_quad_circle))
-k_quad_circle = k_quad[within_circle]
-
-print('The number of quadrats in the Circle is', k_quad_circle.shape)
-# Quads in the Circle within the Box: 10x10 - 80, 20x20 -316, 30x30 - 716, 40x40 - 1264
-
-# ------------------------------------------ End of Quadrat Selection within Circle
-
-# ------------------------------------------ Start of GP Regression
-# Define kernel
-ker = 'matern1'
-
-# Start Optimization
-arguments = (xy_quad_circle, k_quad_circle, ker)
-
-# Initialise kernel hyper-parameters
-initial_hyperparameters = np.array([3, 2, 1, 1])
-
-solution = scopt.minimize(fun=short_log_integrand_data, args=arguments, x0=initial_hyperparameters,
-                          method='Nelder-Mead',
-                          options={'xatol': 1, 'fatol': 1, 'disp': True, 'maxfev': 1000})
-
-likelihood = -1 * solution.fun  # A log likelihood value for each i
-
-# Find the likelihood based on a circular regression window with angle 0
-print('The likelihood is ', likelihood)
-
-# List optimal hyper-parameters
-sigma_optimal = solution.x[0]
-length_optimal = solution.x[1]
-noise_optimal = solution.x[2]
-mean_optimal = solution.x[3]
-print('Last function evaluation is ', solution.fun)
-print('optimal sigma is ', sigma_optimal)
-print('optimal length-scale is ', length_optimal)
-print('optimal noise amplitude is ', noise_optimal)
-print('optimal scalar mean value is ', mean_optimal)
-
-
-# ------------------------------------------ End of GP Regression
-
-# ------------------------------------------ Start of Plotting Preparation
-# Set up circle quad indicator to show which quads are within the Circular Regression Window
-indicator_array = np.zeros_like(k_quad)
-for i in range(indicator_array.size):
-    if dist_center_array[i] <= radius:
-        indicator_array[i] = 1
-
-indicator_mesh = indicator_array.reshape(x_mesh.shape)
-
-# ------------------------------------------ End of Plotting Preparation
-
-# ChangeParam
-"""
-fig_brazil_scatter = plt.figure()
-brazil_scatter = fig_brazil_scatter.add_subplot(111)
-# brazil_scatter.scatter(x_2014, y_2014, marker='.', color='blue', s=0.1)
-brazil_scatter.scatter(x_2013, y_2013, marker='.', color='black', s=0.3)
-# plt.legend([pp_2014, pp_2013], ["2014", "2013"])
-brazil_scatter.set_title('Brazil 2013 Aedes Scatter')
-# brazil_scatter.set_xlim(x_lower, x_upper)
-# brazil_scatter.set_ylim(y_lower, y_upper)
-brazil_scatter.set_xlabel('UTM Horizontal Coordinate')
-brazil_scatter.set_ylabel('UTM Vertical Coordinate')
-"""
-
-fig_brazil_histogram = plt.figure()
-brazil_histogram = fig_brazil_histogram.add_subplot(111)
-brazil_histogram.pcolor(x_mesh_plot, y_mesh_plot, k_mesh, cmap='YlOrBr')
-
-# cmap = matplotlib.colors.ListedColormap(['white', 'orange'])
-# brazil_histogram.pcolor(x_mesh_plot, y_mesh_plot, indicator_mesh, cmap=cmap, color='#ffffff')
-
-brazil_histogram.scatter(x_2013, y_2013, marker='.', color='black', s=0.3)
-histogram_circle = plt.Circle(center, radius, fill=False, color='orange')
-brazil_histogram.add_patch(histogram_circle)
-brazil_histogram.set_title('Brazil 2013 Aedes Histogram')
-# brazil_histogram.set_xlim(x_lower, x_upper)
-# brazil_histogram.set_ylim(y_lower, y_upper)
-brazil_histogram.set_xlabel('UTM Horizontal Coordinate')
-brazil_histogram.set_ylabel('UTM Vertical Coordinate')
-
-# Indicating the Quads within the circle
-fig_brazil_circle = plt.figure()
-brazil_circle = fig_brazil_circle.add_subplot(111)
-cmap = matplotlib.colors.ListedColormap(['white', 'orange'])
-brazil_circle.pcolor(x_mesh_plot, y_mesh_plot, indicator_mesh, cmap=cmap, color='#ffffff')
-brazil_circle.scatter(x_2013, y_2013, marker='.', color='black', s=0.3)
-brazil_circle.set_title('Circular Regression Window W')
-# brazil_circle.set_xlim(x_lower, x_upper)
-# brazil_circle.set_ylim(y_lower, y_upper)
-brazil_circle.set_xlabel('UTM Horizontal Coordinate')
-brazil_circle.set_ylabel('UTM Vertical Coordinate')
-# brazil_circle.grid()
+# Quick Plot for 2 periods
+fig_likelihood_plot_2 = plt.figure()
+likelihood_plot_2 = fig_likelihood_plot_2.add_subplot(111)
+likelihood_plot_2.plot(angle_array_plot, likelihood_array_plot, color='black')
+likelihood_plot_2.set_title('Plot of Log Marginal Likelihood against Rotation Angle')
+likelihood_plot_2.set_xlabel('Rotation Angle in Degrees')
+likelihood_plot_2.set_ylabel('Log Marginal Likelihood')
 
 plt.show()
-
-
-

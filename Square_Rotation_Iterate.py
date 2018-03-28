@@ -672,7 +672,8 @@ def rotation_likelihood_opt(param, *args):
     return neg_log_likelihood
 
 
-# Aedes Occurrences in Brazil
+# ------------------------------------------ Start of Data Collection
+
 aedes_df = pd.read_csv('Aedes_PP_Data.csv')  # generates dataframe from csv - zika data
 
 # Setting boolean variables required for the data

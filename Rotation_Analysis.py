@@ -670,6 +670,7 @@ else:  # taking all years instead
 x_range_box = (x > x_lower_box) & (x < x_upper_box)
 y_range_box = (y > y_lower_box) & (y < y_upper_box)
 
+# Obtain the coordinates of points within the box, from a particular year
 x_points = x[x_range_box & y_range_box]
 y_points = y[x_range_box & y_range_box]
 
@@ -678,55 +679,47 @@ y_points = y[x_range_box & y_range_box]
 # ------------------------------------------ Start of Performing Rotation
 
 # Define the Center and Radius of the Circle
+# *** Using this, I can select the position and size of my circular regression window
 # ChangeParam
-center = np.array([-50, -15])
+center = (-50, -15)  # Create tuple
 radius = 8
-xy_within_window = np.vstack((x_2013, y_2013))  # Create the sample points to be rotated
+xy_within_box = np.vstack((x_points, y_points))  # Create the sample points to be rotated
 
-# ChangeParam
+# ChangeParam - Rotate the points within the large box
 rotation_degrees = 0
-rotated_xy_within_window = fn.rotate_array(rotation_degrees, xy_within_window, center)
+rotated_xy_within_box = fn.rotate_array(rotation_degrees, xy_within_box, center)
 # Note that radius is not used here, only the center is being used
-print(rotated_xy_within_window.shape)
-x_2013 = rotated_xy_within_window[0]
-y_2013 = rotated_xy_within_window[1]
+print(rotated_xy_within_box.shape)
+x_points_box = rotated_xy_within_box[0]
+y_points_box = rotated_xy_within_box[1]
 
 # ------------------------------------------ End of Performing Rotation
 
 # ------------------------------------------Start of Selective Binning
-
-# ChangeParam
-# *** Decide on the year to consider ***
-year = 2013
-if year == 2013:
-    y_values, x_values = y_2013, x_2013
-elif year == 2014:
-    y_values, x_values = y_2014, x_2014
-else:
-    y_values, x_values = y_2013_2014, x_2013_2014  # Have to check this out! ***
-
-# Define Regression Space by specifying intervals and creating boolean variables for filter
-# Note this is for 2014 - entire Brazil Data
+# Note this is for 2014 - entire Brazil Data - note these are arbitrarily selected
+# Maximum and minimum values of each coordinate for the scattered points
 maximum_x = -32.43
 minimum_x = -72.79
 maximum_y = 4.72
 minimum_y = -32.21
 
-# To allow for selection of range for regression, ignoring the presence of all other data points
-# ChangeParam
-point_select = 'circle' # This is for selecting the regression window
+# Technically I can just bin everything first, then select the ones that I want
 
-if point_select == 'all':
-    x_upper = maximum_x
-    x_lower = minimum_x
-    y_upper = maximum_y
-    y_lower = minimum_y
-elif point_select == 'manual':
+# Select regression window boundaries
+# ChangeParam
+point_select = 'all'  # This is for selecting the regression window
+
+if point_select == 'all':  # We bin everything that is in the box
+    x_upper = x_upper_box
+    x_lower = x_lower_box
+    y_upper = y_upper_box
+    y_lower = y_lower_box
+elif point_select == 'manual':  # Check with max and min values above first
     x_upper = -43
     x_lower = -63
     y_upper = -2
     y_lower = -22
-elif point_select == 'circle':
+elif point_select == 'circle':  # Not really necessary
     x_upper = center[0] + radius
     x_lower = center[0] - radius
     y_upper = center[1] + radius
@@ -737,41 +730,33 @@ else:
     y_upper = maximum_y
     y_lower = minimum_y
 
-x_window = (x_values > x_lower) & (x_values < x_upper)
-y_window = (y_values > y_lower) & (y_values < y_upper)
-x_within_window = x_values[x_window & y_window]
-y_within_window = y_values[x_window & y_window]
+x_window = (x_points_box > x_lower) & (x_points_box < x_upper)
+y_window = (y_points_box > y_lower) & (y_points_box < y_upper)
+x_within_window = x_points_box[x_window & y_window]
+y_within_window = y_points_box[x_window & y_window]
 
-print(x_within_window.shape)
-print(y_within_window.shape)
+print('Number of scatter points in box is', x_within_window.shape)
 
 # ------------------------------------------ End of Selective Binning into a Square
 
-# ------------------------------------------ Start of Binning Process within the Square
+# ------------------------------------------ Start of Histogram Generation from Box
 
 # First conduct a regression on the 2014 data set
 # ChangeParam
-quads_on_side = 20  # define the number of quads along each dimension
-# histogram_range = np.array([[y_lower, y_upper], [x_lower, x_upper]])
-# histo, x_edges, y_edges = np.histogram2d(theft_x, theft_y, bins=quads_on_side)  # create histogram
-histo, y_edges, x_edges = np.histogram2d(y_within_window, x_within_window, bins=quads_on_side)
-print(y_edges)
-print(x_edges)
-print('histo shape is ', histo.shape)
+quads_on_side = 10  # define the number of quads along each dimension
+# Note the range is already specified using the boolean variables above
+k_mesh, y_edges, x_edges = np.histogram2d(y_within_window, x_within_window, bins=quads_on_side,
+                                          range=[[y_lower, y_upper], [x_lower, x_upper]])
 x_mesh_plot, y_mesh_plot = np.meshgrid(x_edges, y_edges)  # creating mesh-grid for use
 x_mesh = x_mesh_plot[:-1, :-1]  # Removing extra rows and columns due to edges
 y_mesh = y_mesh_plot[:-1, :-1]
-print('x_mesh shape is ', x_mesh.shape)
-print('y_mesh shape is ', y_mesh.shape)
 x_quad = fn.row_create(x_mesh)  # Creating the rows from the mesh
 y_quad = fn.row_create(y_mesh)
 
-# ------------------------------------------ End of Binning Process within the Square
+# ------------------------------------------ End of Histogram Generation from Box
 
 # ------------------------------------------ Start of Realignment of Quad Centers
 # Have to shift up the centres by half a quad length
-# *** Note that I can skip this step if not using the circular regression window
-
 # Measure quad length and correct for quad centers
 quad_length_x = (x_upper - x_lower) / quads_on_side
 quad_length_y = (y_upper - y_lower) / quads_on_side
@@ -780,8 +765,8 @@ y_quad = y_quad + (0.5 * quad_length_y)
 
 # Stack x and y coordinates together
 xy_quad = np.vstack((x_quad, y_quad))
-# histogram array
-k_quad = fn.row_create(histo)
+# Generate Histogram Array - Histo is in a mesh form
+k_quad = fn.row_create(k_mesh)
 # ------------------------------------------ End of Realignment of Quad Centers
 
 # ------------------------------------------ Start of Circle Formation
@@ -800,8 +785,8 @@ y_quad_circle = y_quad[within_circle]
 xy_quad_circle = np.vstack((x_quad_circle, y_quad_circle))
 k_quad_circle = k_quad[within_circle]
 
-print('xy_quad_circle is ', xy_quad_circle.shape)
-print('k_quad_circle is ', k_quad_circle.shape)
+print('The number of quadrats in the Circle is', k_quad_circle.shape)
+# Quads in the Circle within the Box: 10x10 - 24, 20x20 -88, 30x30 - 208, 40x40 - 360
 
 # Set up circle quad indicator to show which quads are within the Circular Regression Window
 indicator_array = np.zeros_like(k_quad)
@@ -829,9 +814,13 @@ brazil_scatter.set_ylabel('UTM Vertical Coordinate')
 
 fig_brazil_histogram = plt.figure()
 brazil_histogram = fig_brazil_histogram.add_subplot(111)
-brazil_histogram.pcolor(x_mesh_plot, y_mesh_plot, histo, cmap='YlOrBr')
+brazil_histogram.pcolor(x_mesh_plot, y_mesh_plot, k_mesh, cmap='YlOrBr')
+
+# cmap = matplotlib.colors.ListedColormap(['white', 'orange'])
+# brazil_histogram.pcolor(x_mesh_plot, y_mesh_plot, indicator_mesh, cmap=cmap, color='#ffffff')
+
 brazil_histogram.scatter(x_2013, y_2013, marker='.', color='black', s=0.3)
-histogram_circle = plt.Circle((-50, -15), 11.3, fill=False, color='orange')
+histogram_circle = plt.Circle(center, radius, fill=False, color='orange')
 brazil_histogram.add_patch(histogram_circle)
 brazil_histogram.set_title('Brazil 2013 Aedes Histogram')
 # brazil_histogram.set_xlim(x_lower, x_upper)

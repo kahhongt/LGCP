@@ -854,7 +854,7 @@ y_points_circle = y_points_box[points_within_circle]
 # ------------------------------------------ Start of Hyper-parameter Optimization
 # ChangeParam
 # Define kernel
-ker = 'matern1'
+ker = 'matern3'
 
 # Start Optimization
 arguments = (xy_quad_circle, k_quad_circle, ker)

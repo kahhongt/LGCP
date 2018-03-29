@@ -683,8 +683,8 @@ y_points = y[x_range_box & y_range_box]
 # ChangeParam
 center = (-50, -15)  # Create tuple
 radius = 8
-ker = 'squared_exponential'
-quads_on_side = 10
+ker = 'rational_quad'
+quads_on_side = 20
 xy_within_box = np.vstack((x_points, y_points))  # Create the sample points to be rotated
 
 # Define the regression window which actually remains the same

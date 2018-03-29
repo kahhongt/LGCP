@@ -733,7 +733,8 @@ y_lower = c[1] - radius
 # Starting iteration point for angle
 # ChangeParam
 angle_limit = 90
-angle_array = np.arange(0, angle_limit+1, 1)
+angle_step = 0.5
+angle_array = np.arange(0, angle_limit + angle_step, angle_step)
 print('The angle array is ', angle_array)
 
 # Initialise array to store log_likelihood_values
@@ -798,7 +799,7 @@ y_rotated = rotated_xy_within_window[1]
 # ------------------------------------------ Compute the Posterior using angle_opt
 # Create Likelihood Array for Plotting
 likelihood_array_plot = np.hstack((likelihood_array, likelihood_array[1:]))
-angle_array_plot = np.arange(0, (2*angle_limit) + 1, 1)
+angle_array_plot = np.arange(0, (2*angle_limit) + angle_step, angle_step)
 
 
 # Quick plot for log likelihood versus angle in degrees

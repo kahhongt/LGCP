@@ -574,7 +574,6 @@ def short_log_integrand_data(param, *args):
     return log_gp_minimization
 
 
-
 def rotation_likelihood_opt(param, *args):
     """
     Objective is to find the angle of rotation that gives the greatest log-likelihood, based on a

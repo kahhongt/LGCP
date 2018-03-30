@@ -474,9 +474,9 @@ y_2013_2014 = aedes_brazil_2013_2014.values[:, 4].astype('float64')
 
 # ------------------------------------------Start of Selective Binning
 
-# *** Decide on the year to consider ***
+# *** Decide on the year to consider  as testing data set***
 # Change_Param
-year = 2014
+year = 2013
 if year == 2013:
     y_values, x_values = y_2013, x_2013
 elif year == 2014:
@@ -578,7 +578,7 @@ else:
 # Parameters = sigma, length, noise, scalar
 
 # Change_Param - this is for Brazil 2013 Data
-kernel = 'squared_exp_2014'
+kernel = 'matern3_2013'
 
 # Set up cases for kernel function hyper-parameter selection
 if kernel == 'matern3_2013':

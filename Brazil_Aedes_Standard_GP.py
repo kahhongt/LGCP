@@ -446,6 +446,7 @@ y_2013_2014 = aedes_brazil_2013_2014.values[:, 4].astype('float64')
 # ------------------------------------------Start of Selective Binning
 
 # *** Decide on the year to consider ***
+# ChangeParam
 year = 2013
 if year == 2013:
     y_values, x_values = y_2013, x_2013
@@ -475,6 +476,7 @@ print('Number of scatter points = ', x_within_window.shape)
 print('Number of scatter points = ', y_within_window.shape)
 
 # First conduct a regression on the 2014 data set
+# ChangeParam
 quads_on_side = 20  # define the number of quads along each dimension
 # histo, x_edges, y_edges = np.histogram2d(theft_x, theft_y, bins=quads_on_side)  # create histogram
 histo, y_edges, x_edges = np.histogram2d(y_within_window, x_within_window, bins=quads_on_side)
@@ -523,7 +525,7 @@ y_mesh_centralise_non_zero = y_mesh_centralise_all[non_zero_mesh]
 # ------------------------------------------End of Zero Point Exclusion
 
 # ------------------------------------------Start of SELECTION FOR EXCLUSION OF ZERO POINTS
-
+# ChangeParam
 exclusion_sign = 'include'  # Toggle between exclusion(1) and inclusion(0) of 'out-of-boundary' points
 
 if exclusion_sign == 'exclude':
@@ -578,6 +580,7 @@ elif opt_method == 'differential_evolution':
 # This method uses the log-det which is much faster - and is also able to calculate the scalar mean
 initial_hyperparam = np.array([3, 2, 1, 1])  # Note that this initial condition should be close to actual
 # Set up tuple for arguments
+# ChangeParam
 kernel = 'matern1'
 args_hyperparam = (xy_quad, k_quad, kernel)
 # Start Optimization Algorithm for GP Hyperparameters

@@ -664,6 +664,15 @@ def var_post(c_next_auto, c_cross, c_auto):  # Posterior Covariance
     return c_post
 
 
+def linear_trans_opt(param, *args):
+    """
+
+    :param param:
+    :param args:
+    :return:
+    """
+
+
 # ------------------------------------------Start of Data Collection
 
 # Aedes Occurrences in Brazil
@@ -761,256 +770,109 @@ y_within_box = y_points[x_box & y_box]
 
 # ------------------------------------------ End of Regression Window Selection before Transformation
 
-# ------------------------------------------ Start of Performing Rotation
+# ------------------------------------------ Start of Performing Transformation
+# Create range of values for alpha
+alpha_array = np.arange(0.3, 10, 0.1)
+xy_within_box = np.vstack((x_within_box, y_within_box))  # Create the sample points to be rotated
 
-# Define the Center and Radius of the Square
-# Note that the transformation of the scatter points will be about the center
-xy_within_box = np.vstack((x_points, y_points))  # Create the sample points to be rotated
-transform_matrix_array = np.array([1, 0.4, 0.7, -0.5])
-frob_norm = np.sqrt(sum(transform_matrix_array ** 2))
-print(frob_norm)
+# Initialise Log Likelihood Array
+likelihood_array = np.zeros_like(alpha_array)
 
-# ChangeParam - Conduct the transformation
-transformed_xy_within_box = fn.transform_array(transform_matrix_array, xy_within_box, center)
-# Note that radius is not used here, only the center is being used
-print(transformed_xy_within_box.shape)
-x_points_trans = transformed_xy_within_box[0]
-y_points_trans = transformed_xy_within_box[1]
+# iterate for each value of alpha
+for i in range(alpha_array.size):
+    transform_matrix_array = np.array([alpha_array[i], 0, 0, alpha_array[i]])
+    # transform_matrix_array = np.array([0, alpha_array[i], alpha_array[i], 0])
+    frob_norm = np.sqrt(sum(transform_matrix_array ** 2))
+    print(frob_norm)
 
-# Transformation of scatter points are now completed, now I have to define the regression window to fit to data
-# --------------------- Operating in the Transformed Space
+    # ChangeParam - Conduct the transformation
+    transformed_xy_within_box = fn.transform_array(transform_matrix_array, xy_within_box, center)
+    x_points_trans = transformed_xy_within_box[0]
+    y_points_trans = transformed_xy_within_box[1]
 
-# 1. Obtain the maximum range in x and y in the transformed space
-x_min = min(x_points_trans)
-x_max = max(x_points_trans)
-y_min = min(y_points_trans)
-y_max = max(y_points_trans)
+    # 1. Obtain the maximum range in x and y in the transformed space
+    x_min = min(x_points_trans)
+    x_max = max(x_points_trans)
+    y_min = min(y_points_trans)
+    y_max = max(y_points_trans)
 
-print('x range is', x_max - x_min)
-print('y range is', y_max - y_min)
+    print('x range is', x_max - x_min)
+    print('y range is', y_max - y_min)  # Display regression window size at each iteration
 
-# --------------------- Conduct binning into transformed space - the x and y quad lengths will be different
+    # ChangeParam
+    quads_on_side = 10  # define the number of quads along each dimension
+    k_mesh, y_edges, x_edges = np.histogram2d(y_points_trans, x_points_trans, bins=quads_on_side,
+                                              range=[[y_min, y_max], [x_min, x_max]])
+    x_mesh_plot, y_mesh_plot = np.meshgrid(x_edges, y_edges)  # creating mesh-grid for use
+    x_mesh = x_mesh_plot[:-1, :-1]  # Removing extra rows and columns due to edges
+    y_mesh = y_mesh_plot[:-1, :-1]
+    x_quad = fn.row_create(x_mesh)  # Creating the rows from the mesh
+    y_quad = fn.row_create(y_mesh)
+    xy_quad = np.vstack((x_quad, y_quad))
 
-# First conduct a regression on the 2014 data set
-# ChangeParam
-quads_on_side = 10  # define the number of quads along each dimension
-k_mesh, y_edges, x_edges = np.histogram2d(y_points_trans, x_points_trans, bins=quads_on_side,
-                                          range=[[y_min, y_max], [x_min, x_max]])
-x_mesh_plot, y_mesh_plot = np.meshgrid(x_edges, y_edges)  # creating mesh-grid for use
-x_mesh = x_mesh_plot[:-1, :-1]  # Removing extra rows and columns due to edges
-y_mesh = y_mesh_plot[:-1, :-1]
-x_quad = fn.row_create(x_mesh)  # Creating the rows from the mesh
-y_quad = fn.row_create(y_mesh)
-xy_quad = np.vstack((x_quad, y_quad))
+    k_quad = fn.row_create(k_mesh)
 
-k_quad = fn.row_create(k_mesh)
+    # Kernel Optimization
+    ker = 'matern1'
 
-# ------------------------------------------ End of Histogram Generation from Box
-# Because this is now a rectangular box, I do not need to do realignment of quad centers
+    # Start Optimization
+    arguments = (xy_quad, k_quad, ker)
 
-# ------------------------------------------ Start of kernel optimization
-# ChangeParam
-# Define kernel
-ker = 'matern1'
+    # Initialise kernel hyper-parameters
+    initial_hyperparameters = np.array([3, 2, 1, 1])
 
-# Start Optimization
-arguments = (xy_quad, k_quad, ker)
+    # Check time taken for the optimization
+    start_opt = time.clock()
 
-# Initialise kernel hyper-parameters
-initial_hyperparameters = np.array([3, 2, 1, 1])
+    solution = scopt.minimize(fun=short_log_integrand_data, args=arguments, x0=initial_hyperparameters,
+                              method='Nelder-Mead',
+                              options={'xatol': 1, 'fatol': 1, 'disp': True, 'maxfev': 1000})
 
-# Check time taken for the optimization
-start_opt = time.clock()
+    time_opt = time.clock() - start_opt
 
-solution = scopt.minimize(fun=short_log_integrand_data, args=arguments, x0=initial_hyperparameters,
-                          method='Nelder-Mead',
-                          options={'xatol': 1, 'fatol': 1, 'disp': True, 'maxfev': 1000})
-
-time_opt = time.clock() - start_opt
-
-# Extract the optimal parameters based on kernel optimization
-sigma_optimal = solution.x[0]
-length_optimal = solution.x[1]
-noise_optimal = solution.x[2]
-mean_optimal = solution.x[3]
-print(solution)
-print('Last function evaluation is ', solution.fun)
-print('optimal sigma is ', sigma_optimal)
-print('optimal length-scale is ', length_optimal)
-print('optimal noise amplitude is ', noise_optimal)
-print('optimal scalar mean value is ', mean_optimal)
-
-# Afterwards, I have to reverse transform the regressed points back into normal space
+    print(solution)
+    print('Last function evaluation is ', solution.fun)
+    print('The Time Taken for Optimization is', time_opt)
+    print('The current alpha is', alpha_array[i])
+    likelihood_array[i] = -1 * solution.fun
 
 
-# Split the range into a square with n quadrats on each side, and store the index of each quadrat
+# Find the value of alpha corresponding to the greatest log marginal likelihood
+alpha_opt_index = np.argmax(likelihood_array)  # This gives the index of the maximum angle
+alpha_opt = alpha_array[alpha_opt_index]
+likelihood_opt = likelihood_array[alpha_opt_index]
+print('The Log_likelihood Array is', likelihood_array)
+print('The Maximum Log Likelihood is', likelihood_opt)
+print('The Optimal Alpha is', alpha_opt)
 
-
-# Select the quadrats which contain scatter points, but store the initial index of each quadrat. Note that after this
-# stage, the number of quadrats for each transformation will be different. - Should they be different?
-
-
+"""
 scatter_plot_fig = plt.figure()
 scatter_plot = scatter_plot_fig.add_subplot(111)
 scatter_plot.scatter(x_points_trans, y_points_trans, marker='o', color='red', s=0.3)
-scatter_plot.scatter(x_points, y_points, marker='o', color='black', s=0.3)
+scatter_plot.scatter(x_within_box, y_within_box, marker='o', color='black', s=0.3)
 scatter_plot.set_title('Posterior Standard Deviation')
 scatter_plot.set_xlabel('UTM Horizontal Coordinate')
 scatter_plot.set_ylabel('UTM Vertical Coordinate')
 # scatter_plot.set_xlim(x_lower_box, x_upper_box)
 # scatter_plot.set_ylim(y_lower_box, y_upper_box)
+"""
+
+# Quick plot for log likelihood versus value of alpha
+fig_likelihood_plot = plt.figure()
+likelihood_plot = fig_likelihood_plot.add_subplot(111)
+likelihood_plot.plot(alpha_array, likelihood_array, color='black')
+likelihood_plot.set_title('Plot of Log Marginal Likelihood against Alpha')
+likelihood_plot.set_xlabel('Alpha')
+likelihood_plot.set_ylabel('Log Marginal Likelihood')
+
 
 plt.show()
 
 
 """
-# ------------------------------------------ End of Performing Rotation
-
-# ------------------------------------------Start of Selective Binning
-# Note this is for 2014 - entire Brazil Data - note these are arbitrarily selected
-# Maximum and minimum values of each coordinate for the scattered points - these are just for reference
-maximum_x = -32.43
-minimum_x = -72.79
-maximum_y = 4.72
-minimum_y = -32.21
-
-# Technically I can just bin everything first, then select the ones that I want
-
-# Select regression window boundaries
-# ChangeParam
-point_select = 'circle'  # This is for selecting the regression window
-
-if point_select == 'all':  # We bin everything that is in the box
-    x_upper = x_upper_box
-    x_lower = x_lower_box
-    y_upper = y_upper_box
-    y_lower = y_lower_box
-elif point_select == 'manual':  # Check with max and min values above first
-    x_upper = -43
-    x_lower = -63
-    y_upper = -2
-    y_lower = -22
-elif point_select == 'circle':  # Not really necessary
-    x_upper = center[0] + radius
-    x_lower = center[0] - radius
-    y_upper = center[1] + radius
-    y_lower = center[1] - radius
-else:
-    x_upper = maximum_x
-    x_lower = minimum_x
-    y_upper = maximum_y
-    y_lower = minimum_y
-
-x_window = (x_points_box > x_lower) & (x_points_box < x_upper)
-y_window = (y_points_box > y_lower) & (y_points_box < y_upper)
-x_within_window = x_points_box[x_window & y_window]
-y_within_window = y_points_box[x_window & y_window]
-
-print('Number of scatter points in box is', x_within_window.shape)
 
 # ------------------------------------------ End of Selective Binning into a Square
 
-# ------------------------------------------ Start of Histogram Generation from Box
-
-# First conduct a regression on the 2014 data set
-# ChangeParam
-quads_on_side = 20  # define the number of quads along each dimension
-# Note the range is already specified using the boolean variables above
-k_mesh, y_edges, x_edges = np.histogram2d(y_within_window, x_within_window, bins=quads_on_side,
-                                          range=[[y_lower, y_upper], [x_lower, x_upper]])
-x_mesh_plot, y_mesh_plot = np.meshgrid(x_edges, y_edges)  # creating mesh-grid for use
-x_mesh = x_mesh_plot[:-1, :-1]  # Removing extra rows and columns due to edges
-y_mesh = y_mesh_plot[:-1, :-1]
-x_quad = fn.row_create(x_mesh)  # Creating the rows from the mesh
-y_quad = fn.row_create(y_mesh)
-
-# ------------------------------------------ End of Histogram Generation from Box
-
-# ------------------------------------------ Start of Realignment of Quad Centers
-# Have to shift up the centres by half a quad length
-# Measure quad length and correct for quad centers
-quad_length_x = (x_upper - x_lower) / quads_on_side
-quad_length_y = (y_upper - y_lower) / quads_on_side
-x_quad = x_quad + (0.5 * quad_length_x)
-y_quad = y_quad + (0.5 * quad_length_y)
-
-# Stack x and y coordinates together - the box version is not used
-xy_quad_box = np.vstack((x_quad, y_quad))
-# Generate Histogram Array - Histo is in a mesh form
-k_quad_box = fn.row_create(k_mesh)
-# ------------------------------------------ End of Realignment of Quad Centers
-
-# ------------------------------------------ Start of Quadrat Selection within Circle
-
-# Measure distance from each quad center to the center of the circle
-dist_x = x_quad - center[0]
-dist_y = y_quad - center[1]
-dist_center_array = np.sqrt((dist_x ** 2) + (dist_y ** 2))
-
-# Create Boolean variable to indicate being in the circle
-within_circle = dist_center_array <= radius
-
-# Extract quads whose centers are within the circle
-x_quad_circle = x_quad[within_circle]
-y_quad_circle = y_quad[within_circle]
-xy_quad_circle = np.vstack((x_quad_circle, y_quad_circle))
-k_quad_circle = k_quad_box[within_circle]
-
-print('The number of quadrats in the Circle is', k_quad_circle.shape)
-# Quads in the Circle within the Box: 10x10 - 80, 20x20 -316, 30x30 - 716, 40x40 - 1264
-
-# ------------------------------------------ End of Quadrat Selection within Circle
-
-# ------------------------------------------ Start of Extracting scatter points within the circle
-# Extracting points within the circle purely for plotting purposes
-# Find distance from each point to the center
-dist_x_points = x_points_box - center[0]
-dist_y_points = y_points_box - center[1]
-dist_center_points_array = np.sqrt((dist_x_points ** 2) + (dist_y_points ** 2))
-
-# Create boolean variable to determine which points are within the Circle
-points_within_circle = dist_center_points_array <= radius
-
-# Extract points
-x_points_circle = x_points_box[points_within_circle]
-y_points_circle = y_points_box[points_within_circle]
-
-# ------------------------------------------ End of Extracting scatter points within the circle
-
-# ------------------------------------------ Start of Hyper-parameter Optimization
-# ChangeParam
-# Define kernel
-ker = 'matern1'
-
-# Start Optimization
-arguments = (xy_quad_circle, k_quad_circle, ker)
-
-# Initialise kernel hyper-parameters
-initial_hyperparameters = np.array([3, 2, 1, 1])
-
-# Check time taken for the optimization
-start_opt = time.clock()
-
-solution = scopt.minimize(fun=short_log_integrand_data, args=arguments, x0=initial_hyperparameters,
-                          method='Nelder-Mead',
-                          options={'xatol': 1, 'fatol': 1, 'disp': True, 'maxfev': 1000})
-
-time_opt = time.clock() - start_opt
-
-# Extract the optimal parameters based on kernel optimization
-sigma_optimal = solution.x[0]
-length_optimal = solution.x[1]
-noise_optimal = solution.x[2]
-mean_optimal = solution.x[3]
-print(solution)
-print('Last function evaluation is ', solution.fun)
-print('optimal sigma is ', sigma_optimal)
-print('optimal length-scale is ', length_optimal)
-print('optimal noise amplitude is ', noise_optimal)
-print('optimal scalar mean value is ', mean_optimal)
-
-
-# ------------------------------------------ End of Hyper-parameter Optimization
 
 # ------------------------------------------Start of Sampling Points Creation
 

@@ -721,28 +721,109 @@ y_points = y[x_range_box & y_range_box]
 
 # ------------------------------------------ End of Scatter Point Set
 
+# ------------------------------------------ Start of Regression Window Selection before Transformation
+# Select regression window boundaries
+# ChangeParam
+center = (-50, -15)  # Create tuple for the center
+radius = 8
+
+# ChangeParam
+point_select = 'circle'  # This is for selecting the regression window
+
+if point_select == 'all':  # We bin everything that is in the box
+    x_upper = x_upper_box
+    x_lower = x_lower_box
+    y_upper = y_upper_box
+    y_lower = y_lower_box
+elif point_select == 'manual':  # Check with max and min values above first
+    x_upper = -43
+    x_lower = -63
+    y_upper = -2
+    y_lower = -22
+elif point_select == 'circle':  # Not really necessary
+    x_upper = center[0] + radius
+    x_lower = center[0] - radius
+    y_upper = center[1] + radius
+    y_lower = center[1] - radius
+else:
+    x_upper = max(x_points)
+    x_lower = min(x_points)
+    y_upper = max(y_points)
+    y_lower = min(y_points)
+
+# Create Boolean Variables
+x_box = (x_points > x_lower) & (x_points < x_upper)
+y_box = (y_points > y_lower) & (y_points < y_upper)
+
+# Perform scatter point selection
+x_within_box = x_points[x_box & y_box]
+y_within_box = y_points[x_box & y_box]
+
+# ------------------------------------------ End of Regression Window Selection before Transformation
+
 # ------------------------------------------ Start of Performing Rotation
 
-# Define the Center and Radius of the Circle
-# *** Using this, I can select the position and size of my circular regression window
-# ChangeParam
-center = (-50, -15)  # Create tuple
-radius = 8
+# Define the Center and Radius of the Square
+# Note that the transformation of the scatter points will be about the center
 xy_within_box = np.vstack((x_points, y_points))  # Create the sample points to be rotated
+transform_matrix_array = np.array([0.3, 0.4, 0.2, -0.4])
+frob_norm = np.sqrt(sum(transform_matrix_array ** 2))
+print(frob_norm)
 
-# ChangeParam - Rotate the points within the large box
-rotation_degrees = 32
-rotated_xy_within_box = fn.rotate_array(rotation_degrees, xy_within_box, center)
+# ChangeParam - Conduct the transformation
+transformed_xy_within_box = fn.transform_array(transform_matrix_array, xy_within_box, center)
 # Note that radius is not used here, only the center is being used
-print(rotated_xy_within_box.shape)
-x_points_box = rotated_xy_within_box[0]
-y_points_box = rotated_xy_within_box[1]
+print(transformed_xy_within_box.shape)
+x_points_trans = transformed_xy_within_box[0]
+y_points_trans = transformed_xy_within_box[1]
 
+# Transformation of scatter points are now completed, now I have to define the regression window to fit to data
+# --------------------- Operating in the Transformed Space
+# 1. Obtain the maximum range in x and y of the transformed coordinates
+x_min = min(x_points_trans)
+x_max = max(x_points_trans)
+y_min = min(y_points_trans)
+y_max = max(y_points_trans)
+
+print('x range is', x_max - x_min)
+print('y range is', y_max - y_min)
+
+# I have to perform the binning in the transformed space, otherwise a different data set will be used each time.
+
+# This is after transforming the entire data set for brazil. The data set will contain points that are binned
+
+
+
+# Split the range into a square with n quadrats on each side, and store the index of each quadrat
+
+
+# Select the quadrats which contain scatter points, but store the initial index of each quadrat. Note that after this
+# stage, the number of quadrats for each transformation will be different. - Should they be different?
+
+
+#
+
+
+
+scatter_plot_fig = plt.figure()
+scatter_plot = scatter_plot_fig.add_subplot(111)
+scatter_plot.scatter(x_points_box, y_points_box, marker='o', color='red', s=0.3)
+scatter_plot.scatter(x_points, y_points, marker='o', color='black', s=0.3)
+scatter_plot.set_title('Posterior Standard Deviation')
+scatter_plot.set_xlabel('UTM Horizontal Coordinate')
+scatter_plot.set_ylabel('UTM Vertical Coordinate')
+# scatter_plot.set_xlim(x_lower_box, x_upper_box)
+# scatter_plot.set_ylim(y_lower_box, y_upper_box)
+
+plt.show()
+
+
+"""
 # ------------------------------------------ End of Performing Rotation
 
 # ------------------------------------------Start of Selective Binning
 # Note this is for 2014 - entire Brazil Data - note these are arbitrarily selected
-# Maximum and minimum values of each coordinate for the scattered points
+# Maximum and minimum values of each coordinate for the scattered points - these are just for reference
 maximum_x = -32.43
 minimum_x = -72.79
 maximum_y = 4.72
@@ -1051,3 +1132,4 @@ plt.show()
 
 
 
+"""

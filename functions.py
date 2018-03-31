@@ -298,12 +298,27 @@ def rotate_array_iterate(angle_degrees, array, center):
     return final_array
 
 
-a = np.array([[1, 2, 3, 4], [4, 5, 6, 7]])
-c = np.array([0, 0])
-g = rotate_array_iterate(30, a, c)
-print(g)
+def transform_array(matrix_var, array, center):
+    """
+    Perform transformation about the center of the regression window
+    :param matrix_var: array containing the matrix elements to be reformed into a matrix later
+    :param array: coordinates of scatter points to be transformed
+    :param center: center of the regression window
+    :return:
+    """
 
-print(time.clock())
+    # Start Subtracting Center, Rotate, then add back centre
+    transform_mat = np.array([[matrix_var[0], matrix_var[1]], [matrix_var[2], matrix_var[3]]])
+    x_box = array[0] - center[0]
+    y_box = array[1] - center[1]
+    xy_box = np.vstack((x_box, y_box))
+    xy_within_box = np.matmul(transform_mat, xy_box)
+    rotated_x = xy_within_box[0] + center[0]
+    rotated_y = xy_within_box[1] + center[1]
+    final_array = np.vstack((rotated_x, rotated_y))
+    return final_array
+
+
 
 
 

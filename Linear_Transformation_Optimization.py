@@ -772,78 +772,88 @@ y_within_box = y_points[x_box & y_box]
 
 # ------------------------------------------ Start of Performing Transformation
 # Create range of values for alpha
-alpha_array = np.arange(0.3, 10, 0.1)
+alpha_array = np.arange(0.3, 2, 0.1)
+beta_array = np.arange(0.3, 2, 0.1)
 xy_within_box = np.vstack((x_within_box, y_within_box))  # Create the sample points to be rotated
 
 # Initialise Log Likelihood Array
-likelihood_array = np.zeros_like(alpha_array)
+likelihood_matrix = np.zeros((alpha_array.size, beta_array.size))
 
 # iterate for each value of alpha
 for i in range(alpha_array.size):
-    transform_matrix_array = np.array([alpha_array[i], 0, 0, alpha_array[i]])
-    # transform_matrix_array = np.array([0, alpha_array[i], alpha_array[i], 0])
-    frob_norm = np.sqrt(sum(transform_matrix_array ** 2))
-    print(frob_norm)
+    for j in range(beta_array.size):
+        transform_matrix_array = np.array([alpha_array[i], beta_array[j], beta_array[j], alpha_array[i]])
+        # transform_matrix_array = np.array([0, alpha_array[i], alpha_array[i], 0])
+        frob_norm = np.sqrt(sum(transform_matrix_array ** 2))
+        print('The Frobenius Norm is', frob_norm)
 
-    # ChangeParam - Conduct the transformation
-    transformed_xy_within_box = fn.transform_array(transform_matrix_array, xy_within_box, center)
-    x_points_trans = transformed_xy_within_box[0]
-    y_points_trans = transformed_xy_within_box[1]
+        # ChangeParam - Conduct the transformation
+        transformed_xy_within_box = fn.transform_array(transform_matrix_array, xy_within_box, center)
+        x_points_trans = transformed_xy_within_box[0]
+        y_points_trans = transformed_xy_within_box[1]
 
-    # 1. Obtain the maximum range in x and y in the transformed space
-    x_min = min(x_points_trans)
-    x_max = max(x_points_trans)
-    y_min = min(y_points_trans)
-    y_max = max(y_points_trans)
+        # 1. Obtain the maximum range in x and y in the transformed space
+        x_min = min(x_points_trans)
+        x_max = max(x_points_trans)
+        y_min = min(y_points_trans)
+        y_max = max(y_points_trans)
 
-    print('x range is', x_max - x_min)
-    print('y range is', y_max - y_min)  # Display regression window size at each iteration
+        print('x range is', x_max - x_min)
+        print('y range is', y_max - y_min)  # Display regression window size at each iteration
 
-    # ChangeParam
-    quads_on_side = 10  # define the number of quads along each dimension
-    k_mesh, y_edges, x_edges = np.histogram2d(y_points_trans, x_points_trans, bins=quads_on_side,
-                                              range=[[y_min, y_max], [x_min, x_max]])
-    x_mesh_plot, y_mesh_plot = np.meshgrid(x_edges, y_edges)  # creating mesh-grid for use
-    x_mesh = x_mesh_plot[:-1, :-1]  # Removing extra rows and columns due to edges
-    y_mesh = y_mesh_plot[:-1, :-1]
-    x_quad = fn.row_create(x_mesh)  # Creating the rows from the mesh
-    y_quad = fn.row_create(y_mesh)
-    xy_quad = np.vstack((x_quad, y_quad))
+        # ChangeParam
+        quads_on_side = 10  # define the number of quads along each dimension
+        k_mesh, y_edges, x_edges = np.histogram2d(y_points_trans, x_points_trans, bins=quads_on_side,
+                                                  range=[[y_min, y_max], [x_min, x_max]])
+        x_mesh_plot, y_mesh_plot = np.meshgrid(x_edges, y_edges)  # creating mesh-grid for use
+        x_mesh = x_mesh_plot[:-1, :-1]  # Removing extra rows and columns due to edges
+        y_mesh = y_mesh_plot[:-1, :-1]
+        x_quad = fn.row_create(x_mesh)  # Creating the rows from the mesh
+        y_quad = fn.row_create(y_mesh)
+        xy_quad = np.vstack((x_quad, y_quad))
 
-    k_quad = fn.row_create(k_mesh)
+        k_quad = fn.row_create(k_mesh)
 
-    # Kernel Optimization
-    ker = 'matern1'
+        # Kernel Optimization
+        ker = 'squared_exponential'
 
-    # Start Optimization
-    arguments = (xy_quad, k_quad, ker)
+        # Start Optimization
+        arguments = (xy_quad, k_quad, ker)
 
-    # Initialise kernel hyper-parameters
-    initial_hyperparameters = np.array([3, 2, 1, 1])
+        # Initialise kernel hyper-parameters
+        initial_hyperparameters = np.array([3, 2, 1, 1])
 
-    # Check time taken for the optimization
-    start_opt = time.clock()
+        # Check time taken for the optimization
+        start_opt = time.clock()
 
-    solution = scopt.minimize(fun=short_log_integrand_data, args=arguments, x0=initial_hyperparameters,
-                              method='Nelder-Mead',
-                              options={'xatol': 1, 'fatol': 1, 'disp': True, 'maxfev': 1000})
+        solution = scopt.minimize(fun=short_log_integrand_data, args=arguments, x0=initial_hyperparameters,
+                                  method='Nelder-Mead',
+                                  options={'xatol': 1, 'fatol': 1, 'disp': True, 'maxfev': 1000})
 
-    time_opt = time.clock() - start_opt
+        time_opt = time.clock() - start_opt
 
-    print(solution)
-    print('Last function evaluation is ', solution.fun)
-    print('The Time Taken for Optimization is', time_opt)
-    print('The current alpha is', alpha_array[i])
-    likelihood_array[i] = -1 * solution.fun
+        print('Last function evaluation is ', solution.fun)
+        print('The current alpha is', alpha_array[i])
+        print('The current beta is', beta_array[j])
+        print('The Time Taken for Optimization is', time_opt)
+        likelihood_matrix[i, j] = -1 * solution.fun
 
 
 # Find the value of alpha corresponding to the greatest log marginal likelihood
-alpha_opt_index = np.argmax(likelihood_array)  # This gives the index of the maximum angle
+opt_index = np.unravel_index(np.argmax(likelihood_matrix, axis=None), likelihood_matrix.shape)
+alpha_opt_index = opt_index[0]
+beta_opt_index = opt_index[1]
 alpha_opt = alpha_array[alpha_opt_index]
-likelihood_opt = likelihood_array[alpha_opt_index]
-print('The Log_likelihood Array is', likelihood_array)
+beta_opt = beta_array[beta_opt_index]
+
+likelihood_opt = likelihood_matrix[alpha_opt_index, beta_opt_index]
+print('The Log_likelihood Array is', likelihood_matrix)
 print('The Maximum Log Likelihood is', likelihood_opt)
 print('The Optimal Alpha is', alpha_opt)
+print('The Optimal Beta is', beta_opt)
+
+# Create mesh-grid from alpha and beta array for plotting purposes
+alpha_mesh, beta_mesh = np.meshgrid(alpha_array, beta_array)
 
 """
 scatter_plot_fig = plt.figure()
@@ -859,12 +869,19 @@ scatter_plot.set_ylabel('UTM Vertical Coordinate')
 
 # Quick plot for log likelihood versus value of alpha
 fig_likelihood_plot = plt.figure()
-likelihood_plot = fig_likelihood_plot.add_subplot(111)
-likelihood_plot.plot(alpha_array, likelihood_array, color='black')
-likelihood_plot.set_title('Plot of Log Marginal Likelihood against Alpha')
+likelihood_plot = fig_likelihood_plot.add_subplot(111, projection='3d')
+likelihood_plot.plot_surface(alpha_mesh, beta_mesh, likelihood_matrix, cmap='YlOrBr')
+likelihood_plot.set_title('Surface Plot of Log Marginal Likelihood against Alpha and Beta')
 likelihood_plot.set_xlabel('Alpha')
-likelihood_plot.set_ylabel('Log Marginal Likelihood')
+likelihood_plot.set_ylabel('Beta')
+likelihood_plot.set_zlabel('Log Likelihood')
 
+fig_likelihood_heatmap = plt.figure()
+likelihood_heatmap = fig_likelihood_heatmap.add_subplot(111)
+likelihood_heatmap.pcolor(alpha_mesh, beta_mesh, likelihood_matrix, cmap='YlOrBr')
+likelihood_heatmap.set_title('Heatmap of Log Marginal Likelihood against Alpha and Beta')
+likelihood_heatmap.set_xlabel('Alpha')
+likelihood_heatmap.set_ylabel('Beta')
 
 plt.show()
 

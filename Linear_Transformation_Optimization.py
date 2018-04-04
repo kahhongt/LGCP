@@ -664,15 +664,6 @@ def var_post(c_next_auto, c_cross, c_auto):  # Posterior Covariance
     return c_post
 
 
-def linear_trans_opt(param, *args):
-    """
-
-    :param param:
-    :param args:
-    :return:
-    """
-
-
 # ------------------------------------------Start of Data Collection
 
 # Aedes Occurrences in Brazil
@@ -772,8 +763,8 @@ y_within_box = y_points[x_box & y_box]
 
 # ------------------------------------------ Start of Performing Transformation
 # Create range of values for alpha
-alpha_array = np.arange(0.1, 5.1, 0.1)
-beta_array = np.arange(0.1, 5.1, 0.1)
+alpha_array = np.arange(0.3, 5.4, 0.1)
+beta_array = np.arange(0.3, 5.4, 0.1)
 xy_within_box = np.vstack((x_within_box, y_within_box))  # Create the sample points to be rotated
 
 # Initialise kernel hyperparameters

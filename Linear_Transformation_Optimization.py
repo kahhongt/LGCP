@@ -763,8 +763,8 @@ y_within_box = y_points[x_box & y_box]
 
 # ------------------------------------------ Start of Performing Transformation
 # Create range of values for alpha
-alpha_array = np.arange(0.1, 5.4, 0.1)
-beta_array = np.arange(0.1, 5.4, 0.1)
+alpha_array = np.arange(0.3, 5.4, 0.1)
+beta_array = np.arange(0.3, 5.4, 0.1)
 xy_within_box = np.vstack((x_within_box, y_within_box))  # Create the sample points to be rotated
 
 # Initialise kernel hyperparameters

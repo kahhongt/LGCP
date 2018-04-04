@@ -733,6 +733,7 @@ albop = aedes_df['VECTOR'] == "Aedes albopictus"
 year_2014 = aedes_df['YEAR'] == "2014"
 year_2013 = aedes_df['YEAR'] == "2013"
 year_2012 = aedes_df['YEAR'] == "2012"
+year_start = aedes_df['YEAR'] > 2000
 
 # Extract data for Brazil and make sure to convert data type to float64
 aedes_brazil = aedes_df[brazil]  # Extracting Brazil Data
@@ -748,15 +749,49 @@ x_2013_2014 = aedes_brazil_2013_2014.values[:, 5].astype('float64')
 y_2013_2014 = aedes_brazil_2013_2014.values[:, 4].astype('float64')
 # ------------------------------------------ End of Data Collection
 
+# BRAZIL
 x_brazil = aedes_brazil.values[:, 5].astype('float64')
 y_brazil = aedes_brazil.values[:, 4].astype('float64')
 year_brazil = aedes_brazil.values[:, 6].astype('float64')
 
+# TAIWAN
+aedes_taiwan = aedes_df[taiwan]  # Extract Taiwan data
+x_taiwan = aedes_taiwan.values[:, 5].astype('float64')
+y_taiwan = aedes_taiwan.values[:, 4].astype('float64')
+year_taiwan = aedes_taiwan.values[:, 6].astype('float64')
+year_taiwan
+
+print('The Number of Aedes Occurrences in Taiwan is', x_taiwan.size)
+print('Starting Year is', min(year_taiwan))
+print('Ending Year is', max(year_taiwan))
+
+# WORLD
+x_world = aedes_df.values[:, 5].astype('float64')
+y_world = aedes_df.values[:, 4].astype('float64')
+# year_world = aedes_df.values[:, 6].astype('float64')
+
+
 fig_brazil = plt.figure()
 brazil = fig_brazil.add_subplot(111, projection='3d')
-brazil.scatter(x_brazil, y_brazil, year_brazil, marker='o', s=0.3, color='black')
+brazil.scatter(x_brazil, y_brazil, year_brazil, marker='o', s=0.1, color='black')
 brazil.set_xlabel('UTM Horizontal Coordinates')
 brazil.set_ylabel('UTM Vertical Coordinates')
 brazil.set_zlabel('Year')
+
+fig_taiwan = plt.figure()
+taiwan = fig_taiwan.add_subplot(111, projection='3d')
+taiwan.scatter(x_taiwan, y_taiwan, year_taiwan, marker='o', s=0.1, color='black')
+taiwan.set_xlabel('UTM Horizontal Coordinates')
+taiwan.set_ylabel('UTM Vertical Coordinates')
+taiwan.set_zlabel('Year')
+
+"""
+fig_world = plt.figure()
+world = fig_brazil.add_subplot(111, projection='3d')
+world.scatter(x_world, y_world, marker='o', s=0.1, color='black')
+world.set_xlabel('UTM Horizontal Coordinates')
+world.set_ylabel('UTM Vertical Coordinates')
+world.set_zlabel('Year')
+"""
 
 plt.show()

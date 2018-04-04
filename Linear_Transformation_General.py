@@ -822,7 +822,7 @@ y_within_box = y_points[x_box & y_box]
 ker = 'matern1'
 
 arguments_opt = (x_within_box, y_within_box, center, ker)
-initial_mat_var = np.array([5, 5, 5, 5])  # Initial values for matrix variables
+initial_mat_var = np.array([7, 7, 7, 7])  # Initial values for matrix variables
 
 solution_val = scopt.minimize(fun=linear_trans_opt, args=arguments_opt, x0=initial_mat_var,
                               method='Nelder-Mead',
@@ -847,11 +847,15 @@ scatter_plot = scatter_plot_fig.add_subplot(111)
 scatter_plot.scatter(x_within_box, y_within_box, marker='o', color='red', s=0.3)
 scatter_plot.scatter(x_points, y_points, marker='o', color='black', s=0.3)
 scatter_plot.scatter(transformed_x, transformed_y, marker='o', color='blue', s=0.3)
-scatter_plot.set_title('Posterior Standard Deviation')
 scatter_plot.set_xlabel('UTM Horizontal Coordinate')
 scatter_plot.set_ylabel('UTM Vertical Coordinate')
-# scatter_plot.set_xlim(x_lower_box, x_upper_box)
-# scatter_plot.set_ylim(y_lower_box, y_upper_box)
+
+new_scatter_plot_fig = plt.figure()
+new_scatter_plot = new_scatter_plot_fig.add_subplot(111)
+new_scatter_plot.scatter(transformed_x, transformed_y, marker='o', color='darkorange', s=0.3)
+new_scatter_plot.scatter(x_within_box, y_within_box, marker='o', color='black', s=0.3)
+scatter_plot.set_xlabel('UTM Horizontal Coordinate')
+scatter_plot.set_ylabel('UTM Vertical Coordinate')
 
 plt.show()
 

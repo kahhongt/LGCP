@@ -766,7 +766,8 @@ y_within_box = y_points[x_box & y_box]
 # Define the Center and Radius of the Square
 # Note that the transformation of the scatter points will be about the center
 xy_within_box = np.vstack((x_points, y_points))  # Create the sample points to be rotated
-transform_matrix_array = np.array([1, 0.4, 0.7, -0.5])
+# transform_matrix_array = np.array([2, 0, 0, 2])
+transform_matrix_array = np.array([0.5, 10, 10, 0.5])
 frob_norm = np.sqrt(sum(transform_matrix_array ** 2))
 print(frob_norm)
 

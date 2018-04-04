@@ -772,12 +772,14 @@ y_within_box = y_points[x_box & y_box]
 
 # ------------------------------------------ Start of Performing Transformation
 # Create range of values for alpha
-alpha_array = np.arange(0.3, 2, 0.1)
-beta_array = np.arange(0.3, 2, 0.1)
+alpha_array = np.arange(0.1, 5.1, 0.1)
+beta_array = np.arange(0.1, 5.1, 0.1)
 xy_within_box = np.vstack((x_within_box, y_within_box))  # Create the sample points to be rotated
 
 # Initialise Log Likelihood Array
 likelihood_matrix = np.zeros((alpha_array.size, beta_array.size))
+
+start_iteration = time.clock()
 
 # iterate for each value of alpha
 for i in range(alpha_array.size):
@@ -815,7 +817,7 @@ for i in range(alpha_array.size):
         k_quad = fn.row_create(k_mesh)
 
         # Kernel Optimization
-        ker = 'squared_exponential'
+        ker = 'matern1'
 
         # Start Optimization
         arguments = (xy_quad, k_quad, ker)
@@ -852,6 +854,11 @@ print('The Maximum Log Likelihood is', likelihood_opt)
 print('The Optimal Alpha is', alpha_opt)
 print('The Optimal Beta is', beta_opt)
 
+end_iteration = time.clock()
+time_iteration = end_iteration - start_iteration
+
+print('The time taken for the entire iteration is', time_iteration)
+
 # Create mesh-grid from alpha and beta array for plotting purposes
 alpha_mesh, beta_mesh = np.meshgrid(alpha_array, beta_array)
 
@@ -871,7 +878,7 @@ scatter_plot.set_ylabel('UTM Vertical Coordinate')
 fig_likelihood_plot = plt.figure()
 likelihood_plot = fig_likelihood_plot.add_subplot(111, projection='3d')
 likelihood_plot.plot_surface(alpha_mesh, beta_mesh, likelihood_matrix, cmap='YlOrBr')
-likelihood_plot.set_title('Surface Plot of Log Marginal Likelihood against Alpha and Beta')
+# likelihood_plot.set_title('Surface Plot of Log Marginal Likelihood against Alpha and Beta')
 likelihood_plot.set_xlabel('Alpha')
 likelihood_plot.set_ylabel('Beta')
 likelihood_plot.set_zlabel('Log Likelihood')
@@ -879,7 +886,7 @@ likelihood_plot.set_zlabel('Log Likelihood')
 fig_likelihood_heatmap = plt.figure()
 likelihood_heatmap = fig_likelihood_heatmap.add_subplot(111)
 likelihood_heatmap.pcolor(alpha_mesh, beta_mesh, likelihood_matrix, cmap='YlOrBr')
-likelihood_heatmap.set_title('Heatmap of Log Marginal Likelihood against Alpha and Beta')
+# likelihood_heatmap.set_title('Heatmap of Log Marginal Likelihood against Alpha and Beta')
 likelihood_heatmap.set_xlabel('Alpha')
 likelihood_heatmap.set_ylabel('Beta')
 

@@ -776,8 +776,12 @@ alpha_array = np.arange(0.1, 5.1, 0.1)
 beta_array = np.arange(0.1, 5.1, 0.1)
 xy_within_box = np.vstack((x_within_box, y_within_box))  # Create the sample points to be rotated
 
-# Initialise Log Likelihood Array
+# Initialise kernel hyperparameters
+initial_hyperparameters = np.array([3, 2, 1, 1])
+
+# Initialise Log Likelihood Array and Frobenius Norm array
 likelihood_matrix = np.zeros((alpha_array.size, beta_array.size))
+frob_matrix = np.zeros((alpha_array.size, beta_array.size))
 
 start_iteration = time.clock()
 
@@ -786,8 +790,7 @@ for i in range(alpha_array.size):
     for j in range(beta_array.size):
         transform_matrix_array = np.array([alpha_array[i], beta_array[j], beta_array[j], alpha_array[i]])
         # transform_matrix_array = np.array([0, alpha_array[i], alpha_array[i], 0])
-        frob_norm = np.sqrt(sum(transform_matrix_array ** 2))
-        print('The Frobenius Norm is', frob_norm)
+        frob_matrix[i, j] = np.sqrt(sum(transform_matrix_array ** 2))
 
         # ChangeParam - Conduct the transformation
         transformed_xy_within_box = fn.transform_array(transform_matrix_array, xy_within_box, center)
@@ -821,9 +824,6 @@ for i in range(alpha_array.size):
 
         # Start Optimization
         arguments = (xy_quad, k_quad, ker)
-
-        # Initialise kernel hyper-parameters
-        initial_hyperparameters = np.array([3, 2, 1, 1])
 
         # Check time taken for the optimization
         start_opt = time.clock()
@@ -862,6 +862,10 @@ print('The time taken for the entire iteration is', time_iteration)
 # Create mesh-grid from alpha and beta array for plotting purposes
 alpha_mesh, beta_mesh = np.meshgrid(alpha_array, beta_array)
 
+# Generate arrays for plotting with Frobenius Norm
+frob_array = fn.row_create(frob_matrix)
+likelihood_array = fn.row_create(likelihood_matrix)
+
 """
 scatter_plot_fig = plt.figure()
 scatter_plot = scatter_plot_fig.add_subplot(111)
@@ -874,7 +878,7 @@ scatter_plot.set_ylabel('UTM Vertical Coordinate')
 # scatter_plot.set_ylim(y_lower_box, y_upper_box)
 """
 
-# Quick plot for log likelihood versus value of alpha
+# 3D Surface Plot for Log Likelihood against alpha and beta
 fig_likelihood_plot = plt.figure()
 likelihood_plot = fig_likelihood_plot.add_subplot(111, projection='3d')
 likelihood_plot.plot_surface(alpha_mesh, beta_mesh, likelihood_matrix, cmap='YlOrBr')
@@ -883,6 +887,7 @@ likelihood_plot.set_xlabel('Alpha')
 likelihood_plot.set_ylabel('Beta')
 likelihood_plot.set_zlabel('Log Likelihood')
 
+# Heatmap for Log Likelihood against alpha and beta
 fig_likelihood_heatmap = plt.figure()
 likelihood_heatmap = fig_likelihood_heatmap.add_subplot(111)
 likelihood_heatmap.pcolor(alpha_mesh, beta_mesh, likelihood_matrix, cmap='YlOrBr')
@@ -890,177 +895,12 @@ likelihood_heatmap.pcolor(alpha_mesh, beta_mesh, likelihood_matrix, cmap='YlOrBr
 likelihood_heatmap.set_xlabel('Alpha')
 likelihood_heatmap.set_ylabel('Beta')
 
-plt.show()
-
-
-"""
-
-# ------------------------------------------ End of Selective Binning into a Square
-
-
-# ------------------------------------------Start of Sampling Points Creation
-
-# Define number of points along each side of box containing the circle
-# ChangeParam
-intervals = 20
-
-# Define the cut-off point beyond the circle - creating sampling points beyond data set
-cut_decision = 'large_range'
-if cut_decision == 'small_range':  # boundary exceeded by half an interval on each axis
-    cut_off_x = (x_upper - x_lower) / (intervals * 2)
-    cut_off_y = (y_upper - y_lower) / (intervals * 2)
-    # intervals_final = intervals + 1
-
-elif cut_decision == 'large_range':  # boundary exceeded by half the entire range on each axis
-    cut_off_x = (x_upper - x_lower) / 4
-    cut_off_y = (y_upper - y_lower) / 4
-else:  # No inclusion of points beyond the circle
-    cut_off_x = 0
-    cut_off_y = 0
-
-# Generate edges within the pre-defined range
-sampling_points_x = np.linspace(x_lower - cut_off_x, x_upper + cut_off_x, intervals)
-sampling_points_y = np.linspace(y_lower - cut_off_y, y_upper + cut_off_y, intervals)
-
-# Create iteration for coordinates using mesh-grid - for plotting
-sampling_points_xmesh, sampling_points_ymesh = np.meshgrid(sampling_points_x, sampling_points_y)
-sampling_x_row = fn.row_create(sampling_points_xmesh)
-sampling_y_row = fn.row_create(sampling_points_ymesh)
-sampling_xy = np.vstack((sampling_x_row, sampling_y_row))
-
-# ------------------------------------------End of Sampling Points Creation
-
-# ------------------------------------------Start of Posterior Tabulation
-start_posterior = time.clock()
-
-# Create cases for kernel selection
-if ker == 'matern1':
-    cov_dd = fast_matern_1_2d(sigma_optimal, length_optimal, xy_quad_circle, xy_quad_circle)
-elif ker == 'matern3':
-    cov_dd = fast_matern_2d(sigma_optimal, length_optimal, xy_quad_circle, xy_quad_circle)
-elif ker == 'squared_exponential':
-    cov_dd = fast_squared_exp_2d(sigma_optimal, length_optimal, xy_quad_circle, xy_quad_circle)
-elif ker == 'rational_quad':
-    cov_dd = fast_rational_quadratic_2d(sigma_optimal, length_optimal, xy_quad_circle, xy_quad_circle)
-else:  # No acceptable kernel defined
-    cov_dd = np.eye(xy_quad_circle.shape[1])  # Generate nonsensical identity matrix
-    print('No acceptable kernel defined. Results should make no sense')
-
-cov_noise = np.eye(cov_dd.shape[0]) * (noise_optimal ** 2)
-cov_overall = cov_dd + cov_noise
-prior_mean = mean_func_scalar(0, xy_quad_circle)
-prior_mismatch = k_quad_circle - prior_mean
-
-# Initialise mean_posterior and var_posterior array
-mean_posterior = np.zeros(sampling_xy.shape[1])
-var_posterior = np.zeros(sampling_xy.shape[1])
-
-# Generate mean and covariance array
-for i in range(sampling_xy.shape[1]):
-
-    # Generate status output
-    if i % 100 == 0:  # if i is a multiple of 50,
-        print('Tabulating Prediction Point', i)
-
-    # Change_Param
-    # At each data point,
-    xy_star = sampling_xy[:, i]
-
-    # Create cases for kernel selection
-    if ker == 'matern1':
-        cov_star_d = matern_2d(1/2, sigma_optimal, length_optimal, xy_star, xy_quad_circle)
-        cov_star_star = matern_2d(1 / 2, sigma_optimal, length_optimal, xy_star, xy_star)
-    elif ker == 'matern3':
-        cov_star_d = matern_2d(3 / 2, sigma_optimal, length_optimal, xy_star, xy_quad_circle)
-        cov_star_star = matern_2d(3 / 2, sigma_optimal, length_optimal, xy_star, xy_star)
-    elif ker == 'squared_exponential':
-        cov_star_d = squared_exp_2d(sigma_optimal, length_optimal, xy_star, xy_quad_circle)
-        cov_star_star = squared_exp_2d(sigma_optimal, length_optimal, xy_star, xy_star)
-    elif ker == 'rational_quad':
-        cov_star_d = rational_quadratic_2d(sigma_optimal, length_optimal, xy_star, xy_quad_circle)
-        cov_star_star = rational_quadratic_2d(sigma_optimal, length_optimal, xy_star, xy_star)
-    else:
-        cov_star_d = 0
-        cov_star_star = 0
-        print('No acceptable kernel entered')
-
-    # Generate Posterior Mean and Variance
-    mean_posterior[i] = mu_post(xy_star, cov_overall, cov_star_d, prior_mismatch)
-    var_posterior[i] = var_post(cov_star_star, cov_star_d, cov_overall)
-
-
-sampling_x_2d = sampling_x_row.reshape(intervals, intervals)
-sampling_y_2d = sampling_y_row.reshape(intervals, intervals)
-mean_posterior_2d = mean_posterior.reshape(intervals, intervals)
-var_posterior_2d = var_posterior.reshape(intervals, intervals)
-sd_posterior_2d = np.sqrt(var_posterior_2d)
-
-time_posterior = time.clock() - start_posterior
-print('Time taken for optimization =', time_opt)
-print('Time taken for Posterior Tabulation =', time_posterior)
-
-# ------------------------------------------End of Posterior Tabulation
-
-
-# ------------------------------------------ Start of Plotting Preparation
-# Set up circle quad indicator to show which quads are within the Circular Regression Window
-indicator_array = np.zeros_like(k_quad_box)
-for i in range(indicator_array.size):
-    if dist_center_array[i] <= radius:
-        indicator_array[i] = 1
-
-indicator_mesh = indicator_array.reshape(x_mesh.shape)
-
-# ------------------------------------------ End of Plotting Preparation
-
-# ChangeParam
-# Plot Histogram
-fig_brazil_histogram = plt.figure()
-brazil_histogram = fig_brazil_histogram.add_subplot(111)
-brazil_histogram.pcolor(x_mesh_plot, y_mesh_plot, k_mesh, cmap='YlOrBr')
-brazil_histogram.scatter(x_2013, y_2013, marker='.', color='black', s=0.3)
-histogram_circle = plt.Circle(center, radius, fill=False, color='orange')
-brazil_histogram.add_patch(histogram_circle)
-brazil_histogram.set_title('Brazil 2013 Aedes Histogram')
-# brazil_histogram.set_xlim(x_lower, x_upper)
-# brazil_histogram.set_ylim(y_lower, y_upper)
-brazil_histogram.set_xlabel('UTM Horizontal Coordinate')
-brazil_histogram.set_ylabel('UTM Vertical Coordinate')
-
-# Indicating the Quads within the circle
-fig_brazil_circle = plt.figure()
-brazil_circle = fig_brazil_circle.add_subplot(111)
-cmap = matplotlib.colors.ListedColormap(['white', 'orange'])
-brazil_circle.pcolor(x_mesh_plot, y_mesh_plot, indicator_mesh, cmap=cmap, color='#ffffff')
-brazil_circle.scatter(x_2013, y_2013, marker='.', color='black', s=0.3)
-brazil_circle.set_title('Circular Regression Window W')
-# brazil_circle.set_xlim(x_lower, x_upper)
-# brazil_circle.set_ylim(y_lower, y_upper)
-brazil_circle.set_xlabel('UTM Horizontal Coordinate')
-brazil_circle.set_ylabel('UTM Vertical Coordinate')
-
-# Plot Posterior Mean
-fig_m_post = plt.figure()
-post_mean_color = fig_m_post.add_subplot(111)
-post_mean_color.pcolor(sampling_points_x, sampling_points_y, mean_posterior_2d, cmap='YlOrBr')
-post_mean_color.scatter(x_points_circle, y_points_circle, marker='o', color='black', s=0.3)
-post_mean_color.set_title('Posterior Mean')
-post_mean_color.set_xlabel('UTM Horizontal Coordinate')
-post_mean_color.set_ylabel('UTM Vertical Coordinate')
-# post_mean_color.grid(True)
-
-# Plot Posterior Standard Deviation
-fig_sd_post = plt.figure()
-post_sd_color = fig_sd_post.add_subplot(111)
-post_sd_color.pcolor(sampling_points_x, sampling_points_y, sd_posterior_2d, cmap='YlOrBr')
-post_sd_color.scatter(x_points_circle, y_points_circle, marker='o', color='black', s=0.3)
-post_sd_color.set_title('Posterior Standard Deviation')
-post_sd_color.set_xlabel('UTM Horizontal Coordinate')
-post_sd_color.set_ylabel('UTM Vertical Coordinate')
-# post_cov_color.grid(True)
+# Scatter Plot of Log Likelihood against Frobenius Norm
+fig_frob_likelihood = plt.figure()
+frob_likelihood = fig_frob_likelihood.add_subplot(111)
+frob_likelihood.scatter(frob_array, likelihood_array, color='black')
+frob_likelihood.set_title('Plot of Log Marginal Likelihood against Frobenius Norm')
+frob_likelihood.set_xlabel('Frobenius Norm')
+frob_likelihood.set_ylabel('Log Marginal Likelihood')
 
 plt.show()
-
-
-
-"""

@@ -763,8 +763,8 @@ y_within_box = y_points[x_box & y_box]
 
 # ------------------------------------------ Start of Performing Transformation
 # Create range of values for alpha
-alpha_array = np.arange(0.3, 5.4, 0.1)
-beta_array = np.arange(0.3, 5.4, 0.1)
+alpha_array = np.arange(0.1, 5.4, 0.1)
+beta_array = np.arange(0.1, 5.4, 0.1)
 xy_within_box = np.vstack((x_within_box, y_within_box))  # Create the sample points to be rotated
 
 # Initialise kernel hyperparameters
@@ -889,7 +889,7 @@ likelihood_heatmap.set_ylabel('Beta')
 # Scatter Plot of Log Likelihood against Frobenius Norm
 fig_frob_likelihood = plt.figure()
 frob_likelihood = fig_frob_likelihood.add_subplot(111)
-frob_likelihood.scatter(frob_array, likelihood_array, color='black')
+frob_likelihood.scatter(frob_array, likelihood_array, color='black', s=0.3)
 frob_likelihood.set_title('Plot of Log Marginal Likelihood against Frobenius Norm')
 frob_likelihood.set_xlabel('Frobenius Norm')
 frob_likelihood.set_ylabel('Log Marginal Likelihood')

@@ -822,26 +822,60 @@ y_within_box = y_points[x_box & y_box]
 ker = 'matern1'
 
 arguments_opt = (x_within_box, y_within_box, center, ker)
-initial_mat_var = np.array([7, 7, 7, 7])  # Initial values for matrix variables
 
-solution_val = scopt.minimize(fun=linear_trans_opt, args=arguments_opt, x0=initial_mat_var,
-                              method='Nelder-Mead',
-                              options={'xatol': 1, 'fatol': 1, 'disp': True, 'maxfev': 1000})
+# Initialise Latin Hypercube Sampling of initial points before iteration\
+initial_mat_scalar = np.arange(0.5, 5, 0.5)
+log_likelihood_array = np.zeros_like(initial_mat_scalar)
 
-opt_mat_var = solution_val.x  # This determines the optimal transformation matrix
-max_log_likelihood = -1 * solution_val.fun
-print('The Optimal Matrix Variables are', opt_mat_var)
-print('The Maximum Log Marginal Likelihood is', max_log_likelihood)
+# Initialise matrix to store the matrix variables coming from each initial optimization point
+matrix_variables_mat = np.zeros((initial_mat_scalar.size, 4))
 
+# Initialise array containing frobenius norm
+frob_array = np.zeros_like(initial_mat_scalar)
+
+# Measure time taken for Latin Hypercube sampling with Nelder-Mead Optimization
+start_opt = time.clock()
+
+for i in range(initial_mat_scalar.size):
+    scalar = initial_mat_scalar[i]
+    initial_mat_var = np.array([scalar, scalar, scalar, scalar])  # Initial values for matrix variables
+    solution_val = scopt.minimize(fun=linear_trans_opt, args=arguments_opt, x0=initial_mat_var,
+                                  method='Nelder-Mead',
+                                  options={'xatol': 1, 'fatol': 1, 'disp': True, 'maxfev': 1000})
+
+    matrix_variables_mat[i, :] = solution_val.x  # This determines the optimal transformation matrix
+    log_likelihood_array[i] = -1 * solution_val.fun
+    frob_array[i] = fn.frob_norm(solution_val.x)
+
+    # Create status output
+    print('The initial starting points scalar is', scalar)
+    print('The Matrix Variables are', matrix_variables_mat[i, :])
+    print('The Frobenius Norm is', frob_array[i])
+    print('The Log Marginal Likelihood is', log_likelihood_array[i])
+
+
+end_opt = time.clock()
+print('Time taken for Latin Hypercube and Nelder-Mead Optimization is', end_opt - start_opt)
+# Select the optimal starting points, and the optimal matrix variables corresponding to greatest Log Likelihood
+# Create index of the maximum log likelihood
+opt_index = np.argmax(log_likelihood_array)
+max_likelihood = log_likelihood_array[opt_index]
+opt_matrix_variables = matrix_variables_mat[opt_index, :]
+
+print('The globally-optimal matrix variables are', opt_matrix_variables)
+print('The globally-optimal log marginal likelihood is', max_likelihood)
 
 # Perform the transformation using the optimized matrix variables
 xy_within_box = np.vstack((x_within_box, y_within_box))
 
-# Perform transformation
-transformed_xy = fn.transform_array(opt_mat_var, xy_within_box, center)
+# Perform transformation using the optimal matrix variables that were tabulated beforehand
+transformed_xy = fn.transform_array(opt_matrix_variables, xy_within_box, center)
+
+# Split coordinates for plotting
 transformed_x = transformed_xy[0]
 transformed_y = transformed_xy[1]
 
+# This is the plot including all scatter points in Brazil
 scatter_plot_fig = plt.figure()
 scatter_plot = scatter_plot_fig.add_subplot(111)
 scatter_plot.scatter(x_within_box, y_within_box, marker='o', color='red', s=0.3)
@@ -850,12 +884,20 @@ scatter_plot.scatter(transformed_x, transformed_y, marker='o', color='blue', s=0
 scatter_plot.set_xlabel('UTM Horizontal Coordinate')
 scatter_plot.set_ylabel('UTM Vertical Coordinate')
 
+# Plot points in both original and transformed spaces only within the regression window
 new_scatter_plot_fig = plt.figure()
 new_scatter_plot = new_scatter_plot_fig.add_subplot(111)
 new_scatter_plot.scatter(transformed_x, transformed_y, marker='o', color='darkorange', s=0.3)
 new_scatter_plot.scatter(x_within_box, y_within_box, marker='o', color='black', s=0.3)
 scatter_plot.set_xlabel('UTM Horizontal Coordinate')
 scatter_plot.set_ylabel('UTM Vertical Coordinate')
+
+# Scatter Plot of Frobenius Norm with Log Marginal Likelihood
+likelihood_frob_fig = plt.figure()
+likelihood_frob = likelihood_frob_fig.add_subplot(111)
+likelihood_frob.scatter(frob_array, log_likelihood_array, marker='o', color='black', s=0.3)
+likelihood_frob.set_xlabel('Frobenius Norm')
+likelihood_frob.set_ylabel('Log Marginal Likelihood')
 
 plt.show()
 

@@ -319,6 +319,16 @@ def transform_array(matrix_var, array, center):
     return final_array
 
 
+def frob_norm(transformation_matrix_array):
+    """
+    Generates the Frobenius Norm from the transformation matrix array in the order: [ 11, 12, 21, 22]
+    :param transformation_matrix_array: linear transformation matrix
+    :return: single value which is the Frobenius Norm
+    """
+    matrix_square = transformation_matrix_array ** 2  # Element-wise multiplication
+    sum_of_squares = sum(matrix_square)
+    frob = np.sqrt(sum_of_squares)
+    return frob
 
 
 

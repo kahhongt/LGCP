@@ -462,11 +462,30 @@ minimum_x = -72.79
 maximum_y = 4.72
 minimum_y = -32.21
 
+# Define center and radius
+center = (-50, -15)  # Create tuple for the center
+radius = 8
+
 # To allow for selection of range for regression, ignoring the presence of all other data points
-x_upper = -43
-x_lower = -63
-y_upper = -2
-y_lower = -22
+# ChangeParam
+point_select = 'circle'  # This is for selecting the regression window
+
+if point_select == 'manual':  # Check with max and min values above first
+    x_upper = -43
+    x_lower = -63
+    y_upper = -2
+    y_lower = -22
+elif point_select == 'circle':  # Not really necessary
+    x_upper = center[0] + radius
+    x_lower = center[0] - radius
+    y_upper = center[1] + radius
+    y_lower = center[1] - radius
+else:
+    x_upper = max(x_values)
+    x_lower = min(x_values)
+    y_upper = max(y_values)
+    y_lower = min(y_values)
+
 x_window = (x_values > x_lower) & (x_values < x_upper)
 y_window = (y_values > y_lower) & (y_values < y_upper)
 x_within_window = x_values[x_window & y_window]
@@ -578,7 +597,7 @@ elif opt_method == 'differential_evolution':
 """
 
 # This method uses the log-det which is much faster - and is also able to calculate the scalar mean
-initial_hyperparam = np.array([3, 2, 1, 1])  # Note that this initial condition should be close to actual
+initial_hyperparam = np.array([1, 1, 1, 1])  # Note that this initial condition should be close to actual
 # Set up tuple for arguments
 # ChangeParam
 kernel = 'matern1'
@@ -596,8 +615,9 @@ sigma_optimal = hyperparam_solution.x[0]
 length_optimal = hyperparam_solution.x[1]
 noise_optimal = hyperparam_solution.x[2]
 mean_optimal = hyperparam_solution.x[3]
+fun_optimal = hyperparam_solution.fun
 print(hyperparam_solution)
-print('Last function evaluation is ', hyperparam_solution.fun)
+print('Last function evaluation is ', fun_optimal)
 print('optimal sigma is ', sigma_optimal)
 print('optimal length-scale is ', length_optimal)
 print('optimal noise amplitude is ', noise_optimal)

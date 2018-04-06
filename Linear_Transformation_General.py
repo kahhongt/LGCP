@@ -695,7 +695,7 @@ def linear_trans_opt(param, *args):
     # --------------------- Conduct binning into transformed space - the x and y quad lengths will be different
 
     # ChangeParam
-    quads_on_side = 10  # define the number of quads along each dimension
+    quads_on_side = 20  # define the number of quads along each dimension
     k_mesh, y_edges, x_edges = np.histogram2d(y_points_trans, x_points_trans, bins=quads_on_side,
                                               range=[[y_down, y_up], [x_down, x_up]])
     x_mesh_plot, y_mesh_plot = np.meshgrid(x_edges, y_edges)  # creating mesh-grid for use
@@ -709,13 +709,13 @@ def linear_trans_opt(param, *args):
     # Start Optimization
     arguments = (xy_quad, k_quad, kernel)
 
-    # Initialise kernel hyper-parameters - arbitrary value
-    initial_hyperparameters = np.array([3, 2, 1, 1])
+    # Initialise kernel hyper-parameters - arbitrary value but should be as close to actual value as possible
+    initial_hyperparameters = np.array([1, 1, 1, 1])
 
     # An optimization process is embedded within another optimization process
     solution = scopt.minimize(fun=short_log_integrand_data, args=arguments, x0=initial_hyperparameters,
                               method='Nelder-Mead',
-                              options={'xatol': 1, 'fatol': 1, 'disp': True, 'maxfev': 1000})
+                              options={'xatol': 1, 'fatol': 100, 'disp': True, 'maxfev': 500})
 
     print('Last function evaluation is ', solution.fun)  # This will be a negative value
     neg_log_likelihood = solution.fun  # We want to minimize the mirror image
@@ -824,7 +824,7 @@ ker = 'matern1'
 arguments_opt = (x_within_box, y_within_box, center, ker)
 
 # Initialise Latin Hypercube Sampling of initial points before iteration\
-initial_mat_scalar = np.arange(0.5, 5, 0.5)
+initial_mat_scalar = np.arange(0.5, 5.5, 0.5)
 log_likelihood_array = np.zeros_like(initial_mat_scalar)
 
 # Initialise matrix to store the matrix variables coming from each initial optimization point
@@ -837,18 +837,21 @@ frob_array = np.zeros_like(initial_mat_scalar)
 start_opt = time.clock()
 
 for i in range(initial_mat_scalar.size):
+
     scalar = initial_mat_scalar[i]
+    # Show status output
+    print('The initial starting points scalar is', scalar)
+
     initial_mat_var = np.array([scalar, scalar, scalar, scalar])  # Initial values for matrix variables
     solution_val = scopt.minimize(fun=linear_trans_opt, args=arguments_opt, x0=initial_mat_var,
                                   method='Nelder-Mead',
-                                  options={'xatol': 1, 'fatol': 1, 'disp': True, 'maxfev': 1000})
+                                  options={'xatol': 1, 'fatol': 100, 'disp': True, 'maxfev': 500})
 
     matrix_variables_mat[i, :] = solution_val.x  # This determines the optimal transformation matrix
     log_likelihood_array[i] = -1 * solution_val.fun
     frob_array[i] = fn.frob_norm(solution_val.x)
 
     # Create status output
-    print('The initial starting points scalar is', scalar)
     print('The Matrix Variables are', matrix_variables_mat[i, :])
     print('The Frobenius Norm is', frob_array[i])
     print('The Log Marginal Likelihood is', log_likelihood_array[i])
@@ -862,6 +865,7 @@ opt_index = np.argmax(log_likelihood_array)
 max_likelihood = log_likelihood_array[opt_index]
 opt_matrix_variables = matrix_variables_mat[opt_index, :]
 
+print('The optimal points are at', matrix_variables_mat)
 print('The globally-optimal matrix variables are', opt_matrix_variables)
 print('The globally-optimal log marginal likelihood is', max_likelihood)
 
@@ -889,8 +893,8 @@ new_scatter_plot_fig = plt.figure()
 new_scatter_plot = new_scatter_plot_fig.add_subplot(111)
 new_scatter_plot.scatter(transformed_x, transformed_y, marker='o', color='darkorange', s=0.3)
 new_scatter_plot.scatter(x_within_box, y_within_box, marker='o', color='black', s=0.3)
-scatter_plot.set_xlabel('UTM Horizontal Coordinate')
-scatter_plot.set_ylabel('UTM Vertical Coordinate')
+new_scatter_plot.set_xlabel('UTM Horizontal Coordinate')
+new_scatter_plot.set_ylabel('UTM Vertical Coordinate')
 
 # Scatter Plot of Frobenius Norm with Log Marginal Likelihood
 likelihood_frob_fig = plt.figure()
@@ -900,7 +904,6 @@ likelihood_frob.set_xlabel('Frobenius Norm')
 likelihood_frob.set_ylabel('Log Marginal Likelihood')
 
 plt.show()
-
 
 
 """
@@ -1066,7 +1069,5 @@ post_sd_color.set_ylabel('UTM Vertical Coordinate')
 # post_cov_color.grid(True)
 
 plt.show()
-
-
 
 """

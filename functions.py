@@ -4,6 +4,7 @@ import time
 import scipy.optimize as scopt
 import matplotlib
 matplotlib.use('TkAgg')
+import matplotlib.pyplot as plt
 
 
 """Simple Introductory Definitions"""
@@ -331,7 +332,37 @@ def frob_norm(transformation_matrix_array):
     return frob
 
 
+def inverse_transform_array(matrix_var, array, center):
+    """
+    Transforms coordinates from the transformed space into the original space but using the inverse of the initial
+    transformation matrix
+    :param matrix_var: transformation matrix
+    :param array: transformed array
+    :param center: same center as before
+    :return: array containing coordinates in the original mathematical space
+    """
+    # Generate initial transformation matrix
+    transform_mat = np.array([[matrix_var[0], matrix_var[1]], [matrix_var[2], matrix_var[3]]])
 
+    # Take the inverse of the transformation matrix
+    inv_transform_mat = np.linalg.inv(transform_mat)
+
+    # Start the transformation
+    x_box = array[0] - center[0]
+    y_box = array[1] - center[1]
+    xy_box = np.vstack((x_box, y_box))
+    xy_within_box = np.matmul(inv_transform_mat, xy_box)
+    rotated_x = xy_within_box[0] + center[0]
+    rotated_y = xy_within_box[1] + center[1]
+    final_array = np.vstack((rotated_x, rotated_y))
+
+    return final_array
+
+
+frob_array = np.array([1.195138473,	2.166717875, 3.452316351, 4.935617916, 5.416794687,	6.583099265,
+                       7.680282476, 8.777465687, 9.874648897, 10.97183211])
+likelihood_array = np.array([-995.5707876, -1117.447625, -1302.795538, -1565.12227, -2251.818195, -2366.7576,
+                             -2338.400735, -2339.02432, -2339.242085, -2339.318385])
 
 
 

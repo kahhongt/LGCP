@@ -6,6 +6,7 @@ import functions as fn
 import time
 import scipy.special as scispec
 import scipy.optimize as scopt
+import matplotlib.path as mpath
 
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
@@ -732,20 +733,20 @@ def linear_trans_skinny_opt(param, *args):
     This finds the average log marginal likelihood instead of the combined log_likelhood, and will find this average
     while adapting to the number of quadrats in the regression window after transformation
     :param param: transform_mat - matrix variables to be optimized
-    :param args: x and y coordinates of scatter points,
-    :return:
+    :param args: x and y coordinates of scatter points,, center, kernel type, and array containing vertices
+    the right order
+    :return: the average log likelihood by dividing total log likelihood with number of selected quadrats
     """
-    # Define arguments
-    x_scatter = args[0]
-    y_scatter = args[1]
-    c = args[2]
-    kernel = args[3]
+    # Define original required arguments
+    xy_scatter = args[0]
+    c = args[1]
+    kernel = args[2]
+    vertex_array = args[3]  # Have to be in the right order in the original mathematical space
 
     # Define parameters to be optimized - the matrix variables
     transform_mat = param
 
     # Begin transformation of the regression window
-    xy_scatter = np.vstack((x_scatter, y_scatter))  # Create the sample points to be rotated
     xy_scatter_transformed = fn.transform_array(transform_mat, xy_scatter, c)
     x_points_trans = xy_scatter_transformed[0]
     y_points_trans = xy_scatter_transformed[1]
@@ -770,13 +771,22 @@ def linear_trans_skinny_opt(param, *args):
     xy_quad = np.vstack((x_quad, y_quad))
     k_quad = fn.row_create(k_mesh)
 
-    # Select the quadrats that fall inside the polygon defined by the transformed window
-    
+    # Selection of quadrats that fall inside the polygon
 
+    # Transform the vertices using the same transformation matrix
+    transformed_vertices = fn.transform_array(transform_mat, vertex_array, center)
 
+    # Create polygon and
+    polygon = mpath.Path(np.transpose(transformed_vertices))
+    polygon_indicator = polygon.contains_points(np.transpose(xy_quad), transform=None, radius=1.0)
 
-    # Start Optimization
-    arguments = (xy_quad, k_quad, kernel)
+    x_quad_polygon = x_quad[polygon_indicator]
+    y_quad_polygon = y_quad[polygon_indicator]
+    xy_quad_polygon = np.vstack((x_quad_polygon, y_quad_polygon))
+    k_quad_polygon = k_quad[polygon_indicator]
+
+    # Begin Optimization using selected quadrats
+    arguments = (xy_quad_polygon, k_quad_polygon, kernel)
 
     # Initialise kernel hyper-parameters - arbitrary value but should be as close to actual value as possible
     initial_hyperparameters = np.array([1, 1, 1, 1])
@@ -784,11 +794,14 @@ def linear_trans_skinny_opt(param, *args):
     # An optimization process is embedded within another optimization process
     solution = scopt.minimize(fun=short_log_integrand_data, args=arguments, x0=initial_hyperparameters,
                               method='Nelder-Mead',
-                              options={'xatol': 1, 'fatol': 100, 'disp': True, 'maxfev': 500})
+                              options={'xatol': 1, 'fatol': 100, 'disp': True, 'maxfev': 1000})
 
+    positive_log_likelihood = solution.fun  # We want to minimize the mirror image
+    selected_quadrats_n = k_quad_polygon.size
+    avg_positive_log_likelihood = positive_log_likelihood / selected_quadrats_n
     print('Last function evaluation is ', solution.fun)  # This will be a negative value
-    neg_log_likelihood = solution.fun  # We want to minimize the mirror image
-    return neg_log_likelihood
+    print('The number of selected quadrats inside polygon is', selected_quadrats_n)
+    return avg_positive_log_likelihood
 
 
 # Aedes Occurrences in Brazil
@@ -883,6 +896,7 @@ y_box = (y_points > y_lower) & (y_points < y_upper)
 # Perform scatter point selection within the regression window
 x_within_box = x_points[x_box & y_box]
 y_within_box = y_points[x_box & y_box]
+xy_within_box = np.vstack((x_within_box, y_within_box))
 
 # ------------------------------------------ Start the optimization process
 # Try to use Latin Hypercube sampling to ensure global optimization
@@ -890,11 +904,14 @@ y_within_box = y_points[x_box & y_box]
 # Select kernel
 ker = 'matern1'
 
-arguments_opt = (x_within_box, y_within_box, center, ker)
+# Define vertices in the original mathematical space
+vertices = np.array([[x_lower, x_lower, x_upper, x_upper], [y_lower, y_upper, y_upper, y_lower]])
+
+arguments_opt = (xy_within_box, center, ker, vertices)
 
 # Initialise Latin Hypercube Sampling of initial points before iteration\
-initial_mat_scalar = np.arange(0.5, 5.5, 0.5)
-log_likelihood_array = np.zeros_like(initial_mat_scalar)
+initial_mat_scalar = np.arange(1, 3.0, 1)
+avg_log_likelihood_array = np.zeros_like(initial_mat_scalar)
 
 # Initialise matrix to store the matrix variables coming from each initial optimization point
 matrix_variables_mat = np.zeros((initial_mat_scalar.size, 4))
@@ -911,27 +928,27 @@ for i in range(initial_mat_scalar.size):
     # Show status output
     print('The initial starting points scalar is', scalar)
 
-    initial_mat_var = np.array([scalar, scalar, scalar, scalar])  # Initial values for matrix variables
-    solution_val = scopt.minimize(fun=linear_trans_opt, args=arguments_opt, x0=initial_mat_var,
+    initial_mat_var = np.array([scalar, 0, 0, scalar])  # Initial values for matrix variables
+    solution_val = scopt.minimize(fun=linear_trans_skinny_opt, args=arguments_opt, x0=initial_mat_var,
                                   method='Nelder-Mead',
-                                  options={'xatol': 1, 'fatol': 100, 'disp': True, 'maxfev': 500})
+                                  options={'xatol': 1, 'fatol': 1, 'disp': True, 'maxfev': 500})
 
     matrix_variables_mat[i, :] = solution_val.x  # This determines the optimal transformation matrix
-    log_likelihood_array[i] = -1 * solution_val.fun
+    avg_log_likelihood_array[i] = -1 * solution_val.fun
     frob_array[i] = fn.frob_norm(solution_val.x)
 
     # Create status output
     print('The Matrix Variables are', matrix_variables_mat[i, :])
     print('The Frobenius Norm is', frob_array[i])
-    print('The Log Marginal Likelihood is', log_likelihood_array[i])
+    print('The Log Marginal Likelihood is', avg_log_likelihood_array[i])
 
 
 end_opt = time.clock()
 print('Time taken for Latin Hypercube and Nelder-Mead Optimization is', end_opt - start_opt)
 # Select the optimal starting points, and the optimal matrix variables corresponding to greatest Log Likelihood
 # Create index of the maximum log likelihood
-opt_index = np.argmax(log_likelihood_array)
-max_likelihood = log_likelihood_array[opt_index]
+opt_index = np.argmax(avg_log_likelihood_array)
+max_likelihood = avg_log_likelihood_array[opt_index]
 opt_matrix_variables = matrix_variables_mat[opt_index, :]
 
 print('The optimal points are at', matrix_variables_mat)
@@ -968,7 +985,7 @@ new_scatter_plot.set_ylabel('UTM Vertical Coordinate')
 # Scatter Plot of Frobenius Norm with Log Marginal Likelihood
 likelihood_frob_fig = plt.figure()
 likelihood_frob = likelihood_frob_fig.add_subplot(111)
-likelihood_frob.scatter(frob_array, log_likelihood_array, marker='o', color='black', s=0.3)
+likelihood_frob.scatter(frob_array, avg_log_likelihood_array, marker='o', color='black', s=0.3)
 likelihood_frob.set_xlabel('Frobenius Norm')
 likelihood_frob.set_ylabel('Log Marginal Likelihood')
 

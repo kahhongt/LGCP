@@ -121,6 +121,10 @@ transform = 'yes'
 
 if transform == 'yes':
     transform_matrix_array = np.array([0.30117594, 0.92893405, 0.65028918, -0.2277159])
+elif transform == 'special':
+    transform_matrix_array = np.array([-0.30117594, 0.92893405, -0.65028918, -0.2277159])
+elif transform == 'line':
+    transform_matrix_array = np.array([1, 1, 1, 1])
 else:
     transform_matrix_array = np.array([1, 0, 0, 1])
 
@@ -135,14 +139,16 @@ x_points_trans = transformed_xy_within_box[0]
 y_points_trans = transformed_xy_within_box[1]
 
 # Obtain the maximum range in x and y in the transformed space - to define the regression window
+# This is to maximise the number of selected quadrats
 x_min = min(x_points_trans)
 x_max = max(x_points_trans)
 y_min = min(y_points_trans)
 y_max = max(y_points_trans)
 
+
 # First create a regression window with 20 x 20 quadrats before selecting the relevant quadrats
 # ChangeParam
-quads_on_side = 20  # define the number of quads along each dimension for the large regression window
+quads_on_side = 30  # define the number of quads along each dimension for the large regression window
 k_mesh, y_edges, x_edges = np.histogram2d(y_points_trans, x_points_trans, bins=quads_on_side,
                                           range=[[y_min, y_max], [x_min, x_max]])
 x_mesh_plot, y_mesh_plot = np.meshgrid(x_edges, y_edges)  # creating mesh-grid for use
@@ -157,31 +163,62 @@ k_quad = fn.row_create(k_mesh)
 print('k_quad is', k_quad)
 print('xy_quad is', xy_quad)
 
+# Align the quadrats to the centers
+# Realign the quad coordinates to the centers - shift centers by half a quad length on either dimension
+quad_length_x = (x_upper - x_lower) / quads_on_side
+quad_length_y = (y_upper - y_lower) / quads_on_side
+x_quad = x_quad + (0.5 * quad_length_x)
+y_quad = y_quad + (0.5 * quad_length_y)
+
+
 # --------------------- Conduct binning into transformed space - the x and y quad lengths will be different
 # Obtain the vertices after the transformation from the initial regression window
-vertices = np.array([[x_lower, x_upper, x_lower, x_upper], [y_lower, y_upper, y_upper, y_lower]])
+vertices = np.array([[x_lower, x_lower, x_upper, x_upper], [y_lower, y_upper, y_upper, y_lower]])
 print('The Original Vertices are', vertices)
 
 # Transform the vertices using the same transformation matrix
 transformed_vertices = fn.transform_array(transform_matrix_array, vertices, center)
-
-# Convert array of vertices into n x 2 dimensions
-transformed_vertices = np.transpose(transformed_vertices)
-
 print('The Transformed Vertices are', transformed_vertices)
-plt.figure()
-plt.scatter(vertices[0], vertices[1])
-plt.scatter(transformed_vertices[0], transformed_vertices[1])
-plt.show()
 
 # Test out for points
+polygon = mpath.Path(np.transpose(transformed_vertices))
+polygon_indicator = polygon.contains_points(np.transpose(xy_quad), transform=None, radius=0.1)
 
+x_quad_polygon = x_quad[polygon_indicator]
+y_quad_polygon = y_quad[polygon_indicator]
+xy_quad_polygon = np.vstack((x_quad_polygon, y_quad_polygon))
+k_quad_polygon = k_quad[polygon_indicator]
 
-polygon = mpath.Path(transformed_vertices)
-boole = polygon.contains_points([(.5, .5)])
-print(boole)
+print('The number of selected quadrats is', xy_quad_polygon.shape[1])
 
+# Set up circle quad indicator to show which quads are within the Circular Regression Window
+indicator_array = np.ones_like(k_quad) * polygon_indicator
+indicator_mesh = indicator_array.reshape(k_mesh.shape)
 
 # ------------------------------------------ End of Histogram Generation from Box
 # Because this is now a rectangular box, I do not need to do realignment of quad centers
-"""
+
+# Plot the Transformed Vertices and Original Vertices
+plt.figure()
+plt.scatter(vertices[0], vertices[1], color='black')
+plt.scatter(transformed_vertices[0], transformed_vertices[1], color='darkorange')
+plt.scatter(x_quad, y_quad, color='blue')
+plt.scatter(x_quad_polygon, y_quad_polygon, color='red')
+
+# Transform all scatter points in Brazil
+brazil_scatter = np.vstack((x_points, y_points))
+transformed_brazil_scatter = fn.transform_array(transform_matrix_array, brazil_scatter, center)
+transformed_brazil_scatter_x = transformed_brazil_scatter[0]
+transformed_brazil_scatter_y = transformed_brazil_scatter[1]
+
+# Plot Histogram using the selected quadrats
+histo_fig = plt.figure()
+histo = histo_fig.add_subplot(111)
+cmap = matplotlib.colors.ListedColormap(['white', 'orange'])
+histo.pcolor(x_mesh_plot, y_mesh_plot, indicator_mesh, cmap=cmap, color='#ffffff')
+histo.scatter(transformed_brazil_scatter_x, transformed_brazil_scatter_y, marker='.', color='black', s=0.3)
+histo.set_title('Polygon Regression Window')
+histo.set_xlabel('UTM Horizontal Coordinate')
+histo.set_ylabel('UTM Vertical Coordinate')
+
+plt.show()

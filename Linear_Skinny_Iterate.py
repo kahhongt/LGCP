@@ -776,7 +776,7 @@ def linear_trans_skinny_opt(param, *args):
     # Transform the vertices using the same transformation matrix
     transformed_vertices = fn.transform_array(transform_mat, vertex_array, center)
 
-    # Create polygon and boolean array indicating quadrats that are within the polygon
+    # Create polygon and
     polygon = mpath.Path(np.transpose(transformed_vertices))
     polygon_indicator = polygon.contains_points(np.transpose(xy_quad), transform=None, radius=1.0)
 
@@ -909,47 +909,91 @@ vertices = np.array([[x_lower, x_lower, x_upper, x_upper], [y_lower, y_upper, y_
 
 arguments_opt = (xy_within_box, center, ker, vertices)
 
-# Initialise Latin Hypercube Sampling of initial points before iteration\
-initial_mat_scalar = np.arange(1, 3.0, 1)
-avg_log_likelihood_array = np.zeros_like(initial_mat_scalar)
+# Iterate each for each of the 4 matrix variables from 0 to 5
+mat_element = np.arange(0.3, 3.3, 0.1)
+iterate_count = mat_element.size
 
-# Initialise matrix to store the matrix variables coming from each initial optimization point
-matrix_variables_mat = np.zeros((initial_mat_scalar.size, 4))
+# Initialise holding arrays
+log_likelihood = np.full((iterate_count, iterate_count, iterate_count, iterate_count), 0)
+avg_log_likelihood = np.full((iterate_count, iterate_count, iterate_count, iterate_count), 0)
+selected_quadrats_n = np.full((iterate_count, iterate_count, iterate_count, iterate_count), 0)
 
-# Initialise array containing frobenius norm
-frob_array = np.zeros_like(initial_mat_scalar)
+# Over here, I am not trying to optimize for matrix variables, but just optimizing for the kernel
+for a in range(iterate_count):
+    for b in range(iterate_count):
+        for c in range(iterate_count):
+            for d in range(iterate_count):
+                initial_mat_var = np.array(mat_element[a], mat_element[b], mat_element[c], mat_element[d])
 
-# Measure time taken for Latin Hypercube sampling with Nelder-Mead Optimization
-start_opt = time.clock()
+                xy_scatter_transformed = fn.transform_array(initial_mat_var, xy_within_box, center)
+                x_points_trans = xy_scatter_transformed[0]
+                y_points_trans = xy_scatter_transformed[1]
 
-for i in range(initial_mat_scalar.size):
+                # Obtain the maximum range in x and y in the transformed space
+                # Transform the vertices
+                transformed_vertices = fn.transform_array(initial_mat_var, vertices, center)
 
-    scalar = initial_mat_scalar[i]
-    # Show status output
-    print('The initial starting points scalar is', scalar)
+                x_down = min(transformed_vertices[0])
+                x_up = max(transformed_vertices[0])
+                y_down = min(transformed_vertices[1])
+                y_up = max(transformed_vertices[1])
 
-    initial_mat_var = np.array([scalar, 0, 0, scalar])  # Initial values for matrix variables
-    solution_val = scopt.minimize(fun=linear_trans_skinny_opt, args=arguments_opt, x0=initial_mat_var,
-                                  method='Nelder-Mead',
-                                  options={'xatol': 1, 'fatol': 1, 'disp': True, 'maxfev': 500})
+                # ChangeParam - create histogram in transformed space before quadrat selection
+                quads_on_side = 20  # define the number of quads along each dimension
+                k_mesh, y_edges, x_edges = np.histogram2d(y_points_trans, x_points_trans, bins=quads_on_side,
+                                                          range=[[y_down, y_up], [x_down, x_up]])
+                x_mesh_plot, y_mesh_plot = np.meshgrid(x_edges, y_edges)  # creating mesh-grid for use
+                x_mesh = x_mesh_plot[:-1, :-1]  # Removing extra rows and columns due to edges
+                y_mesh = y_mesh_plot[:-1, :-1]
+                x_quad = fn.row_create(x_mesh)  # Creating the rows from the mesh
+                y_quad = fn.row_create(y_mesh)
+                xy_quad = np.vstack((x_quad, y_quad))
+                k_quad = fn.row_create(k_mesh)
 
-    matrix_variables_mat[i, :] = solution_val.x  # This determines the optimal transformation matrix
-    avg_log_likelihood_array[i] = -1 * solution_val.fun
-    frob_array[i] = fn.frob_norm(solution_val.x)
+                # Create Polygon using the transformed_vertices
+                polygon = mpath.Path(np.transpose(transformed_vertices))
 
-    # Create status output
-    print('The Matrix Variables are', matrix_variables_mat[i, :])
-    print('The Frobenius Norm is', frob_array[i])
-    print('The Log Marginal Likelihood is', avg_log_likelihood_array[i])
+                # Create Boolean array which is the polygon indicator
+                polygon_indicator = polygon.contains_points(np.transpose(xy_quad), transform=None, radius=1.0)
+
+                # Begin Quadrat Selection
+                x_quad_polygon = x_quad[polygon_indicator]
+                y_quad_polygon = y_quad[polygon_indicator]
+                xy_quad_polygon = np.vstack((x_quad_polygon, y_quad_polygon))
+                k_quad_polygon = k_quad[polygon_indicator]
+
+                # Begin Optimization using selected quadrats
+                arguments = (xy_quad_polygon, k_quad_polygon, ker)
+
+                # Initialise kernel hyper-parameters
+                initial_hyperparameters = np.array([1, 1, 1, 1])
+
+                # Optimise for kernel hyperparameters
+                solution = scopt.minimize(fun=short_log_integrand_data, args=arguments, x0=initial_hyperparameters,
+                                          method='Nelder-Mead',
+                                          options={'xatol': 1, 'fatol': 100, 'disp': True, 'maxfev': 1000})
+
+                # Divide the log_likelihood by the number of selected quadrats
+                # Taking the true negative value of the log_likelihoods
+                log_likelihood[a, b, c, d] = -1 * solution.fun
+                selected_quadrats_n[a, b, c, d] = k_quad_polygon.size
+                avg_log_likelihood[a, b, c, d] = log_likelihood / selected_quadrats_n
+                print('The Log Likelihood is', log_likelihood[a, b, c, d])  # This will be a negative value
+                print('The number of selected quadrats inside polygon is', selected_quadrats_n[a, b, c, d])
+                print('The average Log Likelihood is', avg_log_likelihood[a, b, c, d])
 
 
-end_opt = time.clock()
-print('Time taken for Latin Hypercube and Nelder-Mead Optimization is', end_opt - start_opt)
+print('The 4-dimensional matrix containing Log Likelihood is', log_likelihood)  # This will be a negative value
+print('The 4-dimensional matrix containing number of selected quadrats inside polygon is', selected_quadrats_n)
+print('The 4-dimensional matrix containing average Log Likelihood is', avg_log_likelihood)
+
 # Select the optimal starting points, and the optimal matrix variables corresponding to greatest Log Likelihood
-# Create index of the maximum log likelihood
-opt_index = np.argmax(avg_log_likelihood_array)
-max_likelihood = avg_log_likelihood_array[opt_index]
-opt_matrix_variables = matrix_variables_mat[opt_index, :]
+total_opt_index = np.argmax(log_likelihood)
+avg_opt_index = np.argmax(avg_log_likelihood)
+max_total_likelihood = avg_log_likelihood[total_opt_index]
+max_avg_likelihood = avg_log_likelihood[avg_opt_index]
+
+# Record the optimal matrix variables in both cases
 
 print('The optimal points are at', matrix_variables_mat)
 print('The globally-optimal matrix variables are', opt_matrix_variables)
@@ -990,170 +1034,3 @@ likelihood_frob.set_xlabel('Frobenius Norm')
 likelihood_frob.set_ylabel('Log Marginal Likelihood')
 
 plt.show()
-
-
-"""
-# ------------------------------------------Start of Sampling Points Creation
-
-# Define number of points along each side of box containing the circle
-# ChangeParam
-intervals = 20
-
-# Define the cut-off point beyond the circle - creating sampling points beyond data set
-cut_decision = 'large_range'
-if cut_decision == 'small_range':  # boundary exceeded by half an interval on each axis
-    cut_off_x = (x_upper - x_lower) / (intervals * 2)
-    cut_off_y = (y_upper - y_lower) / (intervals * 2)
-    # intervals_final = intervals + 1
-
-elif cut_decision == 'large_range':  # boundary exceeded by half the entire range on each axis
-    cut_off_x = (x_upper - x_lower) / 4
-    cut_off_y = (y_upper - y_lower) / 4
-else:  # No inclusion of points beyond the circle
-    cut_off_x = 0
-    cut_off_y = 0
-
-# Generate edges within the pre-defined range
-sampling_points_x = np.linspace(x_lower - cut_off_x, x_upper + cut_off_x, intervals)
-sampling_points_y = np.linspace(y_lower - cut_off_y, y_upper + cut_off_y, intervals)
-
-# Create iteration for coordinates using mesh-grid - for plotting
-sampling_points_xmesh, sampling_points_ymesh = np.meshgrid(sampling_points_x, sampling_points_y)
-sampling_x_row = fn.row_create(sampling_points_xmesh)
-sampling_y_row = fn.row_create(sampling_points_ymesh)
-sampling_xy = np.vstack((sampling_x_row, sampling_y_row))
-
-# ------------------------------------------End of Sampling Points Creation
-
-# ------------------------------------------Start of Posterior Tabulation
-start_posterior = time.clock()
-
-# Create cases for kernel selection
-if ker == 'matern1':
-    cov_dd = fast_matern_1_2d(sigma_optimal, length_optimal, xy_quad_circle, xy_quad_circle)
-elif ker == 'matern3':
-    cov_dd = fast_matern_2d(sigma_optimal, length_optimal, xy_quad_circle, xy_quad_circle)
-elif ker == 'squared_exponential':
-    cov_dd = fast_squared_exp_2d(sigma_optimal, length_optimal, xy_quad_circle, xy_quad_circle)
-elif ker == 'rational_quad':
-    cov_dd = fast_rational_quadratic_2d(sigma_optimal, length_optimal, xy_quad_circle, xy_quad_circle)
-else:  # No acceptable kernel defined
-    cov_dd = np.eye(xy_quad_circle.shape[1])  # Generate nonsensical identity matrix
-    print('No acceptable kernel defined. Results should make no sense')
-
-cov_noise = np.eye(cov_dd.shape[0]) * (noise_optimal ** 2)
-cov_overall = cov_dd + cov_noise
-prior_mean = mean_func_scalar(0, xy_quad_circle)
-prior_mismatch = k_quad_circle - prior_mean
-
-# Initialise mean_posterior and var_posterior array
-mean_posterior = np.zeros(sampling_xy.shape[1])
-var_posterior = np.zeros(sampling_xy.shape[1])
-
-# Generate mean and covariance array
-for i in range(sampling_xy.shape[1]):
-
-    # Generate status output
-    if i % 100 == 0:  # if i is a multiple of 50,
-        print('Tabulating Prediction Point', i)
-
-    # Change_Param
-    # At each data point,
-    xy_star = sampling_xy[:, i]
-
-    # Create cases for kernel selection
-    if ker == 'matern1':
-        cov_star_d = matern_2d(1/2, sigma_optimal, length_optimal, xy_star, xy_quad_circle)
-        cov_star_star = matern_2d(1 / 2, sigma_optimal, length_optimal, xy_star, xy_star)
-    elif ker == 'matern3':
-        cov_star_d = matern_2d(3 / 2, sigma_optimal, length_optimal, xy_star, xy_quad_circle)
-        cov_star_star = matern_2d(3 / 2, sigma_optimal, length_optimal, xy_star, xy_star)
-    elif ker == 'squared_exponential':
-        cov_star_d = squared_exp_2d(sigma_optimal, length_optimal, xy_star, xy_quad_circle)
-        cov_star_star = squared_exp_2d(sigma_optimal, length_optimal, xy_star, xy_star)
-    elif ker == 'rational_quad':
-        cov_star_d = rational_quadratic_2d(sigma_optimal, length_optimal, xy_star, xy_quad_circle)
-        cov_star_star = rational_quadratic_2d(sigma_optimal, length_optimal, xy_star, xy_star)
-    else:
-        cov_star_d = 0
-        cov_star_star = 0
-        print('No acceptable kernel entered')
-
-    # Generate Posterior Mean and Variance
-    mean_posterior[i] = mu_post(xy_star, cov_overall, cov_star_d, prior_mismatch)
-    var_posterior[i] = var_post(cov_star_star, cov_star_d, cov_overall)
-
-
-sampling_x_2d = sampling_x_row.reshape(intervals, intervals)
-sampling_y_2d = sampling_y_row.reshape(intervals, intervals)
-mean_posterior_2d = mean_posterior.reshape(intervals, intervals)
-var_posterior_2d = var_posterior.reshape(intervals, intervals)
-sd_posterior_2d = np.sqrt(var_posterior_2d)
-
-time_posterior = time.clock() - start_posterior
-print('Time taken for optimization =', time_opt)
-print('Time taken for Posterior Tabulation =', time_posterior)
-
-# ------------------------------------------End of Posterior Tabulation
-
-
-# ------------------------------------------ Start of Plotting Preparation
-# Set up circle quad indicator to show which quads are within the Circular Regression Window
-indicator_array = np.zeros_like(k_quad_box)
-for i in range(indicator_array.size):
-    if dist_center_array[i] <= radius:
-        indicator_array[i] = 1
-
-indicator_mesh = indicator_array.reshape(x_mesh.shape)
-
-# ------------------------------------------ End of Plotting Preparation
-
-# ChangeParam
-# Plot Histogram
-fig_brazil_histogram = plt.figure()
-brazil_histogram = fig_brazil_histogram.add_subplot(111)
-brazil_histogram.pcolor(x_mesh_plot, y_mesh_plot, k_mesh, cmap='YlOrBr')
-brazil_histogram.scatter(x_2013, y_2013, marker='.', color='black', s=0.3)
-histogram_circle = plt.Circle(center, radius, fill=False, color='orange')
-brazil_histogram.add_patch(histogram_circle)
-brazil_histogram.set_title('Brazil 2013 Aedes Histogram')
-# brazil_histogram.set_xlim(x_lower, x_upper)
-# brazil_histogram.set_ylim(y_lower, y_upper)
-brazil_histogram.set_xlabel('UTM Horizontal Coordinate')
-brazil_histogram.set_ylabel('UTM Vertical Coordinate')
-
-# Indicating the Quads within the circle
-fig_brazil_circle = plt.figure()
-brazil_circle = fig_brazil_circle.add_subplot(111)
-cmap = matplotlib.colors.ListedColormap(['white', 'orange'])
-brazil_circle.pcolor(x_mesh_plot, y_mesh_plot, indicator_mesh, cmap=cmap, color='#ffffff')
-brazil_circle.scatter(x_2013, y_2013, marker='.', color='black', s=0.3)
-brazil_circle.set_title('Circular Regression Window W')
-# brazil_circle.set_xlim(x_lower, x_upper)
-# brazil_circle.set_ylim(y_lower, y_upper)
-brazil_circle.set_xlabel('UTM Horizontal Coordinate')
-brazil_circle.set_ylabel('UTM Vertical Coordinate')
-
-# Plot Posterior Mean
-fig_m_post = plt.figure()
-post_mean_color = fig_m_post.add_subplot(111)
-post_mean_color.pcolor(sampling_points_x, sampling_points_y, mean_posterior_2d, cmap='YlOrBr')
-post_mean_color.scatter(x_points_circle, y_points_circle, marker='o', color='black', s=0.3)
-post_mean_color.set_title('Posterior Mean')
-post_mean_color.set_xlabel('UTM Horizontal Coordinate')
-post_mean_color.set_ylabel('UTM Vertical Coordinate')
-# post_mean_color.grid(True)
-
-# Plot Posterior Standard Deviation
-fig_sd_post = plt.figure()
-post_sd_color = fig_sd_post.add_subplot(111)
-post_sd_color.pcolor(sampling_points_x, sampling_points_y, sd_posterior_2d, cmap='YlOrBr')
-post_sd_color.scatter(x_points_circle, y_points_circle, marker='o', color='black', s=0.3)
-post_sd_color.set_title('Posterior Standard Deviation')
-post_sd_color.set_xlabel('UTM Horizontal Coordinate')
-post_sd_color.set_ylabel('UTM Vertical Coordinate')
-# post_cov_color.grid(True)
-
-plt.show()
-
-"""

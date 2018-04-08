@@ -365,6 +365,16 @@ likelihood_array = np.array([-995.5707876, -1117.447625, -1302.795538, -1565.122
                              -2338.400735, -2339.02432, -2339.242085, -2339.318385])
 
 
+b = np.random.randn(10, 10, 10, 10)
+print(b.shape)
+print(b.size)
+ind_0 = np.argmax(b, axis=0)
+ind_1 = np.argmax(b, axis=1)
+ind_2 = np.argmax(b, axis=2)
+ind_3 = np.argmax(b, axis=3)
+ind = (ind_0, ind_1, ind_2, ind_3)
+print('The index is',
+
 
 
 

@@ -329,6 +329,7 @@ def frob_norm(transformation_matrix_array):
     matrix_square = transformation_matrix_array ** 2  # Element-wise multiplication
     sum_of_squares = sum(matrix_square)
     frob = np.sqrt(sum_of_squares)
+    frob = np.around(frob, decimals=5)
     return frob
 
 
@@ -359,22 +360,25 @@ def inverse_transform_array(matrix_var, array, center):
     return final_array
 
 
+"""
 frob_array = np.array([1.195138473,	2.166717875, 3.452316351, 4.935617916, 5.416794687,	6.583099265,
                        7.680282476, 8.777465687, 9.874648897, 10.97183211])
 likelihood_array = np.array([-995.5707876, -1117.447625, -1302.795538, -1565.12227, -2251.818195, -2366.7576,
                              -2338.400735, -2339.02432, -2339.242085, -2339.318385])
+a = np.around(likelihood_array, decimals=3)
+
+array = np.array([0.3, 0.4, 0.3, 0.4])
+frob = frob_norm(array)
+print(frob)
 
 
-b = np.random.randn(10, 10, 10, 10)
-print(b.shape)
-print(b.size)
-ind_0 = np.argmax(b, axis=0)
-ind_1 = np.argmax(b, axis=1)
-ind_2 = np.argmax(b, axis=2)
-ind_3 = np.argmax(b, axis=3)
-ind = (ind_0, ind_1, ind_2, ind_3)
-print('The index is',
+# Plot average likelihood against frobenius norm
+avg_likelihood_frob_fig = plt.figure()
+avg_likelihood_frob = avg_likelihood_frob_fig.add_subplot(111)
+avg_likelihood_frob.scatter(frob_array, likelihood_array, marker='o', color='black', s=3)
+avg_likelihood_frob.set_xlabel('Frobenius Norm')
+avg_likelihood_frob.set_ylabel('Average Log Marginal Likelihood')
 
+plt.show()
 
-
-
+"""

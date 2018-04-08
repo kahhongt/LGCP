@@ -910,20 +910,32 @@ vertices = np.array([[x_lower, x_lower, x_upper, x_upper], [y_lower, y_upper, y_
 arguments_opt = (xy_within_box, center, ker, vertices)
 
 # Iterate each for each of the 4 matrix variables from 0 to 5
-mat_element = np.arange(0.3, 3.3, 0.1)
-iterate_count = mat_element.size
+# ChangeParam
+mat_element_a_c = np.arange(0.4, 1.3, 0.1)  # 8 values for each
+mat_element_b_d = np.arange(0.3, 1.2, 0.1)
+iterate_count = mat_element_a_c.size
 
 # Initialise holding arrays
-log_likelihood = np.full((iterate_count, iterate_count, iterate_count, iterate_count), 0)
-avg_log_likelihood = np.full((iterate_count, iterate_count, iterate_count, iterate_count), 0)
-selected_quadrats_n = np.full((iterate_count, iterate_count, iterate_count, iterate_count), 0)
+log_likelihood = np.full((iterate_count, iterate_count, iterate_count, iterate_count), 0.00000, dtype=float)
+avg_log_likelihood = np.full((iterate_count, iterate_count, iterate_count, iterate_count), 0.00000, dtype=float)
+selected_quadrats_n = np.full((iterate_count, iterate_count, iterate_count, iterate_count), 0.00000, dtype=float)
+
+# Initialise Array containing Frobenius Norm
+frob_norm = np.full((iterate_count, iterate_count, iterate_count, iterate_count), 0.00000, dtype=float)
+
+start_iteration = time.clock()
 
 # Over here, I am not trying to optimize for matrix variables, but just optimizing for the kernel
 for a in range(iterate_count):
     for b in range(iterate_count):
         for c in range(iterate_count):
             for d in range(iterate_count):
-                initial_mat_var = np.array(mat_element[a], mat_element[b], mat_element[c], mat_element[d])
+                # initial_mat_var = np.array([mat_element[a], 0, mat_element[c], mat_element[d]])
+                initial_mat_var = np.array([mat_element_a_c[a], mat_element_b_d[b],
+                                            mat_element_a_c[c], mat_element_b_d[d]])
+                frob_norm[a, b, c, d] = fn.frob_norm(initial_mat_var)
+                print('The Current Matrix Variables are', initial_mat_var)
+                print('The Current Frobenius Norm is', frob_norm[a, b, c, d])
 
                 xy_scatter_transformed = fn.transform_array(initial_mat_var, xy_within_box, center)
                 x_points_trans = xy_scatter_transformed[0]
@@ -939,7 +951,7 @@ for a in range(iterate_count):
                 y_up = max(transformed_vertices[1])
 
                 # ChangeParam - create histogram in transformed space before quadrat selection
-                quads_on_side = 20  # define the number of quads along each dimension
+                quads_on_side = 40  # define the number of quads along each dimension
                 k_mesh, y_edges, x_edges = np.histogram2d(y_points_trans, x_points_trans, bins=quads_on_side,
                                                           range=[[y_down, y_up], [x_down, x_up]])
                 x_mesh_plot, y_mesh_plot = np.meshgrid(x_edges, y_edges)  # creating mesh-grid for use
@@ -971,66 +983,72 @@ for a in range(iterate_count):
                 # Optimise for kernel hyperparameters
                 solution = scopt.minimize(fun=short_log_integrand_data, args=arguments, x0=initial_hyperparameters,
                                           method='Nelder-Mead',
-                                          options={'xatol': 1, 'fatol': 100, 'disp': True, 'maxfev': 1000})
+                                          options={'xatol': 1, 'fatol': 10, 'disp': True, 'maxfev': None})
 
                 # Divide the log_likelihood by the number of selected quadrats
                 # Taking the true negative value of the log_likelihoods
                 log_likelihood[a, b, c, d] = -1 * solution.fun
                 selected_quadrats_n[a, b, c, d] = k_quad_polygon.size
-                avg_log_likelihood[a, b, c, d] = log_likelihood / selected_quadrats_n
+                avg_log_likelihood[a, b, c, d] = log_likelihood[a, b, c, d] / selected_quadrats_n[a, b, c, d]
                 print('The Log Likelihood is', log_likelihood[a, b, c, d])  # This will be a negative value
-                print('The number of selected quadrats inside polygon is', selected_quadrats_n[a, b, c, d])
-                print('The average Log Likelihood is', avg_log_likelihood[a, b, c, d])
+                print('The number of selected quadrats is', selected_quadrats_n[a, b, c, d])
+                print('The Average Log Likelihood is', avg_log_likelihood[a, b, c, d])
 
 
 print('The 4-dimensional matrix containing Log Likelihood is', log_likelihood)  # This will be a negative value
 print('The 4-dimensional matrix containing number of selected quadrats inside polygon is', selected_quadrats_n)
 print('The 4-dimensional matrix containing average Log Likelihood is', avg_log_likelihood)
+print('The 4-dimensional matrix containing frobenius norm is', frob_norm)
+
+end_iteration = time.clock()
+time_iteration = end_iteration - start_iteration
+print('The time taken for iteration is', time_iteration)
 
 # Select the optimal starting points, and the optimal matrix variables corresponding to greatest Log Likelihood
 total_opt_index = np.argmax(log_likelihood)
+total_opt_index_unravel = np.unravel_index(total_opt_index, (iterate_count, iterate_count,
+                                                             iterate_count, iterate_count))
+max_total_likelihood = avg_log_likelihood[total_opt_index_unravel]
+total_opt_var = np.array([mat_element_a_c[total_opt_index_unravel[0]], mat_element_b_d[total_opt_index_unravel[1]],
+                          mat_element_a_c[total_opt_index_unravel[2]], mat_element_b_d[total_opt_index_unravel[3]]])
+opt_selected_quadrats_total = selected_quadrats_n[total_opt_index_unravel]
+
+
+# This is for the average
 avg_opt_index = np.argmax(avg_log_likelihood)
-max_total_likelihood = avg_log_likelihood[total_opt_index]
-max_avg_likelihood = avg_log_likelihood[avg_opt_index]
+avg_opt_index_unravel = np.unravel_index(avg_opt_index, (iterate_count, iterate_count,
+                                                         iterate_count, iterate_count))
+max_avg_likelihood = avg_log_likelihood[avg_opt_index_unravel]
+avg_opt_var = np.array([mat_element_a_c[avg_opt_index_unravel[0]], mat_element_b_d[avg_opt_index_unravel[1]],
+                        mat_element_a_c[avg_opt_index_unravel[2]], mat_element_b_d[avg_opt_index_unravel[3]]])
 
 # Record the optimal matrix variables in both cases
+print('The globally-optimal matrix variables in terms of total are', total_opt_var)
+print('The total globally-optimal log marginal likelihood is', max_total_likelihood)
+print('The globally-optimal matrix variables in terms of average are', avg_opt_var)
+print('The average globally-optimal log marginal likelihood is', max_avg_likelihood)
 
-print('The optimal points are at', matrix_variables_mat)
-print('The globally-optimal matrix variables are', opt_matrix_variables)
-print('The globally-optimal log marginal likelihood is', max_likelihood)
+# Plot Log Likelihoods against Frob Norm
+frob_norm_array = np.ravel(frob_norm)
+log_likelihood_array = np.ravel(log_likelihood)
+avg_log_likelihood_array = np.ravel(avg_log_likelihood)
 
-# Perform the transformation using the optimized matrix variables
-xy_within_box = np.vstack((x_within_box, y_within_box))
-
-# Perform transformation using the optimal matrix variables that were tabulated beforehand
-transformed_xy = fn.transform_array(opt_matrix_variables, xy_within_box, center)
-
-# Split coordinates for plotting
-transformed_x = transformed_xy[0]
-transformed_y = transformed_xy[1]
-
-# This is the plot including all scatter points in Brazil
-scatter_plot_fig = plt.figure()
-scatter_plot = scatter_plot_fig.add_subplot(111)
-scatter_plot.scatter(x_within_box, y_within_box, marker='o', color='red', s=0.3)
-scatter_plot.scatter(x_points, y_points, marker='o', color='black', s=0.3)
-scatter_plot.scatter(transformed_x, transformed_y, marker='o', color='blue', s=0.3)
-scatter_plot.set_xlabel('UTM Horizontal Coordinate')
-scatter_plot.set_ylabel('UTM Vertical Coordinate')
-
-# Plot points in both original and transformed spaces only within the regression window
-new_scatter_plot_fig = plt.figure()
-new_scatter_plot = new_scatter_plot_fig.add_subplot(111)
-new_scatter_plot.scatter(transformed_x, transformed_y, marker='o', color='darkorange', s=0.3)
-new_scatter_plot.scatter(x_within_box, y_within_box, marker='o', color='black', s=0.3)
-new_scatter_plot.set_xlabel('UTM Horizontal Coordinate')
-new_scatter_plot.set_ylabel('UTM Vertical Coordinate')
-
-# Scatter Plot of Frobenius Norm with Log Marginal Likelihood
+# Plot total likelihood against frobenius norm
 likelihood_frob_fig = plt.figure()
 likelihood_frob = likelihood_frob_fig.add_subplot(111)
-likelihood_frob.scatter(frob_array, avg_log_likelihood_array, marker='o', color='black', s=0.3)
+likelihood_frob.scatter(frob_norm_array, log_likelihood_array, marker='o', color='black', s=1)
 likelihood_frob.set_xlabel('Frobenius Norm')
-likelihood_frob.set_ylabel('Log Marginal Likelihood')
+likelihood_frob.set_ylabel('Combined Log Marginal Likelihood')
+
+# Plot average likelihood against frobenius norm
+avg_likelihood_frob_fig = plt.figure()
+avg_likelihood_frob = avg_likelihood_frob_fig.add_subplot(111)
+avg_likelihood_frob.scatter(frob_norm_array, avg_log_likelihood_array, marker='o', color='black', s=1)
+avg_likelihood_frob.set_xlabel('Frobenius Norm')
+avg_likelihood_frob.set_ylabel('Average Log Marginal Likelihood')
 
 plt.show()
+
+
+
+

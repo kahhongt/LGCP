@@ -911,7 +911,7 @@ vertices = np.array([[x_lower, x_lower, x_upper, x_upper], [y_lower, y_upper, y_
 
 # Iterate each for each of the 4 matrix variables from 0 to 5
 # ChangeParam
-element_skew = np.arange(0.0, 5.1, 0.1)  # 4 values for each, and cubed
+element_skew = np.arange(1, 6.1, 0.1)  # 4 values for each, and cubed
 iterate_count = element_skew.size
 
 # Initialise holding arrays
@@ -928,7 +928,7 @@ start_iteration = time.clock()
 for i in range(iterate_count):
     # initial_mat_var = np.array([mat_element[a], 0, mat_element[c], mat_element[d]])
     start_iteration = time.clock()
-    initial_mat_var = np.array([1, element_skew[i], element_skew[i], 1])
+    initial_mat_var = np.array([element_skew[i], 0, 0, element_skew[i]])
     frob_norm[i] = fn.frob_norm(initial_mat_var)
     print(' ------------- Start of Current Iteration', i+1)
     print('The Current Matrix Variables are', initial_mat_var)
@@ -948,7 +948,7 @@ for i in range(iterate_count):
     y_up = max(transformed_vertices[1])
 
     # ChangeParam - create histogram in transformed space before quadrat selection
-    quads_on_side = 30  # define the number of quads along each dimension
+    quads_on_side = 20  # define the number of quads along each dimension
     k_mesh, y_edges, x_edges = np.histogram2d(y_points_trans, x_points_trans, bins=quads_on_side,
                                               range=[[y_down, y_up], [x_down, x_up]])
     x_mesh_plot, y_mesh_plot = np.meshgrid(x_edges, y_edges)  # creating mesh-grid for use
@@ -976,8 +976,8 @@ for i in range(iterate_count):
     x_quad_polygon = x_quad[polygon_indicator]
     y_quad_polygon = y_quad[polygon_indicator]
     xy_quad_polygon = np.vstack((x_quad_polygon, y_quad_polygon))
-    k_quad_polygon = k_quad[polygon_indicator]
 
+    k_quad_polygon = k_quad[polygon_indicator]
     selected_quadrats_n[i] = k_quad_polygon.size
     print('The number of selected quadrats is', selected_quadrats_n[i])
 
@@ -1042,7 +1042,7 @@ likelihood_frob.set_ylabel('Combined Log Marginal Likelihood')
 likelihood_skew_fig = plt.figure()
 likelihood_skew = likelihood_skew_fig.add_subplot(111)
 likelihood_skew.plot(element_skew, log_likelihood, color='black')
-likelihood_skew.set_xlabel('Off-Diagonal Entry - Beta')
+likelihood_skew.set_xlabel('Diagonal Entry - Alpha')
 likelihood_skew.set_ylabel('Combined Log Marginal Likelihood')
 
 # Plot average likelihood against frobenius norm
@@ -1056,7 +1056,7 @@ avg_likelihood_frob.set_ylabel('Average Log Marginal Likelihood')
 avg_likelihood_skew_fig = plt.figure()
 avg_likelihood_skew = avg_likelihood_skew_fig.add_subplot(111)
 avg_likelihood_skew.plot(element_skew, avg_log_likelihood, color='black')
-avg_likelihood_skew.set_xlabel('Off-Diagonal Entry - Beta')
+avg_likelihood_skew.set_xlabel('Diagonal Entry - Alpha')
 avg_likelihood_skew.set_ylabel('Average Log Marginal Likelihood')
 
 plt.show()

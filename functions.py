@@ -383,4 +383,3 @@ avg_likelihood_frob.set_ylabel('Average Log Marginal Likelihood')
 plt.show()
 
 """
-hood is -1.07761214674

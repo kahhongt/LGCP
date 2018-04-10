@@ -11,8 +11,6 @@ matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
-"""This is a script used for plotting of the posterior after the transformation"""
-
 
 def poisson_cont(k, landa):  # to allow for non-integer k values
     numerator_p = np.power(landa, k) * np.exp(-1 * landa)
@@ -666,83 +664,7 @@ def var_post(c_next_auto, c_cross, c_auto):  # Posterior Covariance
     return c_post
 
 
-def linear_trans_opt(param, *args):
-    """
-    Computes the Log Marginal Likelihood using standard GP regression by first performing transformation of the data set
-    :param param: transform_mat
-    :param args:
-    :return:
-    """
-    # Define arguments
-    x_scatter = args[0]
-    y_scatter = args[1]
-    center = args[2]
-
-    # Define parameters to be optimized
-    transform_mat = param
-
-    # Begin transformation and binning process
-    xy_scatter = np.vstack((x_scatter, y_scatter))  # Create the sample points to be rotated
-    xy_scatter_transformed = fn.transform_array(transform_matrix_array, xy_scatter, center)
-    x_points_trans = xy_scatter_transformed[0]
-    y_points_trans = xy_scatter_transformed[1]
-
-    # 1. Obtain the maximum range in x and y in the transformed space - to define the regression window
-    x_down = min(x_points_trans)
-    x_up = max(x_points_trans)
-    y_down = min(y_points_trans)
-    y_up = max(y_points_trans)
-
-    # --------------------- Conduct binning into transformed space - the x and y quad lengths will be different
-
-    # ChangeParam
-    quads_on_side = 10  # define the number of quads along each dimension
-    k_mesh, y_edges, x_edges = np.histogram2d(y_points_trans, x_points_trans, bins=quads_on_side,
-                                              range=[[y_down, y_up], [x_down, x_up]])
-    x_mesh_plot, y_mesh_plot = np.meshgrid(x_edges, y_edges)  # creating mesh-grid for use
-    x_mesh = x_mesh_plot[:-1, :-1]  # Removing extra rows and columns due to edges
-    y_mesh = y_mesh_plot[:-1, :-1]
-    x_quad = fn.row_create(x_mesh)  # Creating the rows from the mesh
-    y_quad = fn.row_create(y_mesh)
-    xy_quad = np.vstack((x_quad, y_quad))
-
-    k_quad = fn.row_create(k_mesh)
-
-    # ------------------------------------------ End of Histogram Generation from Box
-    # Because this is now a rectangular box, I do not need to do realignment of quad centers
-
-    # ------------------------------------------ Start of kernel optimization
-    # ChangeParam
-    # Define kernel
-    ker = 'matern1'
-
-    # Start Optimization
-    arguments = (xy_quad, k_quad, ker)
-
-    # Initialise kernel hyper-parameters
-    initial_hyperparameters = np.array([3, 2, 1, 1])
-
-    # Check time taken for the optimization
-    start_opt = time.clock()
-
-    solution = scopt.minimize(fun=short_log_integrand_data, args=arguments, x0=initial_hyperparameters,
-                              method='Nelder-Mead',
-                              options={'xatol': 1, 'fatol': 100, 'disp': True, 'maxfev': 1000})
-
-    time_opt = time.clock() - start_opt
-
-    # Extract the optimal parameters based on kernel optimization
-    sigma_optimal = solution.x[0]
-    length_optimal = solution.x[1]
-    noise_optimal = solution.x[2]
-    mean_optimal = solution.x[3]
-    print(solution)
-    print('Last function evaluation is ', solution.fun)
-    print('optimal sigma is ', sigma_optimal)
-    print('optimal length-scale is ', length_optimal)
-    print('optimal noise amplitude is ', noise_optimal)
-    print('optimal scalar mean value is ', mean_optimal)
-
+# ------------------------------------------Start of Data Collection
 
 # Aedes Occurrences in Brazil
 aedes_df = pd.read_csv('Aedes_PP_Data.csv')  # generates dataframe from csv - zika data
@@ -799,315 +721,28 @@ y_points = y[x_range_box & y_range_box]
 
 # ------------------------------------------ End of Scatter Point Set
 
-# ------------------------------------------ Start of Regression Window Selection before Transformation
-# Select regression window boundaries
+# ------------------------------------------ Start of Performing Rotation
+
+# Define the Center and Radius of the Circle
+# *** Using this, I can select the position and size of my circular regression window
 # ChangeParam
-center = (-50, -15)  # Create tuple for the center
+center = (-50, -15)  # Create tuple
 radius = 8
+xy_within_box = np.vstack((x_points, y_points))  # Create the sample points to be rotated
 
-# ChangeParam
-point_select = 'circle'  # This is for selecting the regression window
+# ChangeParam - Rotate the points within the large box
+rotation_degrees = 32
+rotated_xy_within_box = fn.rotate_array(rotation_degrees, xy_within_box, center)
+# Note that radius is not used here, only the center is being used
+print(rotated_xy_within_box.shape)
+x_points_box = rotated_xy_within_box[0]
+y_points_box = rotated_xy_within_box[1]
 
-if point_select == 'all':  # We bin everything that is in the box
-    x_upper = x_upper_box
-    x_lower = x_lower_box
-    y_upper = y_upper_box
-    y_lower = y_lower_box
-elif point_select == 'manual':  # Check with max and min values above first
-    x_upper = -43
-    x_lower = -63
-    y_upper = -2
-    y_lower = -22
-elif point_select == 'circle':  # Not really necessary
-    x_upper = center[0] + radius
-    x_lower = center[0] - radius
-    y_upper = center[1] + radius
-    y_lower = center[1] - radius
-else:
-    x_upper = max(x_points)
-    x_lower = min(x_points)
-    y_upper = max(y_points)
-    y_lower = min(y_points)
-
-# Create Boolean Variables
-x_box = (x_points > x_lower) & (x_points < x_upper)
-y_box = (y_points > y_lower) & (y_points < y_upper)
-
-# Perform scatter point selection
-x_within_box = x_points[x_box & y_box]
-y_within_box = y_points[x_box & y_box]
-
-# ------------------------------------------ End of Regression Window Selection before Transformation
-
-# ------------------------------------------ Start of Performing Transformation
-
-# Define the Center and Radius of the Square
-# Note that the transformation of the scatter points will be about the center
-xy_within_box = np.vstack((x_within_box, y_within_box))  # Create the sample points to be rotated
-
-# Provide the optimal transformation matrix variables tabulated beforehand
-# transform_matrix_array = np.array([0.30117594, 0.92893405, 0.65028918, -0.2277159])  # not calculating frob norm here
-transform_matrix_array = np.array([1, 0, 0, 1])
-frob_norm = fn.frob_norm(transform_matrix_array)
-
-print('The optimal Transformation Matrix Variables are', transform_matrix_array)
-print('The optimal Frobenius Norm is', frob_norm)
-
-# ChangeParam - Conduct the transformation about the center of the regression window
-transformed_xy_within_box = fn.transform_array(transform_matrix_array, xy_within_box, center)
-x_points_trans = transformed_xy_within_box[0]
-y_points_trans = transformed_xy_within_box[1]
-
-# 1. Obtain the maximum range in x and y in the transformed space - to define the regression window
-x_min = min(x_points_trans)
-x_max = max(x_points_trans)
-y_min = min(y_points_trans)
-y_max = max(y_points_trans)
-
-# --------------------- Conduct binning into transformed space - the x and y quad lengths will be different
-
-# ChangeParam
-quads_on_side = 20  # define the number of quads along each dimension
-k_mesh, y_edges, x_edges = np.histogram2d(y_points_trans, x_points_trans, bins=quads_on_side,
-                                          range=[[y_min, y_max], [x_min, x_max]])
-x_mesh_plot, y_mesh_plot = np.meshgrid(x_edges, y_edges)  # creating mesh-grid for use
-x_mesh = x_mesh_plot[:-1, :-1]  # Removing extra rows and columns due to edges
-y_mesh = y_mesh_plot[:-1, :-1]
-x_quad = fn.row_create(x_mesh)  # Creating the rows from the mesh
-y_quad = fn.row_create(y_mesh)
-xy_quad = np.vstack((x_quad, y_quad))
-
-k_quad = fn.row_create(k_mesh)
-
-print('k_quad is', k_quad)
-print('xy_quad is', xy_quad)
-
-# ------------------------------------------ End of Histogram Generation from Box
-# Because this is now a rectangular box, I do not need to do realignment of quad centers
-
-# ------------------------------------------ Start of kernel optimization
-# ChangeParam
-# Define kernel
-ker = 'matern1'
-
-# Start Optimization
-arguments = (xy_quad, k_quad, ker)
-
-# Initialise kernel hyper-parameters - this initial point is highly sensitive to the number of
-initial_hyperparameters = np.array([1, 1, 1, 1])
-
-# Check time taken for the optimization
-start_opt = time.clock()
-
-solution = scopt.minimize(fun=short_log_integrand_data, args=arguments, x0=initial_hyperparameters,
-                          method='Nelder-Mead',
-                          options={'xatol': 1, 'fatol': 1, 'disp': True, 'maxfev': 500})
-
-time_opt = time.clock() - start_opt
-
-# Extract the optimal parameters based on kernel optimization
-sigma_optimal = solution.x[0]
-length_optimal = solution.x[1]
-noise_optimal = solution.x[2]
-mean_optimal = solution.x[3]
-print(solution)
-print('Last function evaluation is ', solution.fun)
-print('optimal sigma is ', sigma_optimal)
-print('optimal length-scale is ', length_optimal)
-print('optimal noise amplitude is ', noise_optimal)
-print('optimal scalar mean value is ', mean_optimal)
-
-# Start Creating Sampling points after obtaining the optimal matrix variables
-# The number of sampling intervals along each dimension of the regression window
-# ChangeParam
-intervals = 100
-
-# Define the cut-off point beyond the circle - creating sampling points beyond data set
-cut_decision = 'large_range'
-if cut_decision == 'small_range':  # boundary exceeded by half an interval on each axis
-    cut_off_x = (x_max - x_min) / (intervals * 2)
-    cut_off_y = (y_max - y_min) / (intervals * 2)
-    # intervals_final = intervals + 1
-
-elif cut_decision == 'large_range':  # boundary exceeded by half the entire range on each axis
-    cut_off_x = (x_max - x_min) / 4
-    cut_off_y = (y_max - y_min) / 4
-else:  # No inclusion of points beyond the circle
-    cut_off_x = 0
-    cut_off_y = 0
-
-# Generate edges within the pre-defined range
-sampling_points_x = np.linspace(x_min - cut_off_x, x_max + cut_off_x, intervals)
-sampling_points_y = np.linspace(y_min - cut_off_y, y_max + cut_off_y, intervals)
-
-# Create iteration for coordinates using mesh-grid - for plotting
-sampling_points_xmesh, sampling_points_ymesh = np.meshgrid(sampling_points_x, sampling_points_y)
-sampling_x_row = fn.row_create(sampling_points_xmesh)
-sampling_y_row = fn.row_create(sampling_points_ymesh)
-sampling_xy = np.vstack((sampling_x_row, sampling_y_row))
-
-# Start Posterior Tabulation using the histogram from before
-
-start_posterior = time.clock()
-
-# Create cases for kernel selection
-if ker == 'matern1':
-    cov_dd = fast_matern_1_2d(sigma_optimal, length_optimal, xy_quad, xy_quad)
-elif ker == 'matern3':
-    cov_dd = fast_matern_2d(sigma_optimal, length_optimal, xy_quad, xy_quad)
-elif ker == 'squared_exponential':
-    cov_dd = fast_squared_exp_2d(sigma_optimal, length_optimal, xy_quad, xy_quad)
-elif ker == 'rational_quad':
-    cov_dd = fast_rational_quadratic_2d(sigma_optimal, length_optimal, xy_quad, xy_quad)
-else:  # No acceptable kernel defined
-    cov_dd = np.eye(xy_quad.shape[1])  # Generate nonsensical identity matrix
-    print('No acceptable kernel defined. Results should make no sense')
-
-cov_noise = np.eye(cov_dd.shape[0]) * (noise_optimal ** 2)
-cov_overall = cov_dd + cov_noise
-prior_mean = mean_func_scalar(0, xy_quad)
-prior_mismatch = k_quad - prior_mean
-
-# Initialise mean_posterior and var_posterior array
-mean_posterior = np.zeros(sampling_xy.shape[1])
-var_posterior = np.zeros(sampling_xy.shape[1])
-
-# Generate mean and covariance array
-for i in range(sampling_xy.shape[1]):
-
-    # Generate status output
-    if i % 100 == 0:  # if i is a multiple of 50,
-        print('Tabulating Prediction Point', i)
-
-    # Change_Param
-    # At each data point,
-    xy_star = sampling_xy[:, i]
-
-    # Create cases for kernel selection
-    if ker == 'matern1':
-        cov_star_d = matern_2d(1/2, sigma_optimal, length_optimal, xy_star, xy_quad)
-        cov_star_star = matern_2d(1 / 2, sigma_optimal, length_optimal, xy_star, xy_star)
-    elif ker == 'matern3':
-        cov_star_d = matern_2d(3 / 2, sigma_optimal, length_optimal, xy_star, xy_quad)
-        cov_star_star = matern_2d(3 / 2, sigma_optimal, length_optimal, xy_star, xy_star)
-    elif ker == 'squared_exponential':
-        cov_star_d = squared_exp_2d(sigma_optimal, length_optimal, xy_star, xy_quad)
-        cov_star_star = squared_exp_2d(sigma_optimal, length_optimal, xy_star, xy_star)
-    elif ker == 'rational_quad':
-        cov_star_d = rational_quadratic_2d(sigma_optimal, length_optimal, xy_star, xy_quad)
-        cov_star_star = rational_quadratic_2d(sigma_optimal, length_optimal, xy_star, xy_star)
-    else:
-        cov_star_d = 0
-        cov_star_star = 0
-        print('No acceptable kernel entered')
-
-    # Generate Posterior Mean and Variance
-    mean_posterior[i] = mu_post(xy_star, cov_overall, cov_star_d, prior_mismatch)
-    var_posterior[i] = var_post(cov_star_star, cov_star_d, cov_overall)
-
-
-sampling_x_2d = sampling_x_row.reshape(intervals, intervals)
-sampling_y_2d = sampling_y_row.reshape(intervals, intervals)
-mean_posterior_2d = mean_posterior.reshape(intervals, intervals)
-var_posterior_2d = var_posterior.reshape(intervals, intervals)
-sd_posterior_2d = np.sqrt(var_posterior_2d)
-
-time_posterior = time.clock() - start_posterior
-print('Time taken for optimization =', time_opt)
-print('Time taken for Posterior Tabulation =', time_posterior)
-
-# THE ABOVE IS THE POSTERIOR IN THE TRANSFORMED SPACE. WE HAVE TO CONVERT IT BACK TO ORIGINAL COORDINATES
-# sampling_xy = np.vstack((sampling_points_x, sampling_points_y))
-sampling_xy = np.vstack((sampling_x_row, sampling_y_row))
-
-# Perform conversion back into original space
-inverse_sampling_xy = fn.inverse_transform_array(transform_matrix_array, sampling_xy, center)
-
-# Obtain correct form for plotting
-inverse_sampling_x = inverse_sampling_xy[0]
-inverse_sampling_y = inverse_sampling_xy[1]
-
-# Obtain mesh again
-inv_sampling_x_mesh = inverse_sampling_x.reshape(intervals, intervals)
-inv_sampling_y_mesh = inverse_sampling_y.reshape(intervals, intervals)
-
-
-# START THE PLOTTING PROCESS
-
-# Plot original scatter points within regression window and in the transformed space
-scatter_plot_fig = plt.figure()
-scatter_plot = scatter_plot_fig.add_subplot(111)
-scatter_plot.scatter(x_points_trans, y_points_trans, marker='o', color='darkorange', s=0.3)
-scatter_plot.scatter(x_within_box, y_within_box, marker='o', color='black', s=0.3)
-scatter_plot.set_title('Transformed Aedes Occurrences Scatter Points')
-scatter_plot.set_xlabel('UTM Horizontal Coordinate')
-scatter_plot.set_ylabel('UTM Vertical Coordinate')
-# scatter_plot.set_xlim(x_lower_box, x_upper_box)
-# scatter_plot.set_ylim(y_lower_box, y_upper_box)
-
-# Plot posterior mean in the transformed space, with the transformed scatter plots
-mean_fig = plt.figure()
-mean = mean_fig.add_subplot(111)
-mean.pcolor(sampling_points_x, sampling_points_y, mean_posterior_2d, cmap='YlOrBr')
-mean.scatter(x_points_trans, y_points_trans, marker='o', color='black', s=0.3)
-mean.set_title('Posterior Mean in Transformed Space')
-mean.set_xlabel('UTM Horizontal Coordinate')
-mean.set_ylabel('UTM Vertical Coordinate')
-
-sd_fig = plt.figure()
-sd = sd_fig.add_subplot(111)
-sd.pcolor(sampling_points_x, sampling_points_y, sd_posterior_2d, cmap='YlOrBr')
-sd.scatter(x_points_trans, y_points_trans, marker='o', color='black', s=0.3)
-sd.set_title('Posterior Standard Deviation in Transformed Space')
-sd.set_xlabel('UTM Horizontal Coordinate')
-sd.set_ylabel('UTM Vertical Coordinate')
-
-# Create Range for the Inverse Transform Plot  - include just a very small extension beyond the window
-left_range = center[0] - ((1 + 1/intervals) * radius)
-right_range = center[0] + ((1 + 1/intervals) * radius)
-bottom_range = center[1] - ((1 + 1/intervals) * radius)
-top_range = center[1] + ((1 + 1/intervals) * radius)
-
-# Inversed Posterior Mean Plot
-inv_post_mean_fig = plt.figure()
-inv_post_mean = inv_post_mean_fig.add_subplot(111)
-inv_post_mean.pcolor(inv_sampling_x_mesh, inv_sampling_y_mesh, mean_posterior_2d, cmap='YlOrBr')
-inv_post_mean.scatter(x_within_box, y_within_box, marker='o', color='black', s=0.3)
-inv_post_mean.set_xlim(left_range, right_range)
-inv_post_mean.set_ylim(bottom_range, top_range)
-inv_post_mean.set_title('Posterior Mean')
-inv_post_mean.set_xlabel('UTM Horizontal Coordinate')
-inv_post_mean.set_ylabel('UTM Vertical Coordinate')
-
-# Inversed Standard Deviation Plot
-inv_post_sd_fig = plt.figure()
-inv_post_sd = inv_post_sd_fig.add_subplot(111)
-inv_post_sd.pcolor(inv_sampling_x_mesh, inv_sampling_y_mesh, sd_posterior_2d, cmap='YlOrBr')
-inv_post_sd.scatter(x_within_box, y_within_box, marker='o', color='black', s=0.3)
-inv_post_sd.set_xlim(left_range, right_range)
-inv_post_sd.set_ylim(bottom_range, top_range)
-inv_post_sd.set_title('Posterior Standard Deviation')
-inv_post_sd.set_xlabel('UTM Horizontal Coordinate')
-inv_post_sd.set_ylabel('UTM Vertical Coordinate')
-
-# Histogram Plot
-histogram_fig = plt.figure()
-histogram = histogram_fig.add_subplot(111)
-histogram.pcolor(x_mesh_plot, y_mesh_plot, k_mesh, cmap='YlOrBr')
-histogram.scatter(x_points_trans, y_points_trans, color='black', marker='o', s=0.3)
-histogram.set_title('Histogram')
-histogram.set_xlabel('UTM Horizontal Coordinate')
-histogram.set_ylabel('UTM Vertical Coordinate')
-
-plt.show()
-
-
-"""
 # ------------------------------------------ End of Performing Rotation
 
 # ------------------------------------------Start of Selective Binning
 # Note this is for 2014 - entire Brazil Data - note these are arbitrarily selected
-# Maximum and minimum values of each coordinate for the scattered points - these are just for reference
+# Maximum and minimum values of each coordinate for the scattered points
 maximum_x = -32.43
 minimum_x = -72.79
 maximum_y = 4.72
@@ -1225,7 +860,7 @@ ker = 'matern1'
 arguments = (xy_quad_circle, k_quad_circle, ker)
 
 # Initialise kernel hyper-parameters
-initial_hyperparameters = np.array([3, 2, 1, 1])
+initial_hyperparameters = np.array([1, 1, 1, 1])
 
 # Check time taken for the optimization
 start_opt = time.clock()
@@ -1258,7 +893,8 @@ print('optimal scalar mean value is ', mean_optimal)
 intervals = 20
 
 # Define the cut-off point beyond the circle - creating sampling points beyond data set
-cut_decision = 'large_range'
+# ChangeParam
+cut_decision = 'nothing'
 if cut_decision == 'small_range':  # boundary exceeded by half an interval on each axis
     cut_off_x = (x_upper - x_lower) / (intervals * 2)
     cut_off_y = (y_upper - y_lower) / (intervals * 2)
@@ -1301,7 +937,7 @@ else:  # No acceptable kernel defined
 
 cov_noise = np.eye(cov_dd.shape[0]) * (noise_optimal ** 2)
 cov_overall = cov_dd + cov_noise
-prior_mean = mean_func_scalar(0, xy_quad_circle)
+prior_mean = mean_func_scalar(mean_optimal, xy_quad_circle)
 prior_mismatch = k_quad_circle - prior_mean
 
 # Initialise mean_posterior and var_posterior array
@@ -1341,79 +977,166 @@ for i in range(sampling_xy.shape[1]):
     mean_posterior[i] = mu_post(xy_star, cov_overall, cov_star_d, prior_mismatch)
     var_posterior[i] = var_post(cov_star_star, cov_star_d, cov_overall)
 
-
-sampling_x_2d = sampling_x_row.reshape(intervals, intervals)
-sampling_y_2d = sampling_y_row.reshape(intervals, intervals)
-mean_posterior_2d = mean_posterior.reshape(intervals, intervals)
-var_posterior_2d = var_posterior.reshape(intervals, intervals)
-sd_posterior_2d = np.sqrt(var_posterior_2d)
-
-time_posterior = time.clock() - start_posterior
-print('Time taken for optimization =', time_opt)
-print('Time taken for Posterior Tabulation =', time_posterior)
-
 # ------------------------------------------End of Posterior Tabulation
 
+# ----------------------------------------------------------------------Extract 2014 Test set
 
-# ------------------------------------------ Start of Plotting Preparation
-# Set up circle quad indicator to show which quads are within the Circular Regression Window
-indicator_array = np.zeros_like(k_quad_box)
-for i in range(indicator_array.size):
-    if dist_center_array[i] <= radius:
-        indicator_array[i] = 1
+# ChangeParam - select the year to be used
+year = '2014'
+if year == '2013':
+    x = x_2013
+    y = y_2013
+elif year == '2014':
+    x = x_2014
+    y = y_2014
+else:  # taking all years instead
+    x = x_2013_2014
+    y = y_2013_2014
 
-indicator_mesh = indicator_array.reshape(x_mesh.shape)
+x_range_box = (x > x_lower_box) & (x < x_upper_box)
+y_range_box = (y > y_lower_box) & (y < y_upper_box)
+x_points = x[x_range_box & y_range_box]
+y_points = y[x_range_box & y_range_box]
 
-# ------------------------------------------ End of Plotting Preparation
+center = (-50, -15)  # Create tuple
+radius = 8
+xy_within_box = np.vstack((x_points, y_points))
 
+# ChangeParam - Rotate the points within the large box
+rotated_xy_within_box = fn.rotate_array(rotation_degrees, xy_within_box, center)
+# Note that radius is not used here, only the center is being used
+print(rotated_xy_within_box.shape)
+x_points_box = rotated_xy_within_box[0]
+y_points_box = rotated_xy_within_box[1]
+
+# ------------------------------------------ End of Performing Rotation
+
+# ------------------------------------------Start of Selective Binning
+# Note this is for 2014 - entire Brazil Data - note these are arbitrarily selected
+# Maximum and minimum values of each coordinate for the scattered points
+maximum_x = -32.43
+minimum_x = -72.79
+maximum_y = 4.72
+minimum_y = -32.21
+
+# Technically I can just bin everything first, then select the ones that I want
+
+# Select regression window boundaries
 # ChangeParam
-# Plot Histogram
-fig_brazil_histogram = plt.figure()
-brazil_histogram = fig_brazil_histogram.add_subplot(111)
-brazil_histogram.pcolor(x_mesh_plot, y_mesh_plot, k_mesh, cmap='YlOrBr')
-brazil_histogram.scatter(x_2013, y_2013, marker='.', color='black', s=0.3)
-histogram_circle = plt.Circle(center, radius, fill=False, color='orange')
-brazil_histogram.add_patch(histogram_circle)
-brazil_histogram.set_title('Brazil 2013 Aedes Histogram')
-# brazil_histogram.set_xlim(x_lower, x_upper)
-# brazil_histogram.set_ylim(y_lower, y_upper)
-brazil_histogram.set_xlabel('UTM Horizontal Coordinate')
-brazil_histogram.set_ylabel('UTM Vertical Coordinate')
+point_select = 'circle'  # This is for selecting the regression window
 
-# Indicating the Quads within the circle
-fig_brazil_circle = plt.figure()
-brazil_circle = fig_brazil_circle.add_subplot(111)
-cmap = matplotlib.colors.ListedColormap(['white', 'orange'])
-brazil_circle.pcolor(x_mesh_plot, y_mesh_plot, indicator_mesh, cmap=cmap, color='#ffffff')
-brazil_circle.scatter(x_2013, y_2013, marker='.', color='black', s=0.3)
-brazil_circle.set_title('Circular Regression Window W')
-# brazil_circle.set_xlim(x_lower, x_upper)
-# brazil_circle.set_ylim(y_lower, y_upper)
-brazil_circle.set_xlabel('UTM Horizontal Coordinate')
-brazil_circle.set_ylabel('UTM Vertical Coordinate')
+if point_select == 'all':  # We bin everything that is in the box
+    x_upper = x_upper_box
+    x_lower = x_lower_box
+    y_upper = y_upper_box
+    y_lower = y_lower_box
+elif point_select == 'manual':  # Check with max and min values above first
+    x_upper = -43
+    x_lower = -63
+    y_upper = -2
+    y_lower = -22
+elif point_select == 'circle':  # Not really necessary
+    x_upper = center[0] + radius
+    x_lower = center[0] - radius
+    y_upper = center[1] + radius
+    y_lower = center[1] - radius
+else:
+    x_upper = maximum_x
+    x_lower = minimum_x
+    y_upper = maximum_y
+    y_lower = minimum_y
 
-# Plot Posterior Mean
-fig_m_post = plt.figure()
-post_mean_color = fig_m_post.add_subplot(111)
-post_mean_color.pcolor(sampling_points_x, sampling_points_y, mean_posterior_2d, cmap='YlOrBr')
-post_mean_color.scatter(x_points_circle, y_points_circle, marker='o', color='black', s=0.3)
-post_mean_color.set_title('Posterior Mean')
-post_mean_color.set_xlabel('UTM Horizontal Coordinate')
-post_mean_color.set_ylabel('UTM Vertical Coordinate')
-# post_mean_color.grid(True)
+x_window = (x_points_box > x_lower) & (x_points_box < x_upper)
+y_window = (y_points_box > y_lower) & (y_points_box < y_upper)
+x_within_window = x_points_box[x_window & y_window]
+y_within_window = y_points_box[x_window & y_window]
 
-# Plot Posterior Standard Deviation
-fig_sd_post = plt.figure()
-post_sd_color = fig_sd_post.add_subplot(111)
-post_sd_color.pcolor(sampling_points_x, sampling_points_y, sd_posterior_2d, cmap='YlOrBr')
-post_sd_color.scatter(x_points_circle, y_points_circle, marker='o', color='black', s=0.3)
-post_sd_color.set_title('Posterior Standard Deviation')
-post_sd_color.set_xlabel('UTM Horizontal Coordinate')
-post_sd_color.set_ylabel('UTM Vertical Coordinate')
-# post_cov_color.grid(True)
+print('Number of scatter points in box is', x_within_window.shape)
 
-plt.show()
+# ------------------------------------------ End of Selective Binning into a Square
 
+# ------------------------------------------ Start of Histogram Generation from Box
 
+# First conduct a regression on the 2014 data set
+# ChangeParam
+quads_on_side = 20  # define the number of quads along each dimension
+# Note the range is already specified using the boolean variables above
+k_mesh, y_edges, x_edges = np.histogram2d(y_within_window, x_within_window, bins=quads_on_side,
+                                          range=[[y_lower, y_upper], [x_lower, x_upper]])
+x_mesh_plot, y_mesh_plot = np.meshgrid(x_edges, y_edges)  # creating mesh-grid for use
+x_mesh = x_mesh_plot[:-1, :-1]  # Removing extra rows and columns due to edges
+y_mesh = y_mesh_plot[:-1, :-1]
+x_quad = fn.row_create(x_mesh)  # Creating the rows from the mesh
+y_quad = fn.row_create(y_mesh)
 
-"""
+# ------------------------------------------ End of Histogram Generation from Box
+
+# ------------------------------------------ Start of Realignment of Quad Centers
+# Have to shift up the centres by half a quad length
+# Measure quad length and correct for quad centers
+quad_length_x = (x_upper - x_lower) / quads_on_side
+quad_length_y = (y_upper - y_lower) / quads_on_side
+x_quad = x_quad + (0.5 * quad_length_x)
+y_quad = y_quad + (0.5 * quad_length_y)
+
+# Stack x and y coordinates together - the box version is not used
+xy_quad = np.vstack((x_quad, y_quad))
+# Generate Histogram Array - Histo is in a mesh form
+k_quad = fn.row_create(k_mesh)
+# ------------------------------------------ End of Realignment of Quad Centers
+
+# ------------------------------------------ Start of Quadrat Selection within Circle
+
+# Measure distance from each quad center to the center of the circle
+dist_x = x_quad - center[0]
+dist_y = y_quad - center[1]
+dist_center_array = np.sqrt((dist_x ** 2) + (dist_y ** 2))
+
+# Create Boolean variable to indicate being in the circle
+within_circle = dist_center_array <= radius
+
+# Extract quads whose centers are within the circle - this will just be histogram from 2014 testing data
+x_quad_circle = x_quad[within_circle]
+y_quad_circle = y_quad[within_circle]
+xy_quad_circle = np.vstack((x_quad_circle, y_quad_circle))
+k_quad_circle = k_quad_box[within_circle]
+print('k_quad_circle shape is', k_quad_circle.shape)
+
+# ------------------------------------------ Start calculating the Log Likelihood and MSE using 2014 testing data
+
+# Change_Param - change kernel by setting cases
+if ker == 'matern3':
+    c_auto_test = fast_matern_2d(sigma_optimal, length_optimal, xy_quad_circle, xy_quad_circle)
+elif ker == 'matern1':
+    c_auto_test = fast_matern_1_2d(sigma_optimal, length_optimal, xy_quad_circle, xy_quad_circle)
+elif ker == 'squared_exponential':
+    c_auto_test = fast_squared_exp_2d(sigma_optimal, length_optimal, xy_quad_circle, xy_quad_circle)
+elif ker == 'rational_quad':
+    c_auto_test = fast_rational_quadratic_2d(sigma_optimal, length_optimal, xy_quad_circle, xy_quad_circle)
+else:  # Default kernel is matern1
+    c_auto_test = np.eye(k_quad_circle.shape[1])
+    print('Check for appropriate kernel')
+
+c_noise_test = np.eye(c_auto_test.shape[0]) * (noise_optimal ** 2)  # Fro-necker delta function
+cov_matrix_test = c_auto_test + c_noise_test
+
+"""Generate Objective Function = log[g(v)]"""
+# Generate Determinant Term (after taking log)
+determinant_test = np.exp(np.linalg.slogdet(cov_matrix_test))[1]
+det_term_test = -0.5 * np.log(2 * np.pi * determinant_test)
+
+# Generate Euclidean Term (after taking log)
+data_diff_test = k_quad_circle - prior_mean
+inv_covariance_matrix_test = np.linalg.inv(cov_matrix_test)
+euclidean_term_test = -0.5 * fn.matmulmul(data_diff_test, inv_covariance_matrix_test, data_diff_test)
+
+"""Summation of all terms change to correct form to find minimum point"""
+log_gp_test = det_term_test + euclidean_term_test
+
+print('The Log Marginal Likelihood is', log_gp_test)
+print('The kernel is', ker)
+
+# Calculate Mean Squared Error
+mse = fn.mean_squared_error(mean_posterior[within_circle], k_quad_circle)
+print('The mean squared error is', mse)
+

@@ -764,7 +764,7 @@ radius = 8
 xy_within_box = np.vstack((x_points, y_points))  # Create the sample points to be rotated
 
 # ChangeParam - Rotate the points within the large box
-rotation_degrees = 34
+rotation_degrees = 0
 rotated_xy_within_box = fn.rotate_array(rotation_degrees, xy_within_box, center)
 # Note that radius is not used here, only the center is being used
 print(rotated_xy_within_box.shape)
@@ -1177,7 +1177,7 @@ print('The Mean Squared Error is', mean_squared_error)
 print('The kernel used is', ker)
 print('The Training Year is', training_year)
 print('The Testing Year is', testing_year)
-
+print('The rotation angle is', rotation_degrees)
 
 
 

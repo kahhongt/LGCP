@@ -211,7 +211,7 @@ transformed_brazil_scatter = fn.transform_array(transform_matrix_array, brazil_s
 transformed_brazil_scatter_x = transformed_brazil_scatter[0]
 transformed_brazil_scatter_y = transformed_brazil_scatter[1]
 
-# Plot Histogram using the selected quadrats
+# Plot Indicator using the selected quadrats and all Brazil Points
 histo_fig = plt.figure()
 histo = histo_fig.add_subplot(111)
 cmap = matplotlib.colors.ListedColormap(['white', 'orange'])
@@ -220,5 +220,17 @@ histo.scatter(transformed_brazil_scatter_x, transformed_brazil_scatter_y, marker
 histo.set_title('Polygon Regression Window')
 histo.set_xlabel('UTM Horizontal Coordinate')
 histo.set_ylabel('UTM Vertical Coordinate')
+
+# Plot Indicator using the selected quadrats and only regression points
+indicator_fig = plt.figure()
+indicator = indicator_fig.add_subplot(111)
+cmap = matplotlib.colors.ListedColormap(['lightgrey', 'orange'])
+indicator.pcolor(x_mesh_plot, y_mesh_plot, indicator_mesh, cmap=cmap, color='#ffffff')
+indicator.scatter(x_points_trans, y_points_trans, marker='.', color='black', s=1.0)
+rect = plt.Rectangle((x_min, y_min), x_max - x_min, y_max - y_min, fill=False, color='grey')
+indicator.add_patch(rect)
+indicator.set_title('Quadrilateral Regression Window')
+indicator.set_xlabel('UTM Horizontal Coordinate')
+indicator.set_ylabel('UTM Vertical Coordinate')
 
 plt.show()

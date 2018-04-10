@@ -911,8 +911,8 @@ arguments_opt = (xy_within_box, center, ker, vertices)
 
 # Iterate each for each of the 4 matrix variables from 0 to 5
 # ChangeParam
-mat_element_a_c = np.arange(0.4, 1.3, 0.1)  # 8 values for each
-mat_element_b_d = np.arange(0.3, 1.2, 0.1)
+mat_element_a_c = np.arange(0.4, 1.1, 0.2)  # 8 values for each
+mat_element_b_d = np.arange(0.3, 1.0, 0.2)  # This is a good way to stagger between the bd and ac elements
 iterate_count = mat_element_a_c.size
 
 # Initialise holding arrays
@@ -934,6 +934,7 @@ for a in range(iterate_count):
                 initial_mat_var = np.array([mat_element_a_c[a], mat_element_b_d[b],
                                             mat_element_a_c[c], mat_element_b_d[d]])
                 frob_norm[a, b, c, d] = fn.frob_norm(initial_mat_var)
+                print(' ------------- Start of Current Iteration -------------')
                 print('The Current Matrix Variables are', initial_mat_var)
                 print('The Current Frobenius Norm is', frob_norm[a, b, c, d])
 
@@ -983,7 +984,7 @@ for a in range(iterate_count):
                 # Optimise for kernel hyperparameters
                 solution = scopt.minimize(fun=short_log_integrand_data, args=arguments, x0=initial_hyperparameters,
                                           method='Nelder-Mead',
-                                          options={'xatol': 1, 'fatol': 10, 'disp': True, 'maxfev': None})
+                                          options={'xatol': 1, 'fatol': 20, 'disp': True, 'maxfev': None})
 
                 # Divide the log_likelihood by the number of selected quadrats
                 # Taking the true negative value of the log_likelihoods

@@ -824,7 +824,7 @@ ker = 'matern1'
 arguments_opt = (x_within_box, y_within_box, center, ker)
 
 # Initialise Latin Hypercube Sampling of initial points before iteration\
-initial_mat_scalar = np.arange(0.5, 5.5, 0.5)
+initial_mat_scalar = np.arange(0.0, 5.5, 0.5)
 log_likelihood_array = np.zeros_like(initial_mat_scalar)
 
 # Initialise matrix to store the matrix variables coming from each initial optimization point
@@ -868,6 +868,8 @@ opt_matrix_variables = matrix_variables_mat[opt_index, :]
 print('The optimal points are at', matrix_variables_mat)
 print('The globally-optimal matrix variables are', opt_matrix_variables)
 print('The globally-optimal log marginal likelihood is', max_likelihood)
+print('The kernel is ', ker)
+print('The year is', year)
 
 # Perform the transformation using the optimized matrix variables
 xy_within_box = np.vstack((x_within_box, y_within_box))

@@ -6,6 +6,7 @@ import functions as fn
 import time
 import scipy.special as scispec
 import scipy.optimize as scopt
+from collections import Counter
 
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
@@ -728,12 +729,10 @@ aedes_df = pd.read_csv('Aedes_PP_Data.csv')  # generates dataframe from csv - zi
 # Setting boolean variables required for the data
 brazil = aedes_df['COUNTRY'] == "Brazil"
 taiwan = aedes_df['COUNTRY'] == "Taiwan"
-aegyp = aedes_df['VECTOR'] == "Aedes aegypti"
-albop = aedes_df['VECTOR'] == "Aedes albopictus"
 year_2014 = aedes_df['YEAR'] == "2014"
 year_2013 = aedes_df['YEAR'] == "2013"
 year_2012 = aedes_df['YEAR'] == "2012"
-year_start = aedes_df['YEAR'] > 2000
+# year_start = aedes_df['YEAR'] > 2000
 
 # Extract data for Brazil and make sure to convert data type to float64
 aedes_brazil = aedes_df[brazil]  # Extracting Brazil Data
@@ -759,25 +758,41 @@ aedes_taiwan = aedes_df[taiwan]  # Extract Taiwan data
 x_taiwan = aedes_taiwan.values[:, 5].astype('float64')
 y_taiwan = aedes_taiwan.values[:, 4].astype('float64')
 year_taiwan = aedes_taiwan.values[:, 6].astype('float64')
-year_taiwan
+
+# taiwan_count = Counter(year_taiwan)
+
+# Create Boolean Variable to select values above 2000 in Taiwan
+print('Brazil Year Lower is', min(year_brazil))
+print('Brazil Year Upper is', max(year_brazil))
+print('Taiwan Year Lower is', min(year_taiwan))
+print('Taiwan Year Upper is', max(year_taiwan))
+
+years = np.arange(2000, 2015, 1)
+
+# Initialise Brazil and Taiwan Counter
+count_brazil = np.zeros_like(years)
+count_taiwan = np.zeros_like(years)
+
+for i in range(years.size):
+    count_brazil[i] = np.count_nonzero(year_brazil == years[i])
+    count_taiwan[i] = np.count_nonzero(year_taiwan == years[i])
+
+print('The Year Count is', years)
+print('The Brazil Count is', count_brazil)
+print('The Taiwan Count is', count_taiwan)
 
 print('The Number of Aedes Occurrences in Taiwan is', x_taiwan.size)
 print('Starting Year is', min(year_taiwan))
 print('Ending Year is', max(year_taiwan))
+print(type(year_taiwan))
+
 
 # WORLD
 x_world = aedes_df.values[:, 5].astype('float64')
 y_world = aedes_df.values[:, 4].astype('float64')
 # year_world = aedes_df.values[:, 6].astype('float64')
 
-
-fig_brazil = plt.figure()
-brazil = fig_brazil.add_subplot(111, projection='3d')
-brazil.scatter(x_brazil, y_brazil, year_brazil, marker='o', s=0.1, color='black')
-brazil.set_xlabel('UTM Horizontal Coordinates')
-brazil.set_ylabel('UTM Vertical Coordinates')
-brazil.set_zlabel('Year')
-
+"""
 fig_taiwan = plt.figure()
 taiwan = fig_taiwan.add_subplot(111, projection='3d')
 taiwan.scatter(x_taiwan, y_taiwan, year_taiwan, marker='o', s=0.1, color='black')
@@ -785,13 +800,14 @@ taiwan.set_xlabel('UTM Horizontal Coordinates')
 taiwan.set_ylabel('UTM Vertical Coordinates')
 taiwan.set_zlabel('Year')
 
-"""
-fig_world = plt.figure()
-world = fig_brazil.add_subplot(111, projection='3d')
-world.scatter(x_world, y_world, marker='o', s=0.1, color='black')
-world.set_xlabel('UTM Horizontal Coordinates')
-world.set_ylabel('UTM Vertical Coordinates')
-world.set_zlabel('Year')
-"""
+
+# Plotting the Spatial Temporal Distribution of Brazil
+fig_brazil = plt.figure()
+brazil = fig_brazil.add_subplot(111, projection='3d')
+brazil.scatter(x_brazil, y_brazil, year_brazil, marker='o', s=0.1, color='black')
+brazil.set_xlabel('UTM Horizontal Coordinates')
+brazil.set_ylabel('UTM Vertical Coordinates')
+brazil.set_zlabel('Year')
 
 plt.show()
+"""

@@ -731,12 +731,17 @@ radius = 8
 xy_within_box = np.vstack((x_points, y_points))  # Create the sample points to be rotated
 
 # ChangeParam - Rotate the points within the large box
-rotation_degrees = 32
+rotation_degrees = 45
 rotated_xy_within_box = fn.rotate_array(rotation_degrees, xy_within_box, center)
 # Note that radius is not used here, only the center is being used
 print(rotated_xy_within_box.shape)
 x_points_box = rotated_xy_within_box[0]
 y_points_box = rotated_xy_within_box[1]
+
+xy_2013 = np.vstack((x_2013, y_2013))
+rotated_xy_2013 = fn.rotate_array(rotation_degrees, xy_2013, center)
+rotated_x_2013 = rotated_xy_2013[0]
+rotated_y_2013 = rotated_xy_2013[1]
 
 # ------------------------------------------ End of Performing Rotation
 
@@ -1020,10 +1025,10 @@ fig_brazil_circle = plt.figure()
 brazil_circle = fig_brazil_circle.add_subplot(111)
 cmap = matplotlib.colors.ListedColormap(['white', 'orange'])
 brazil_circle.pcolor(x_mesh_plot, y_mesh_plot, indicator_mesh, cmap=cmap, color='#ffffff')
-brazil_circle.scatter(x_2013, y_2013, marker='.', color='black', s=0.3)
+brazil_circle.scatter(rotated_x_2013, rotated_y_2013, marker='.', color='black', s=0.3)
 brazil_circle.set_title('Circular Regression Window W')
-# brazil_circle.set_xlim(x_lower, x_upper)
-# brazil_circle.set_ylim(y_lower, y_upper)
+brazil_circle.set_xlim(-66, -34)
+brazil_circle.set_ylim(-31, 1)
 brazil_circle.set_xlabel('UTM Horizontal Coordinate')
 brazil_circle.set_ylabel('UTM Vertical Coordinate')
 

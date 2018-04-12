@@ -734,6 +734,7 @@ y_lower_box = -30
 
 # ChangeParam - select the year to be used for training
 training_year = '2013'
+testing_year = '2014'
 if training_year == '2013':
     x = x_2013
     y = y_2013
@@ -763,7 +764,8 @@ center = (-50, -15)  # Create tuple
 radius = 8
 xy_within_box = np.vstack((x_points, y_points))  # Create the sample points to be rotated
 
-# ChangeParam - Rotate the points within the large box
+# ChangeParam - kernel and rotation angle
+ker = 'squared_exponential'
 rotation_degrees = 0
 rotated_xy_within_box = fn.rotate_array(rotation_degrees, xy_within_box, center)
 # Note that radius is not used here, only the center is being used
@@ -885,9 +887,6 @@ y_points_circle = y_points_box[points_within_circle]
 # ------------------------------------------ End of Extracting scatter points within the circle
 
 # ------------------------------------------ Start of Hyper-parameter Optimization
-# ChangeParam
-# Define kernel
-ker = 'rational_quad'
 
 # Start Optimization
 arguments = (xy_quad_circle, k_quad_circle, ker)
@@ -918,6 +917,8 @@ print('optimal scalar mean value is ', mean_optimal)
 
 
 # ---------------------------------------------------- End of Hyper-parameter Optimization
+
+# Have to make use of the relevant optimized hyper-parameters to test against the 2013 data
 
 # ---------------------------------------------------- Start of Posterior Tabulation for MSE
 
@@ -974,10 +975,11 @@ print('The Posterior Mean shape is', mean_posterior.shape)
 print('The Posterior Standard Deviation is', var_posterior)
 print('The Posterior Standard Deviation shape is', var_posterior.shape)
 
+# ABOVE, I HAVE TABULATED THE OPTIMIZED HYPER-PARAMETERS, THE POSTERIOR MEAN AND POSTERIOR STANDARD DEVIATION
+
 # ------------------------------------------ Start of Binning year 2014 data
 # ChangeParam
 # TESTING DATA YEAR - NORMALLY CHOOSE 2014
-testing_year = '2014'
 if testing_year == '2013':
     x = x_2013
     y = y_2013
@@ -1129,6 +1131,7 @@ y_points_circle = y_points_box[points_within_circle]
 # Set up inputs for generation of objective function - for the testing data set
 p_mean = mean_func_scalar(mean_optimal, xy_quad_circle)
 
+# THE OPTIMAL HYPER-PARAMETERS WERE OBTAINED FROM BEFORE
 # Change_Param - change kernel by setting cases
 if ker == 'matern3':
     c_auto = fast_matern_2d(sigma_optimal, length_optimal, xy_quad_circle, xy_quad_circle)
@@ -1157,7 +1160,7 @@ data_diff = k_quad_circle - p_mean
 inv_covariance_matrix = np.linalg.inv(cov_matrix)
 euclidean_term = -0.5 * fn.matmulmul(data_diff, inv_covariance_matrix, data_diff)
 
-# Generate 2 pi term - I should exclude the pi term
+# Generate 2 pi term - NOTE THAT I AM CURRENTLY EXCLUDING THE PI TERM
 pi_term = -0.5 * k_quad_circle.size * np.log(2 * np.pi)
 
 """Summation of all terms change to correct form to find minimum point"""
@@ -1172,6 +1175,7 @@ print('The Log Marginal Likelihood for standard GP using Circular Window is', lo
 error_diff = k_quad_circle - mean_posterior
 squared_error = error_diff ** 2
 mean_squared_error = sum(squared_error) / error_diff.size
+
 print('The Sum of individual Squared Errors is', sum(squared_error))
 print('The Mean Squared Error is', mean_squared_error)
 print('The kernel used is', ker)

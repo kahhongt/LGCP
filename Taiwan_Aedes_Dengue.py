@@ -9,7 +9,6 @@ import scipy.optimize as scopt
 from collections import Counter
 
 matplotlib.use('TkAgg')
-import matplotlib.cm as cmx
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
@@ -730,103 +729,138 @@ def linear_trans_opt(param, *args):
 aedes_df = pd.read_csv('Aedes_PP_Data.csv')  # generates dataframe from csv - zika data
 
 # Setting boolean variables required for the data
+brazil = aedes_df['COUNTRY'] == "Brazil"
 taiwan = aedes_df['COUNTRY'] == "Taiwan"
 year_2014 = aedes_df['YEAR'] == "2014"
 year_2013 = aedes_df['YEAR'] == "2013"
 year_2012 = aedes_df['YEAR'] == "2012"
+# year_start = aedes_df['YEAR'] > 2000
 
-# Extract Data for Taiwan
+# Extract data for Brazil and make sure to convert data type to float64
+aedes_brazil = aedes_df[brazil]  # Extracting Brazil Data
+aedes_brazil_2014 = aedes_df[brazil & year_2014]
+aedes_brazil_2013 = aedes_df[brazil & year_2013]
+aedes_brazil_2012 = aedes_df[brazil & year_2012]
+aedes_brazil_2013_2014 = aedes_brazil_2013 & aedes_brazil_2014
+x_2014 = aedes_brazil_2014.values[:, 5].astype('float64')
+y_2014 = aedes_brazil_2014.values[:, 4].astype('float64')
+x_2013 = aedes_brazil_2013.values[:, 5].astype('float64')
+y_2013 = aedes_brazil_2013.values[:, 4].astype('float64')
+x_2013_2014 = aedes_brazil_2013_2014.values[:, 5].astype('float64')
+y_2013_2014 = aedes_brazil_2013_2014.values[:, 4].astype('float64')
+
+# BRAZIL
+x_brazil = aedes_brazil.values[:, 5].astype('float64')
+y_brazil = aedes_brazil.values[:, 4].astype('float64')
+year_brazil = aedes_brazil.values[:, 6].astype('float64')
+
+# TAIWAN
 aedes_taiwan = aedes_df[taiwan]  # Extract Taiwan data
 x_taiwan = aedes_taiwan.values[:, 5].astype('float64')
 y_taiwan = aedes_taiwan.values[:, 4].astype('float64')
 year_taiwan = aedes_taiwan.values[:, 6].astype('float64')
 
-# Define range of 3-D regression window
-year_lower = 2003.5
-year_upper = 2014
-x_lower = 120.295
-x_upper = 120.595
-y_lower = 22.595
-y_upper = 22.895
+# Only take the values in Taiwan from 2004 to 2013
+years = np.arange(2004, 2014, 1)  # This is the years list
+year_range = (2003.5 < year_taiwan) & (year_taiwan < 2014)
+x_range = (120.295 < x_taiwan) & (x_taiwan < 120.595)
+y_range = (22.595 < y_taiwan) & (y_taiwan < 22.895)
 
-# Select Scatter Points within regression window
-
-# Boolean arrays
-year_range = (year_lower < year_taiwan) & (year_taiwan < year_upper)
-x_range = (x_lower < x_taiwan) & (x_taiwan < x_upper)
-y_range = (y_lower < y_taiwan) & (y_taiwan < y_upper)
-
-# Selection of point using boolean arrays
 x_taiwan_selected = x_taiwan[year_range & x_range & y_range]
 y_taiwan_selected = y_taiwan[year_range & x_range & y_range]
-t_taiwan_selected = year_taiwan[year_range & x_range & y_range]  # time is t - which is in years
+year_taiwan_selected = year_taiwan[year_range & x_range & y_range]
+
+x_taiwan_all = x_taiwan[year_range]
+y_taiwan_all = y_taiwan[year_range]
 
 print('The number of scatter points is', x_taiwan_selected.size)
 print('The number of scatter points is', y_taiwan_selected.size)
-print('The number of scatter points is', t_taiwan_selected.size)
 
-# Create array for 3-D histogram clustering
-xy_taiwan_selected = np.vstack((x_taiwan_selected, y_taiwan_selected))
-xyt_taiwan_selected = np.vstack((xy_taiwan_selected, t_taiwan_selected))
-
-k_mesh, xyt_edges = np.histogramdd(np.transpose(xyt_taiwan_selected), bins=(10, 10, 10),
-                                   range=((x_lower, x_upper), (y_lower, y_upper), (year_lower, year_upper)))
-x_edges = xyt_edges[0][:-1]
-y_edges = xyt_edges[1][:-1]
-t_edges = xyt_edges[2][:-1]
-x_mesh, y_mesh, t_mesh = np.meshgrid(x_edges, y_edges, t_edges)
-x_vox = fn.row_create(x_mesh)
-y_vox = fn.row_create(y_mesh)
-t_vox = fn.row_create(t_mesh)
-k_vox = fn.row_create(k_mesh)
-
-# Realign with
+print(year_taiwan_selected)
 
 
-print(x_edges.size)
+# Create Boolean Variable to select values above 2000 in Taiwan
+print('Brazil Year Lower is', min(year_brazil))
+print('Brazil Year Upper is', max(year_brazil))
+print('Taiwan Year Lower is', min(year_taiwan))
+print('Taiwan Year Upper is', max(year_taiwan))
+
+# Initialise Brazil and Taiwan Counter
+count_brazil = np.zeros_like(years)
+count_taiwan = np.zeros_like(years)
+
+for i in range(years.size):
+    count_brazil[i] = np.count_nonzero(year_brazil == years[i])
+    count_taiwan[i] = np.count_nonzero(year_taiwan == years[i])
+
+# print('The Year Count is', years)
+# print('The Brazil Count is', count_brazil)
+# print('The Taiwan Count is', count_taiwan)
+
+count_taiwan_selected = np.zeros_like(years)
+for i in range(years.size):
+    count_taiwan_selected[i] = np.count_nonzero(year_taiwan_selected == years[i])
 
 
-# Plot 3-D Histogram after removing all the points with 0 occurrences
-# Create Boolean array to identify non-zero values
-non_zero = k_vox != 0
+print('The Year Count is', years)
+print('The Taiwan Count is', count_taiwan_selected)
+print('The total number of occurrences in Taiwan is', sum(count_taiwan_selected))
 
 
-# FOR PLOTTING PURPOSES
-x_vox_plot = x_vox[non_zero]
-y_vox_plot = y_vox[non_zero]
-t_vox_plot = t_vox[non_zero]
-k_vox_plot = k_vox[non_zero]
+# Obtain the number of confirmed dengue cases in Taiwan from 2004 to 2013
 
-histo_fig = plt.figure()
-histo = histo_fig.add_subplot(111, projection='3d')
-histo.scatter(x_vox_plot, y_vox_plot, t_vox_plot, c=k_vox_plot, cmap='hot', s=10)
-histo.set_xlabel('UTM Horizontal Coordinate')
-histo.set_ylabel('UTM Vertical Coordinate')
-histo.set_zlabel('Year')
+dengue_cases = np.array([427, 306, 1074, 2179, 714, 1052, 1896, 1702, 1478, 860])
 
 
-# TRY THIS AGAIN LATER
-
-cm = plt.get_cmap('jet')
-cNorm = matplotlib.colors.Normalize(vmin=min(k_vox), vmax=max(k_vox))
-scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
-rainbow_histo_fig = plt.figure()
-rainbow_histo = Axes3D(rainbow_histo_fig)
-rainbow_histo.scatter(x_vox, y_vox, t_vox, c=scalarMap.to_rgba(k_vox))
-scalarMap.set_array(k_vox)
-rainbow_histo_fig.colorbar(scalarMap)
-plt.show()
+# WORLD
+x_world = aedes_df.values[:, 5].astype('float64')
+y_world = aedes_df.values[:, 4].astype('float64')
+# year_world = aedes_df.values[:, 6].astype('float64')
 
 
-"""
 # Plot the taiwan scatter points within the year range and spatial range
 fig_taiwan = plt.figure()
 taiwan = fig_taiwan.add_subplot(111, projection='3d')
-taiwan.scatter(x_taiwan_selected, y_taiwan_selected, t_taiwan_selected, marker='o', s=1.0, color='darkorange')
+taiwan.scatter(x_taiwan_selected, y_taiwan_selected, year_taiwan_selected, marker='o', s=1.0, color='darkorange')
 taiwan.set_xlabel('UTM Horizontal Coordinates')
 taiwan.set_ylabel('UTM Vertical Coordinates')
 taiwan.set_zlabel('Year')
 
-"""
 
+fig_taiwan_spatial = plt.figure()
+taiwan_spatial = fig_taiwan_spatial.add_subplot(111)
+taiwan_spatial.scatter(x_taiwan_selected, y_taiwan_selected, marker='o', s=1.0, color='darkorange')
+taiwan_spatial.set_xlabel('UTM Horizontal Coordinates')
+taiwan_spatial.set_ylabel('UTM Vertical Coordinates')
+taiwan_spatial.set_xlim(120.295, 120.595)
+taiwan_spatial.set_ylim(22.595, 22.895)
+
+fig_taiwan_all = plt.figure()
+taiwan_all = fig_taiwan_all.add_subplot(111)
+taiwan_all.scatter(x_taiwan_all, y_taiwan_all, color='darkorange', s=0.1)
+taiwan_all.set_xlabel('UTM Horizontal Coordinates')
+taiwan_all.set_ylabel('UTM Vertical Coordinates')
+taiwan_all.set_xlim(120.0, 122.0)
+
+
+
+"""
+fig_dengue = plt.figure()
+dengue = fig_dengue.add_subplot(111)
+dengue.plot(years, count_taiwan, color='black')
+dengue.bar(years, dengue_cases, 0.8, color="orange")
+dengue.set_xlabel('Year')
+dengue.set_ylabel('Number of Dengue Cases')
+
+fig, dengue_bar = plt.subplots()
+aedes_plot = dengue_bar.twinx()
+
+dengue_bar.bar(years, dengue_cases, 0.8, color='navajowhite')
+dengue_bar.set_xlabel('Year')
+dengue_bar.set_ylabel('Number of Dengue Cases')
+
+aedes_plot.plot(years, count_taiwan, color='black')
+aedes_plot.set_ylabel('Number of Aedes Occurrences')
+aedes_plot.set_xlabel('Year')
+"""
 plt.show()

@@ -74,7 +74,7 @@ def columnize(matrix):  # change a matrix into a column
     return column
 
 
-def row_create(matrix):  # Generate a row from all the elements of a matrix
+def row_create(matrix):  # Generate a row from all the elements of a matrix, no matter how many dimensions
     row = np.ravel(np.reshape(matrix, (1, matrix.size)))
     return row
 

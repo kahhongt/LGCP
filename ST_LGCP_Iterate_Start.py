@@ -827,9 +827,16 @@ print("Initial Data Points are ", k_vox)
 # Arbitrary vector for optimization using the Newton-CG optimization algorithm
 initial_p_array = np.ones_like(k_vox)
 
-# Choose appropriate starting point for the optimization - it is reasonable to assume that a good starting point would
-# be the log of the initial data values
+# Choose appropriate starting point for the optimization
+# Initialise array for optimization start
+initial_v_scalar = np.arange(0, 10, 1)
+
 initial_v_array = fn.log_special(k_vox)
+# initial_v_array = np.ones_like(k_vox) * 1
+
+# print('The initial_v_array is', initial_v_array)
+"""If the initial v_array is too far out, the optimization cannot be completed successfully. It is reasonable to
+assume that a good starting point would be the log of the initial data values"""
 
 # Tuple containing all arguments to be passed into objective function, jacobian and hessian, but we can specify
 # which arguments will be used for each function
@@ -867,15 +874,22 @@ elif poisson_opt_method == 'dogleg':  # uses Jacobian and Hessian Matrix
 latent_v_array = v_solution.x  # v_array is the log of the latent intensity
 p_likelihood = -1 * v_solution.fun
 avg_p_likelihood = p_likelihood / k_vox.size
+
 end_poisson_opt = time.clock()
 print('Time taken for Poisson Optimization is', end_poisson_opt - start_poisson_opt)
+
+
+# print('The Latent Intensity Array is ', latent_v_array)
+print('The shape of the latent v array is', latent_v_array.shape)
+print('k_vox is', k_vox.shape)
+print('Latent Intensity Array Optimization Completed')
+
+latent_lambda_array = np.exp(latent_v_array)
+
+print('Mean Squared Error is', fn.mean_squared_error(latent_lambda_array, k_vox))
 print('The Maximum Log Likelihood is', p_likelihood)
 print('The Average Log Likelihoos is', avg_p_likelihood)
 print('The Poisson optimization methods is', poisson_opt_method)
-print('Latent Intensity Array Optimization Completed')
-
-# -------------------------------------------------------------------- START OF KERNEL OPTIMIZATION
-
 
 """
 # FOR PLOTTING PURPOSES

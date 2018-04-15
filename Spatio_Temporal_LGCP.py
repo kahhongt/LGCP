@@ -204,7 +204,7 @@ def rational_quadratic_2d(alpha_rq, length_rq, x1, x2):
 
 
 # This is way faster than the function above beyond n=10
-def fast_matern_2d(sigma_matern, length_matern, x1, x2):  # there are only two variables in the matern function
+def fast_matern_3_2d(sigma_matern, length_matern, x1, x2):  # there are only two variables in the matern function
     """
     This is much much faster than iteration over every point beyond n = 10. This function takes advantage of the
     symmetry in the covariance matrix and allows for fast regeneration. For this function, v = 3/2
@@ -230,6 +230,32 @@ def fast_matern_2d(sigma_matern, length_matern, x1, x2):  # there are only two v
     return cov_matrix
 
 
+def fast_matern_3_1d(length_matern, x1, x2):  # there are only two variables in the matern function
+    """
+    This is much much faster than iteration over every point beyond n = 10. This function takes advantage of the
+    symmetry in the covariance matrix and allows for fast regeneration. For this function, v = 3/2
+    :param sigma_matern: coefficient factor at the front
+    :param length_matern: length scale
+    :param x1: First set of coordinates for iteration
+    :param x2: Second set of coordinates for iteration
+    :return: Covariance matrix with matern kernel
+    """
+    # Takes in 1D coordinates
+    n = x1.size
+    cov_matrix = np.zeros((n, n))
+    for i in range(n):
+        cov_matrix[i, i] = 1
+        for j in range(i + 1, n):
+            diff = x1[i] - x2[j]
+            euclidean = np.sqrt(diff ** 2)
+            coefficient_term = (1 + np.sqrt(3) * euclidean * (length_matern ** -1))
+            exp_term = np.exp(-1 * np.sqrt(3) * euclidean * (length_matern ** -1))
+            cov_matrix[i, j] = 1 * coefficient_term * exp_term
+            cov_matrix[j, i] = cov_matrix[i, j]
+
+    return cov_matrix
+
+
 def fast_matern_1_2d(sigma_matern, length_matern, x1, x2):
     """
     Much faster method of obtaining the Matern v=1/2 covariance matrix by exploiting the symmetry of the
@@ -241,6 +267,7 @@ def fast_matern_1_2d(sigma_matern, length_matern, x1, x2):
     :return: Covariance matrix with matern kernel
     """
     # Note that this function only takes in 2-D coordinates, make sure there are 2 rows and n columns
+    # Create cases to accommodate 1-D arrays
     n = x1.shape[1]
     cov_matrix = np.zeros((n, n))
     for i in range(n):
@@ -250,6 +277,31 @@ def fast_matern_1_2d(sigma_matern, length_matern, x1, x2):
             euclidean = np.sqrt(np.matmul(diff, np.transpose(diff)))
             exp_term = np.exp(-1 * euclidean * (length_matern ** -1))
             cov_matrix[i, j] = (sigma_matern ** 2) * exp_term
+            cov_matrix[j, i] = cov_matrix[i, j]
+
+    return cov_matrix
+
+
+def fast_matern_1_1d(length_matern, x1, x2):
+    """
+    Much faster method of obtaining the Matern v=1/2 covariance matrix by exploiting the symmetry of the
+    covariance matrix. This is the once-differentiable (zero mean squared differentiable) matern
+    :param sigma_matern: Coefficient at the front
+    :param length_matern: Length scale
+    :param x1: First set of coordinates for iteration
+    :param x2: Second set of coordinates for iteration
+    :return: Covariance matrix with matern kernel
+    """
+    # Only takes in 1-D arrays
+    n = x1.size
+    cov_matrix = np.zeros((n, n))
+    for i in range(n):
+        cov_matrix[i, i] = 1
+        for j in range(i + 1, n):
+            diff = x1[i] - x2[j]
+            euclidean = np.sqrt(diff ** 2)
+            exp_term = np.exp(-1 * euclidean * (length_matern ** -1))
+            cov_matrix[i, j] = 1 * exp_term
             cov_matrix[j, i] = cov_matrix[i, j]
 
     return cov_matrix
@@ -275,6 +327,30 @@ def fast_squared_exp_2d(sigma_exp, length_exp, x1, x2):  # there are only two va
             euclidean = np.sqrt(np.matmul(diff, np.transpose(diff)))
             exp_power = np.exp(-1 * (euclidean ** 2) * (length_exp ** -2))
             cov_matrix[i, j] = (sigma_exp ** 2) * exp_power
+            cov_matrix[j, i] = cov_matrix[i, j]
+
+    return cov_matrix
+
+
+def fast_squared_exp_1d(length_exp, x1, x2):  # there are only two variables in the matern function
+    """
+    This is much much faster than iteration over every point beyond n = 10. This function takes advantage of the
+    symmetry in the covariance matrix and allows for fast regeneration.
+    :param length_exp: length scale
+    :param x1: First set of coordinates for iteration
+    :param x2: Second set of coordinates for iteration
+    :return: Covariance matrix with squared exponential kernel - indicating infinite differentiability
+    """
+    # Only take sin 1-D arrays
+    n = x1.size
+    cov_matrix = np.zeros((n, n))
+    for i in range(n):
+        cov_matrix[i, i] = 1
+        for j in range(i + 1, n):
+            diff = x1[i] - x2[j]
+            euclidean = np.sqrt(diff ** 2)
+            exp_power = np.exp(-1 * (euclidean ** 2) * (length_exp ** -2))
+            cov_matrix[i, j] = exp_power
             cov_matrix[j, i] = cov_matrix[i, j]
 
     return cov_matrix
@@ -310,6 +386,36 @@ def fast_rational_quadratic_2d(alpha_rq, length_rq, x1, x2):
     return covariance_matrix
 
 
+def fast_rational_quadratic_1d(alpha_rq, length_rq, x1, x2):
+    """
+    Rational Quadratic Coveriance function with 2 parameters to be optimized, using
+    power alpha and length scale l. The Rational Quadratic Kernel is used to model the
+    volatility of equity index returns, which is equivalent to a sum of Squared
+    Exponential Kernels. This kernel is used to model multi-scale data
+
+    This is a fast method of generating the rational quadratic kernel, by exploiting the symmetry
+    of the covariance matrix
+    :param alpha_rq: power and denominator
+    :param length_rq: length scale
+    :param x1: First set of coordinates for iteration
+    :param x2: Second set of coordinates for iteration
+    :return: Covariance matrix with Rational Quadratic Kernel
+    """
+    # Note that this function only takes in 2-D coordinates, make sure there are 2 rows and n columns
+    n = x1.size
+    covariance_matrix = np.zeros((n, n))
+    for i in range(n):
+        covariance_matrix[i, i] = 1
+        for j in range(i + 1, n):
+            diff = x1[i] - x2[j]
+            euclidean_squared = diff ** 2
+            fraction_term = euclidean_squared / (2 * alpha_rq * (length_rq ** 2))
+            covariance_matrix[i, j] = (1 + fraction_term) ** (-1 * alpha_rq)
+            covariance_matrix[j, i] = covariance_matrix[i, j]
+
+    return covariance_matrix
+
+
 def log_model_evidence(param, *args):
     """
     ***NOTE THIS IS FOR STANDARD GP REGRESSION - DO NOT USE FOR LGCP. THIS FUNCTION ASSUMES THAT THE LATENT INTENSITY IS
@@ -327,7 +433,7 @@ def log_model_evidence(param, *args):
     xy_coordinates = args[0]  # This argument is a constant passed into the function
     histogram_data = args[1]  # Have to enter histogram data as well
     prior_mu = mean_func_scalar(scalar_mean, xy_coordinates)  # This creates a matrix with 2 rows
-    c_auto = fast_matern_2d(sigma, length, xy_coordinates, xy_coordinates)
+    c_auto = fast_matern_3_2d(sigma, length, xy_coordinates, xy_coordinates)
     # c_auto = squared_exp_2d(sigma, length, xy_coordinates, xy_coordinates)
     c_noise = np.eye(c_auto.shape[0]) * (noise ** 2)  # Fro-necker delta function
     c_auto_noise = c_auto + c_noise  # Overall including noise, plus include any other combination
@@ -362,7 +468,7 @@ def log_integrand_without_v(param, *args):
     xy_coordinates = args[0]
     k_array = args[1]
     prior_mean = mean_func_scalar(scalar_mean, xy_coordinates)
-    c_auto = fast_matern_2d(sigma, length, xy_coordinates, xy_coordinates)
+    c_auto = fast_matern_3_2d(sigma, length, xy_coordinates, xy_coordinates)
     c_noise = np.eye(c_auto.shape[0]) * (noise ** 2)  # Fro-necker delta function
     cov_matrix = c_auto + c_noise
 
@@ -411,7 +517,7 @@ def log_integrand_with_v(param, *args):
     k_array = args[1]
     v_array = args[2]  # Note that this is refers to the optimised log-intensity array
     prior_mean = mean_func_scalar(scalar_mean, xy_coordinates)
-    c_auto = fast_matern_2d(sigma, length, xy_coordinates, xy_coordinates)
+    c_auto = fast_matern_3_2d(sigma, length, xy_coordinates, xy_coordinates)
     c_noise = np.eye(c_auto.shape[0]) * (noise ** 2)  # Fro-necker delta function
     cov_matrix = c_auto + c_noise
 
@@ -459,7 +565,7 @@ def short_log_integrand_v(param, *args):
 
     # Select Kernel and Construct Covariance Matrix
     if kernel_choice == 'matern3':
-        c_auto = fast_matern_2d(sigma, length, xy_coordinates, xy_coordinates)
+        c_auto = fast_matern_3_2d(sigma, length, xy_coordinates, xy_coordinates)
     elif kernel_choice == 'matern1':
         c_auto = fast_matern_1_2d(sigma, length, xy_coordinates, xy_coordinates)
     elif kernel_choice == 'squared_exponential':
@@ -467,7 +573,7 @@ def short_log_integrand_v(param, *args):
     elif kernel_choice == 'rational_quad':
         c_auto = fast_rational_quadratic_2d(sigma, length, xy_coordinates, xy_coordinates)
     else:
-        c_auto = fast_matern_2d(sigma, length, xy_coordinates, xy_coordinates)
+        c_auto = fast_matern_3_2d(sigma, length, xy_coordinates, xy_coordinates)
 
     c_noise = np.eye(c_auto.shape[0]) * (noise ** 2)  # Fro-necker delta function
     cov_matrix = c_auto + c_noise
@@ -621,7 +727,7 @@ def short_log_integrand_data(param, *args):
 
     # Change_Param - change kernel by setting cases
     if kernel == 'matern3':
-        c_auto = fast_matern_2d(sigma, length, xy_coordinates, xy_coordinates)
+        c_auto = fast_matern_3_2d(sigma, length, xy_coordinates, xy_coordinates)
     elif kernel == 'matern1':
         c_auto = fast_matern_1_2d(sigma, length, xy_coordinates, xy_coordinates)
     elif kernel == 'squared_exponential':
@@ -766,6 +872,104 @@ def linear_trans_opt(param, *args):
     return neg_log_likelihood
 
 
+# ------------------------------------------ FUNCTIONS FOR SPATIAL TEMPORAL LGCP
+
+
+def product_kernel_3d(sigma_p, length_space_p, length_time_p, xy_p, t_p, kernel_s, kernel_t, alpha_t):
+    """
+    Takes the product of a 2-D spatial kernel and 1-D time kernel and returns the covariance matrix with n x n,
+    where n represents the total number of voxels
+    *** Note that I can simply multiply the spatial and temporal matrices directly - element-wise
+    Note that both spatial and temporal covariance matrices have the same dimensions due to
+    the mesh grid that results in more repetitions in
+    :param sigma_p: overall kernel amplitude
+    :param length_space_p: length scale in spatial kernel
+    :param length_time_p: length scale in time kernel
+    :param xy_p: spatial coordinates with 2 rows
+    :param t_p: time coordinates with only 1 row
+    :param kernel_s: spatial kernel
+    :param kernel_t: temporal kernel
+    :param alpha_t: alpha parameter to be only used for the rational quadratic kernel, otherwise set to 0
+    :return: auto-covariance matrix with n x n dimensions
+    """
+    # Generate spatial covariance matrix
+    if kernel_s == 'matern1':
+        spatial_cov_matrix = fast_matern_1_2d(sigma_p, length_space_p, xy_p, xy_p)
+    elif kernel_s == 'matern3':
+        spatial_cov_matrix = fast_matern_3_2d(sigma_p, length_space_p, xy_p, xy_p)
+    elif kernel_s == 'squared_exponential':
+        spatial_cov_matrix = fast_squared_exp_2d(sigma_p, length_space_p, xy_p, xy_p)
+    elif kernel_s == 'rational_quad':
+        spatial_cov_matrix = fast_rational_quadratic_2d(sigma_p, length_space_p, xy_p, xy_p)
+    else:
+        spatial_cov_matrix = np.zeros(t_p.size, t_p.size)
+        print('No appropriate spatial kernel selected')
+
+    # Generate temporal covariance matrix
+    if kernel_t == 'matern1':
+        temporal_cov_matrix = fast_matern_1_1d(length_time_p, t_p, t_p)
+    elif kernel_t == 'matern3':
+        temporal_cov_matrix = fast_matern_3_1d(length_time_p, t_p, t_p)
+    elif kernel_t == 'squared_exponential':
+        temporal_cov_matrix = fast_squared_exp_1d(length_time_p, t_p, t_p)
+    elif kernel_t == 'rational_quad':
+        temporal_cov_matrix = fast_rational_quadratic_1d(alpha_t, length_time_p, t_p, t_p)
+    else:
+        temporal_cov_matrix = np.zeros(t_p.size, t_p.size)
+        print('No appropriate temporal kernel selected')
+
+    kernel_product_matrix = spatial_cov_matrix * temporal_cov_matrix
+    return kernel_product_matrix
+
+
+def gp_likelihood_3d(param, *args):
+    """
+    Returns the Log_likelihood for the Spatial Temporal LGCP after obtaining the latent intensities
+    :param param: hyperparameters - sigma, length scale and noise, prior scalar mean - array of 4 elements
+    :param args: xy coordinates for input into the covariance function and the optimised v_array
+    :return: the log of the GP Prior, log[N(prior mean, covariance matrix)]
+    """
+    # Generate Matern Covariance Matrix
+    # Enter parameters - there are now 5 parameters to optimize
+    sigma = param[0]
+    length_space = param[1]
+    length_time = param[2]
+    noise = param[3]
+    scalar_mean = param[4]
+    alpha = param[5]
+
+    # There are 5 arguments to be entered
+    xy_coord = args[0]
+    t_coord = args[1]
+    v_array = args[2]
+    spatial_kernel = args[3]
+    time_kernel = args[4]
+
+    # Create prior mean array
+    prior_mean = mean_func_scalar(scalar_mean, t_coord)
+
+    # Construct spatial kernel
+    c_auto = product_kernel_3d(sigma, length_space, length_time, xy_coord, xy_coord)
+    c_noise = np.eye(c_auto.shape[0]) * (noise ** 2)  # Fro-necker delta function
+    cov_matrix = c_auto + c_noise
+
+    """Generate Objective Function = log[g(v)]"""
+
+    # Generate Determinant Term (after taking log)
+    determinant = np.exp(np.linalg.slogdet(cov_matrix))[1]
+    det_term = -0.5 * np.log(2 * np.pi * determinant)
+
+    # Generate Euclidean Term (after taking log)
+    v_difference = v_array - prior_mean
+    inv_covariance_matrix = np.linalg.inv(cov_matrix)
+    euclidean_term = -0.5 * fn.matmulmul(v_difference, inv_covariance_matrix, np.transpose(v_difference))
+
+    """Summation of all terms change to correct form to find minimum point"""
+    log_gp = det_term + euclidean_term
+    log_gp_minimization = -1 * log_gp  # Make the function convex for minimization
+    return log_gp_minimization
+
+
 # ------------------------------------------ DATA COLLECTION STAGE
 
 # Aedes Occurrences in Brazil
@@ -820,6 +1024,7 @@ x_vox = fn.row_create(x_mesh)
 y_vox = fn.row_create(y_mesh)
 t_vox = fn.row_create(t_mesh)
 k_vox = fn.row_create(k_mesh)
+xy_vox = np.vstack((x_vox, y_vox))
 print('k_vox shape is', k_vox.shape)
 print("Initial Data Points are ", k_vox)
 
@@ -864,18 +1069,130 @@ elif poisson_opt_method == 'dogleg':  # uses Jacobian and Hessian Matrix
     v_solution = scopt.minimize(fun=log_poisson_likelihood_large, args=arguments_v, x0=initial_v_array,
                                 method='dogleg', jac=gradient_log_likelihood, hess=hessian_log_likelihood, options={})
 
-latent_v_array = v_solution.x  # v_array is the log of the latent intensity
+latent_v_vox = v_solution.x  # v_array is the log of the latent intensity
 p_likelihood = -1 * v_solution.fun
 avg_p_likelihood = p_likelihood / k_vox.size
 end_poisson_opt = time.clock()
 print('Time taken for Poisson Optimization is', end_poisson_opt - start_poisson_opt)
 print('The Maximum Log Likelihood is', p_likelihood)
-print('The Average Log Likelihoos is', avg_p_likelihood)
+print('The Average Log Likelihood is', avg_p_likelihood)
 print('The Poisson optimization methods is', poisson_opt_method)
 print('Latent Intensity Array Optimization Completed')
 
 # -------------------------------------------------------------------- START OF KERNEL OPTIMIZATION
+start_gp_opt = time.clock()
+initial_hyperparam = np.array([1, 1, 1, 1, 1])
 
+# ChangeParam
+ker_space = 'matern1'
+ker_time = 'matern1'
+args_hyperparam = (xy_vox, t_vox, latent_v_vox, ker_space, ker_time)
+hyperparam_solution = scopt.minimize(fun=short_log_integrand_v, args=args_hyperparam, x0=initial_hyperparam,
+                                     method='Nelder-Mead',
+                                     options={'xatol': 1, 'fatol': 1, 'disp': True, 'maxfev': 1000})
+
+# options={'xatol': 0.1, 'fatol': 1, 'disp': True, 'maxfev': 10000})
+# No bounds needed for Nelder-Mead
+# solution = scopt.minimize(fun=log_model_evidence, args=xyz_data, x0=initial_param, method='Nelder-Mead')
+print(hyperparam_solution)
+
+# List optimal hyper-parameters
+sigma_optimal = hyperparam_solution.x[0]
+length_optimal = hyperparam_solution.x[1]
+noise_optimal = hyperparam_solution.x[2]
+mean_optimal = hyperparam_solution.x[3]
+print('Last function evaluation is ', hyperparam_solution.fun)
+print('optimal sigma is ', sigma_optimal)
+print('optimal length-scale is ', length_optimal)
+print('optimal noise amplitude is ', noise_optimal)
+print('optimal scalar mean value is ', mean_optimal)
+
+time_gp_opt = time.clock() - start_gp_opt
+
+print('Time Taken for v optimization = ', time_v_opt)
+print('TIme Taken for hyper-parameter optimization = ', time_gp_opt)
+print('GP Hyper-parameter Optimization Completed')
+
+# ------------------------------------------End of Optimization of GP Hyper-parameters
+
+# ------------------------------------------Start of Posterior Covariance Calculation
+# Note Hessian = second derivative of the log[g(v)]
+# Posterior Distribution follows N(v; v_hap, -1 * Hessian)
+
+start_posterior_tab = time.clock()
+
+# Extract optimized hyper-parameters
+hyperparam_opt = hyperparam_solution.x
+sigma_opt = hyperparam_opt[0]
+length_opt = hyperparam_opt[1]
+noise_opt = hyperparam_opt[2]
+prior_mean_opt = hyperparam_opt[3]
+
+# Generate prior covariance matrix with kronecker noise
+cov_auto = fast_matern_2d(sigma_opt, length_opt, xy_quad, xy_quad)  # Basic Covariance Matrix
+cov_noise = (noise_opt ** 2) * np.eye(cov_auto.shape[0])  # Addition of noise
+cov_overall = cov_auto + cov_noise
+
+# Generate inverse of covariance matrix and set up the hessian matrix using symmetry
+inv_cov_overall = np.linalg.inv(cov_overall)
+inv_cov_diagonal_array = np.diag(inv_cov_overall)
+hess_diagonal = -1 * (np.exp(latent_v_array) + inv_cov_diagonal_array)
+
+# Initialise and generate hessian matrix
+hess_matrix = np.zeros_like(inv_cov_overall)
+hess_length = inv_cov_overall.shape[0]
+
+# Fill in values
+for i in range(hess_length):
+    hess_matrix[i, i] = -1 * (np.exp(latent_v_array[i]) + inv_cov_overall[i, i])
+    for j in range(i + 1, hess_length):
+        hess_matrix[i, j] = -0.5 * (inv_cov_overall[i, j] + inv_cov_overall[j, i])
+        hess_matrix[j, i] = hess_matrix[i, j]
+
+# The hessian H of the log-likelihood at vhap is the negative of the Laplacian
+hess_matrix = - hess_matrix
+
+# Generate Posterior Covariance Matrix of log-intensity v *** Check this part
+posterior_cov_matrix_v = np.linalg.inv(hess_matrix)
+print('Posterior Covariance Matrix of v is ', posterior_cov_matrix_v)
+
+print('Posterior Covariance Calculation Completed')
+# ------------------------------------------End of Posterior Covariance Calculation
+
+# ------------------------------------------Start of Conversion into Latent Intensity
+# Tabulating posterior mean and covariance of the latent intensity - using the Log-Normal Conversion
+# latent_v_array = optimized mean of log-Normal distribution, posterior_cov_matrix_v = covariance matrix of the
+# log-normal distribution. Posterior Variance = exp(2 * mean + variance_v) * ( exp(variance) - 1)
+
+# Tabulation of Posterior Latent Intensity Mean
+variance_v = np.diag(posterior_cov_matrix_v)  # Extracting diagonals which refer to the variances
+latent_intensity_mean = np.exp(latent_v_array + 0.5 * variance_v)
+
+# Tabulation of Posterior Latent Intensity Variance
+latent_intensity_var = np.exp((2 * latent_v_array) + variance_v) * (np.exp(variance_v) - 1)
+latent_intensity_sd = np.sqrt(latent_intensity_var)
+
+# Define upper and lower boundaries
+posterior_lambda_upper = latent_intensity_mean + latent_intensity_sd
+posterior_lambda_lower = latent_intensity_mean - latent_intensity_sd
+
+# Mesh Matrix containing posterior mean and standard deviation for plotting purposes
+latent_intensity_mean_mesh = latent_intensity_mean.reshape(x_mesh.shape)
+latent_intensity_sd_mesh = latent_intensity_sd.reshape(x_mesh.shape)
+# Note that we cannot recreate the mesh after the zero points have been excluded
+
+
+print('Log-Intensity Variances are ', variance_v)
+print('Latent Intensity Values are ', latent_intensity_mean)
+print('Latent Intensity Variances are ', latent_intensity_var)
+
+# Measure time taken for covariance matrix and final standard deviation tabulation
+time_posterior_tab = time.clock() - start_posterior_tab
+
+print('Time Taken for Conversion into Latent Intensity = ', time_posterior_tab)
+
+print('Latent Intensity Conversion Completed')
+# ------------------------------------------End of Conversion into Latent Intensity
 
 """
 # FOR PLOTTING PURPOSES

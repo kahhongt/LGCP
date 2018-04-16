@@ -918,6 +918,7 @@ def product_kernel_3d(sigma_p, length_space_p, length_time_p, xy_p, t_p, kernel_
         temporal_cov_matrix = np.zeros(t_p.size, t_p.size)
         print('No appropriate temporal kernel selected')
 
+    # Create overall kernel product covariance matrix
     kernel_product_matrix = spatial_cov_matrix * temporal_cov_matrix
     return kernel_product_matrix
 
@@ -949,11 +950,10 @@ def gp_likelihood_3d(param, *args):
     prior_mean = mean_func_scalar(scalar_mean, t_coord)
 
     # Construct spatial kernel
-    c_auto = product_kernel_3d(sigma, length_space, length_time, xy_coord, xy_coord)
+    c_auto = product_kernel_3d(sigma, length_space, length_time, xy_coord, t_coord,
+                               spatial_kernel, time_kernel, alpha)
     c_noise = np.eye(c_auto.shape[0]) * (noise ** 2)  # Fro-necker delta function
     cov_matrix = c_auto + c_noise
-
-    """Generate Objective Function = log[g(v)]"""
 
     # Generate Determinant Term (after taking log)
     determinant = np.exp(np.linalg.slogdet(cov_matrix))[1]
@@ -1081,62 +1081,63 @@ print('Latent Intensity Array Optimization Completed')
 
 # -------------------------------------------------------------------- START OF KERNEL OPTIMIZATION
 start_gp_opt = time.clock()
-initial_hyperparam = np.array([1, 1, 1, 1, 1])
+# The parameters are sigma, length_space, length_time, noise, scalar_mean, and alpha
+initial_param = np.array([1, 1, 1, 1, 1, 1])
+
+start_gp_opt = time.clock()
 
 # ChangeParam
 ker_space = 'matern1'
-ker_time = 'matern1'
-args_hyperparam = (xy_vox, t_vox, latent_v_vox, ker_space, ker_time)
-hyperparam_solution = scopt.minimize(fun=short_log_integrand_v, args=args_hyperparam, x0=initial_hyperparam,
-                                     method='Nelder-Mead',
-                                     options={'xatol': 1, 'fatol': 1, 'disp': True, 'maxfev': 1000})
+ker_time = 'rational_quad'
+args_param = (xy_vox, t_vox, latent_v_vox, ker_space, ker_time)  # tuple
+param_sol = scopt.minimize(fun=gp_likelihood_3d, args=args_param, x0=initial_param,
+                           method='Nelder-Mead',
+                           options={'xatol': 1, 'fatol': 1, 'disp': True, 'maxfev': 1000})
 
 # options={'xatol': 0.1, 'fatol': 1, 'disp': True, 'maxfev': 10000})
-# No bounds needed for Nelder-Mead
-# solution = scopt.minimize(fun=log_model_evidence, args=xyz_data, x0=initial_param, method='Nelder-Mead')
-print(hyperparam_solution)
+
+end_gp_opt = time.clock()
+print('Time taken for kernel optimization is', end_gp_opt - start_gp_opt)
+print('The optimal solution display is', param_sol)
 
 # List optimal hyper-parameters
-sigma_optimal = hyperparam_solution.x[0]
-length_optimal = hyperparam_solution.x[1]
-noise_optimal = hyperparam_solution.x[2]
-mean_optimal = hyperparam_solution.x[3]
-print('Last function evaluation is ', hyperparam_solution.fun)
+sigma_optimal = param_sol.x[0]
+length_space_optimal = param_sol.x[1]
+length_time_optimal = param_sol.x[2]
+noise_optimal = param_sol.x[3]
+mean_optimal = param_sol.x[4]
+alpha_optimal = param_sol[5]
+
+print('Last function evaluation is ', param_sol.fun)
 print('optimal sigma is ', sigma_optimal)
-print('optimal length-scale is ', length_optimal)
+print('optimal spatial length-scale is ', length_space_optimal)
+print('optimal time length_scale is'. length_time_optimal)
 print('optimal noise amplitude is ', noise_optimal)
 print('optimal scalar mean value is ', mean_optimal)
-
-time_gp_opt = time.clock() - start_gp_opt
-
-print('Time Taken for v optimization = ', time_v_opt)
-print('TIme Taken for hyper-parameter optimization = ', time_gp_opt)
+print('optimal alpha is', alpha_optimal)
+print('Spatial Kernel is', ker_space)
+print('Temporal Kernel is', ker_time)
 print('GP Hyper-parameter Optimization Completed')
 
-# ------------------------------------------End of Optimization of GP Hyper-parameters
 
-# ------------------------------------------Start of Posterior Covariance Calculation
+# -------------------------------------------------------------------- END OF KERNEL OPTIMIZATION
+
+# -------------------------------------------------------------------- START POSTERIOR TABULATION
 # Note Hessian = second derivative of the log[g(v)]
 # Posterior Distribution follows N(v; v_hap, -1 * Hessian)
-
+print('Conducting Kernel Optimization...')
 start_posterior_tab = time.clock()
 
-# Extract optimized hyper-parameters
-hyperparam_opt = hyperparam_solution.x
-sigma_opt = hyperparam_opt[0]
-length_opt = hyperparam_opt[1]
-noise_opt = hyperparam_opt[2]
-prior_mean_opt = hyperparam_opt[3]
-
 # Generate prior covariance matrix with kronecker noise
-cov_auto = fast_matern_2d(sigma_opt, length_opt, xy_quad, xy_quad)  # Basic Covariance Matrix
-cov_noise = (noise_opt ** 2) * np.eye(cov_auto.shape[0])  # Addition of noise
+cov_auto = product_kernel_3d(sigma_optimal, length_space_optimal, length_time_optimal,
+                             xy_vox, t_vox, ker_space, ker_time, alpha_optimal)  # Basic Covariance Matrix
+cov_noise = (noise_optimal ** 2) * np.eye(cov_auto.shape[0])  # Addition of noise
 cov_overall = cov_auto + cov_noise
 
 # Generate inverse of covariance matrix and set up the hessian matrix using symmetry
 inv_cov_overall = np.linalg.inv(cov_overall)
 inv_cov_diagonal_array = np.diag(inv_cov_overall)
-hess_diagonal = -1 * (np.exp(latent_v_array) + inv_cov_diagonal_array)
+hess_diagonal = -1 * (np.exp(latent_v_vox) + inv_cov_diagonal_array)
 
 # Initialise and generate hessian matrix
 hess_matrix = np.zeros_like(inv_cov_overall)
@@ -1144,7 +1145,7 @@ hess_length = inv_cov_overall.shape[0]
 
 # Fill in values
 for i in range(hess_length):
-    hess_matrix[i, i] = -1 * (np.exp(latent_v_array[i]) + inv_cov_overall[i, i])
+    hess_matrix[i, i] = -1 * (np.exp(latent_v_vox[i]) + inv_cov_overall[i, i])
     for j in range(i + 1, hess_length):
         hess_matrix[i, j] = -0.5 * (inv_cov_overall[i, j] + inv_cov_overall[j, i])
         hess_matrix[j, i] = hess_matrix[i, j]
@@ -1157,24 +1158,17 @@ posterior_cov_matrix_v = np.linalg.inv(hess_matrix)
 print('Posterior Covariance Matrix of v is ', posterior_cov_matrix_v)
 
 print('Posterior Covariance Calculation Completed')
-# ------------------------------------------End of Posterior Covariance Calculation
+# ------------------------------------------------------------------- END POSTERIOR TABULATION
 
-# ------------------------------------------Start of Conversion into Latent Intensity
-# Tabulating posterior mean and covariance of the latent intensity - using the Log-Normal Conversion
-# latent_v_array = optimized mean of log-Normal distribution, posterior_cov_matrix_v = covariance matrix of the
-# log-normal distribution. Posterior Variance = exp(2 * mean + variance_v) * ( exp(variance) - 1)
-
+# ------------------------------------------------------------------- START CONVERSION INTO ARITHMETIC MEAN AND SD
+print('Start conversion into arithmetic mean and standard deviation')
 # Tabulation of Posterior Latent Intensity Mean
-variance_v = np.diag(posterior_cov_matrix_v)  # Extracting diagonals which refer to the variances
-latent_intensity_mean = np.exp(latent_v_array + 0.5 * variance_v)
+variance_v = np.diag(posterior_cov_matrix_v)
+latent_intensity_mean = np.exp(latent_v_vox + 0.5 * variance_v)
 
 # Tabulation of Posterior Latent Intensity Variance
-latent_intensity_var = np.exp((2 * latent_v_array) + variance_v) * (np.exp(variance_v) - 1)
+latent_intensity_var = np.exp((2 * latent_v_vox) + variance_v) * (np.exp(variance_v) - 1)
 latent_intensity_sd = np.sqrt(latent_intensity_var)
-
-# Define upper and lower boundaries
-posterior_lambda_upper = latent_intensity_mean + latent_intensity_sd
-posterior_lambda_lower = latent_intensity_mean - latent_intensity_sd
 
 # Mesh Matrix containing posterior mean and standard deviation for plotting purposes
 latent_intensity_mean_mesh = latent_intensity_mean.reshape(x_mesh.shape)
@@ -1194,8 +1188,7 @@ print('Time Taken for Conversion into Latent Intensity = ', time_posterior_tab)
 print('Latent Intensity Conversion Completed')
 # ------------------------------------------End of Conversion into Latent Intensity
 
-"""
-# FOR PLOTTING PURPOSES
+
 # Plot 3-D Histogram after removing all the points with 0 occurrences
 # Create Boolean array to identify non-zero values
 non_zero = k_vox != 0
@@ -1218,9 +1211,6 @@ histo_exclude.set_xlabel('UTM Horizontal Coordinate')
 histo_exclude.set_ylabel('UTM Vertical Coordinate')
 histo_exclude.set_zlabel('Year')
 
-
-# TRY THIS AGAIN LATER
-
 cm = plt.get_cmap('jet')
 cNorm = matplotlib.colors.Normalize(vmin=min(k_vox), vmax=max(k_vox))
 scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
@@ -1230,5 +1220,22 @@ rainbow_histo.scatter(x_vox, y_vox, t_vox, c=scalarMap.to_rgba(k_vox))
 scalarMap.set_array(k_vox)
 rainbow_histo_fig.colorbar(scalarMap)
 
+# Plotting the Posterior Mean
+p_mean_fig = plt.figure()
+p_mean = p_mean_fig.add_subplot(111, projection='3d')
+p_mean.scatter(x_vox, y_vox, t_vox, c=latent_intensity_mean, cmap='afmhot', s=5, marker='o')
+p_mean.set_xlabel('UTM Horizontal Coordinate')
+p_mean.set_ylabel('UTM Vertical Coordinate')
+p_mean.set_zlabel('Year')
+p_mean.set_title('Posterior Mean')
+
+# Plotting the Posterior Standard Deviation
+p_sd_fig = plt.figure()
+p_sd = p_sd_fig.add_subplot(111, projection='3d')
+p_sd.scatter(x_vox, y_vox, t_vox, c=latent_intensity_sd, cmap='afmhot', s=5, marker='o')
+p_sd.set_xlabel('UTM Horizontal Coordinate')
+p_sd.set_ylabel('UTM Vertical Coordinate')
+p_sd.set_zlabel('Year')
+p_sd.set_title('Posterior Standard Deviation')
+
 plt.show()
-"""

@@ -920,6 +920,44 @@ def product_kernel_3d(sigma_p, length_space_p, length_time_p, xy_p, t_p, kernel_
     return kernel_product_matrix
 
 
+def product_kernel_3d_rq(sigma_p, length_space_p, alpha, length_time_p, xy_p, t_p, kernel_s):
+    """
+    Takes the product of a 2-D spatial kernel and 1-D time kernel and returns the covariance matrix with n x n,
+    where n represents the total number of voxels - this is for the rational quadratic temporal kernel
+    *** Note that I can simply multiply the spatial and temporal matrices directly - element-wise
+    Note that both spatial and temporal covariance matrices have the same dimensions due to
+    the mesh grid that results in more repetitions in
+    :param sigma_p: overall kernel amplitude
+    :param length_space_p: length scale in spatial kernel
+    :param alpha: the rational quadratic kernel
+    :param length_time_p: length scale in time kernel
+    :param xy_p: spatial coordinates with 2 rows
+    :param t_p: time coordinates with only 1 row
+    :param kernel_s: spatial kernel
+    :return: auto-covariance matrix with n x n dimensions
+    """
+    # Generate spatial covariance matrix
+    if kernel_s == 'matern1':
+        spatial_cov_matrix = fast_matern_1_2d(sigma_p, length_space_p, xy_p, xy_p)
+    elif kernel_s == 'matern3':
+        spatial_cov_matrix = fast_matern_3_2d(sigma_p, length_space_p, xy_p, xy_p)
+    elif kernel_s == 'squared_exponential':
+        spatial_cov_matrix = fast_squared_exp_2d(sigma_p, length_space_p, xy_p, xy_p)
+    elif kernel_s == 'rational_quad':
+        spatial_cov_matrix = fast_rational_quadratic_2d(sigma_p, length_space_p, xy_p, xy_p)
+    else:
+        spatial_cov_matrix = np.zeros(t_p.size, t_p.size)
+        print('No appropriate spatial kernel selected')
+
+    # Generate temporal covariance matrix
+
+    temporal_cov_matrix = fast_rational_quadratic_1d(alpha, length_time_p, t_p, t_p)
+
+    # Create overall kernel product covariance matrix
+    kernel_product_matrix = spatial_cov_matrix * temporal_cov_matrix
+    return kernel_product_matrix
+
+
 def gp_likelihood_3d(param, *args):
     """
     Returns the Log_likelihood for the Spatial Temporal LGCP after obtaining the latent intensities
@@ -967,10 +1005,9 @@ def gp_likelihood_3d(param, *args):
     return log_gp_minimization
 
 
-def gp_3d_mahalanobis(param, *args):
+def gp_likelihood_3d_rq(param, *args):
     """
     Returns the Log_likelihood for the Spatial Temporal LGCP after obtaining the latent intensities
-    - using the Malahanobis distance metric
     :param param: hyperparameters - sigma, length scale and noise, prior scalar mean - array of 4 elements
     :param args: xy coordinates for input into the covariance function and the optimised v_array
     :return: the log of the GP Prior, log[N(prior mean, covariance matrix)]
@@ -978,32 +1015,23 @@ def gp_3d_mahalanobis(param, *args):
     # Generate Matern Covariance Matrix
     # Enter parameters - there are now 5 parameters to optimize
     sigma = param[0]
-    length = param[1]
-    noise = param[2]
-    scalar_mean = param[3]
-    matrix_tup = param[4:]  # Include the matrix array now - have to create the tuple beforehand
+    length_space = param[1]
+    length_time = param[2]
+    noise = param[3]
+    scalar_mean = param[4]
+    alpha = param[5]
 
-    # There are 3 arguments to be entered - use vstack to create 3 input rows - x, y and z
-    xyt_coord = args[0]
-    v_array = args[1]  # This is the optimized v_array
-    kernel = args[2]  # Kernel chosen for the cases below
+    # There are 5 arguments to be entered
+    xy_coord = args[0]
+    t_coord = args[1]
+    v_array = args[2]
+    spatial_kernel = args[3]
 
     # Create prior mean array
-    prior_mean = mean_func_scalar(scalar_mean, xyt_coord[0])
+    prior_mean = mean_func_scalar(scalar_mean, t_coord)
 
-    # Construct covariance function with the 3D kernel
-    if kernel == 'matern1':
-        c_auto = fast_matern_1_3d(sigma, length, xyt_coord, xyt_coord, matrix_tup)
-    elif kernel == 'matern3':
-        c_auto = fast_matern_3_3d(sigma, length, xyt_coord, xyt_coord, matrix_tup)
-    elif kernel == 'squared_exponential':
-        c_auto = fast_squared_exp_3d(sigma, length, xyt_coord, xyt_coord, matrix_tup)
-    elif kernel == 'rational_quad':
-        c_auto = fast_rational_quadratic_3d(sigma, length, xyt_coord, xyt_coord, matrix_tup)
-    else:
-        c_auto = np.eye(v_array.size)
-        print('No appropriate kernel found')
-
+    # Construct spatial kernel
+    c_auto = product_kernel_3d_rq(sigma, length_space, alpha, length_time, xy_coord, t_coord, spatial_kernel)
     c_noise = np.eye(c_auto.shape[0]) * (noise ** 2)  # Fro-necker delta function
     cov_matrix = c_auto + c_noise
 
@@ -1022,179 +1050,8 @@ def gp_3d_mahalanobis(param, *args):
     return log_gp_minimization
 
 
-# Below are functions for 3D kernels, and incorporates the mahalanobis distance in the distance metric
-
-def fast_matern_1_3d(sigma_matern, length_matern, x1, x2, matrix_tuple):
-    """
-    Much faster method of obtaining the Matern v=1/2 covariance matrix by exploiting the symmetry of the
-    covariance matrix. This is the once-differentiable (zero mean squared differentiable) matern
-    3-DIMENSIONAL MATERN KERNEL WITH MAHALANOBIS DISTANCE METRIC
-    :param sigma_matern: Coefficient at the front
-    :param length_matern: Length scale
-    :param x1: First set of coordinates for iteration
-    :param x2: Second set of coordinates for iteration
-    :param matrix_tuple: takes in a tuple containing the 6 distinct matrix variables
-    :return: Covariance matrix with matern kernel
-    """
-    # Note that this function only takes in 3-D coordinates, make sure there are 3 rows and n columns
-    # Takes into account the two spatial and one time dimensions
-
-    # Count the number of columns - make sure to use vstack before using x1 and x2
-    n = x1.shape[1]
-
-    # Create Mahalanobis transformation matrix
-    a = matrix_tuple[0]
-    b = matrix_tuple[1]
-    c = matrix_tuple[2]
-    d = matrix_tuple[3]
-    e = matrix_tuple[4]
-    f = matrix_tuple[5]
-    mat = np.array([[a, b, c], [b, d, e], [c, e, f]])
-
-    cov_matrix = np.zeros((n, n))
-    for i in range(n):
-        cov_matrix[i, i] = sigma_matern ** 2
-        for j in range(i + 1, n):
-            diff = x1[:, i] - x2[:, j]
-
-            # Implement mahalanobis distance metric
-            array_product = fn.matmulmul(diff, mat, np.transpose(diff))
-            euclidean = np.sqrt(array_product)
-
-            exp_term = np.exp(-1 * euclidean * (length_matern ** -1))
-            cov_matrix[i, j] = (sigma_matern ** 2) * exp_term
-            cov_matrix[j, i] = cov_matrix[i, j]
-
-    return cov_matrix
-
-
-def fast_matern_3_3d(sigma_matern, length_matern, x1, x2, matrix_tuple):  # there are only two variables in the matern function
-    """
-    This is much much faster than iteration over every point beyond n = 10. This function takes advantage of the
-    symmetry in the covariance matrix and allows for fast regeneration. For this function, v = 3/2
-    :param sigma_matern: coefficient factor at the front
-    :param length_matern: length scale
-    :param x1: First set of coordinates for iteration
-    :param x2: Second set of coordinates for iteration
-    :param matrix_tuple: tuple containing the 6 distinct matrix variables
-    :return: Covariance matrix with matern kernel
-    """
-    # Note that this function only takes in 2-D coordinates, make sure there are 2 rows and n columns
-    n = x1.shape[1]
-
-    # Create Mahalanobis transformation matrix
-    a = matrix_tuple[0]
-    b = matrix_tuple[1]
-    c = matrix_tuple[2]
-    d = matrix_tuple[3]
-    e = matrix_tuple[4]
-    f = matrix_tuple[5]
-    mat = np.array([[a, b, c], [b, d, e], [c, e, f]])
-
-    cov_matrix = np.zeros((n, n))
-    for i in range(n):
-        cov_matrix[i, i] = sigma_matern ** 2
-        for j in range(i + 1, n):
-            diff = x1[:, i] - x2[:, j]
-
-            # Implement mahalanobis distance metric
-            array_product = fn.matmulmul(diff, mat, np.transpose(diff))
-            euclidean = np.sqrt(array_product)
-
-            coefficient_term = (1 + np.sqrt(3) * euclidean * (length_matern ** -1))
-            exp_term = np.exp(-1 * np.sqrt(3) * euclidean * (length_matern ** -1))
-            cov_matrix[i, j] = (sigma_matern ** 2) * coefficient_term * exp_term
-            cov_matrix[j, i] = cov_matrix[i, j]
-
-    return cov_matrix
-
-
-def fast_squared_exp_3d(sigma_exp, length_exp, x1, x2, matrix_tuple):  # there are only two variables in the matern function
-    """
-    This is much much faster than iteration over every point beyond n = 10. This function takes advantage of the
-    symmetry in the covariance matrix and allows for fast regeneration.
-    :param sigma_exp: coefficient factor at the front
-    :param length_exp: length scale
-    :param x1: First set of coordinates for iteration
-    :param x2: Second set of coordinates for iteration
-    :param matrix_tuple: tuple containing the 6 distinct matrix variables
-    :return: Covariance matrix with squared exponential kernel - indicating infinite differentiability
-    """
-    # Note that this function only takes in 2-D coordinates, make sure there are 2 rows and n columns
-    n = x1.shape[1]
-
-    # Create Mahalanobis transformation matrix
-    a = matrix_tuple[0]
-    b = matrix_tuple[1]
-    c = matrix_tuple[2]
-    d = matrix_tuple[3]
-    e = matrix_tuple[4]
-    f = matrix_tuple[5]
-    mat = np.array([[a, b, c], [b, d, e], [c, e, f]])
-
-    cov_matrix = np.zeros((n, n))
-    for i in range(n):
-        cov_matrix[i, i] = sigma_exp ** 2
-        for j in range(i + 1, n):
-            diff = x1[:, i] - x2[:, j]
-
-            # Implement mahalanobis distance metric
-            array_product = fn.matmulmul(diff, mat, np.transpose(diff))
-            euclidean = np.sqrt(array_product)
-
-            exp_power = np.exp(-1 * (euclidean ** 2) * (length_exp ** -2))
-            cov_matrix[i, j] = (sigma_exp ** 2) * exp_power
-            cov_matrix[j, i] = cov_matrix[i, j]
-
-    return cov_matrix
-
-
-def fast_rational_quadratic_3d(alpha_rq, length_rq, x1, x2, matrix_tuple):
-    """
-    Rational Quadratic Coveriance function with 2 parameters to be optimized, using
-    power alpha and length scale l. The Rational Quadratic Kernel is used to model the
-    volatility of equity index returns, which is equivalent to a sum of Squared
-    Exponential Kernels. This kernel is used to model multi-scale data
-
-    This is a fast method of generating the rational quadratic kernel, by exploiting the symmetry
-    of the covariance matrix
-    :param alpha_rq: power and denominator
-    :param length_rq: length scale
-    :param x1: First set of coordinates for iteration
-    :param x2: Second set of coordinates for iteration
-    :param matrix_tuple: tuple containing the 6 distinct matrix variables
-    :return: Covariance matrix with Rational Quadratic Kernel
-    """
-    # Note that this function only takes in 2-D coordinates, make sure there are 2 rows and n columns
-    n = x1.shape[1]
-
-    # Create Mahalanobis transformation matrix
-    a = matrix_tuple[0]
-    b = matrix_tuple[1]
-    c = matrix_tuple[2]
-    d = matrix_tuple[3]
-    e = matrix_tuple[4]
-    f = matrix_tuple[5]
-    mat = np.array([[a, b, c], [b, d, e], [c, e, f]])
-
-    covariance_matrix = np.zeros((n, n))
-    for i in range(n):
-        covariance_matrix[i, i] = 1
-        for j in range(i + 1, n):
-            diff = x1[:, i] - x2[:, j]
-
-            # Implement mahalanobis distance metric
-            array_product = fn.matmulmul(diff, mat, np.transpose(diff))
-
-            # Combine components of kernel
-            fraction_term = array_product / (2 * alpha_rq * (length_rq ** 2))
-            covariance_matrix[i, j] = (1 + fraction_term) ** (-1 * alpha_rq)
-            covariance_matrix[j, i] = covariance_matrix[i, j]
-
-    return covariance_matrix
-
-
 # ------------------------------------------ DATA COLLECTION STAGE
+
 # Aedes Occurrences in Brazil
 aedes_df = pd.read_csv('Aedes_PP_Data.csv')  # generates dataframe from csv - zika data
 
@@ -1249,7 +1106,6 @@ y_vox = fn.row_create(y_mesh)
 t_vox = fn.row_create(t_mesh)
 k_vox = fn.row_create(k_mesh)  # This is the original data set
 xy_vox = np.vstack((x_vox, y_vox))
-xyt_vox = np.vstack((xy_vox, t_vox))
 print('k_vox shape is', k_vox.shape)
 print("Initial Data Points are ", k_vox)
 
@@ -1265,6 +1121,7 @@ initial_v_array = fn.log_special(k_vox)
 # which arguments will be used for each function
 arguments_v = (k_vox, initial_p_array)
 
+# -------------------------------------------------------------------- END OF TESTING FOR THE OBJECTIVE FUNCTION
 start_poisson_opt = time.clock()
 
 # Start Optimization Algorithm for latent intensities - note this does not take into account the intensity locations
@@ -1315,21 +1172,19 @@ plt.show()
 # -------------------------------------------------------------------- START OF KERNEL OPTIMIZATION
 start_gp_opt = time.clock()
 # The parameters are sigma, length_space, length_time, noise, scalar_mean, and alpha
-initial_scalar = 1
-# maybe have a different start point for the matrix variables
-initial_param = np.ones(10) * initial_scalar
+initial_scalar = 2
+initial_param = np.array([initial_scalar, initial_scalar, initial_scalar,
+                          initial_scalar, initial_scalar, initial_scalar])
 
 start_gp_opt = time.clock()
 
-# ChangeParam
-ker = 'rational_quad'
-print('Kernel is', ker)
-print('Optimizing Kernel Hyper-parameters...')
-
-args_param = (xyt_vox, latent_v_vox, ker)  # tuple
-param_sol = scopt.minimize(fun=gp_3d_mahalanobis, args=args_param, x0=initial_param,
+# ChangeParam - the temporal kernel is always taken as the rational quadratic kernel
+ker_space = 'matern1'
+print('Spatial Kernel is', ker_space)
+args_param = (xy_vox, t_vox, latent_v_vox, ker_space)  # tuple
+param_sol = scopt.minimize(fun=gp_likelihood_3d_rq, args=args_param, x0=initial_param,
                            method='Nelder-Mead',
-                           options={'xatol': 5, 'fatol': 50, 'disp': True, 'maxfev': 1000})
+                           options={'xatol': 10, 'fatol': 100, 'disp': True, 'maxfev': 1000})
 
 # options={'xatol': 0.1, 'fatol': 1, 'disp': True, 'maxfev': 10000})
 
@@ -1339,18 +1194,22 @@ print('The optimal solution display is', param_sol)
 
 # List optimal hyper-parameters
 sigma_optimal = param_sol.x[0]
-length_optimal = param_sol.x[1]
-noise_optimal = param_sol.x[2]
-mean_optimal = param_sol.x[3]
-matrix_var_optimal = param_sol.x[4:]
+length_space_optimal = param_sol.x[1]
+alpha_optimal = param_sol.x[2]
+length_time_optimal = param_sol.x[3]
+noise_optimal = param_sol.x[4]
+mean_optimal = param_sol.x[5]
+
 
 print('Last function evaluation is ', param_sol.fun)
 print('optimal sigma is ', sigma_optimal)
-print('optimal length-scale is ', length_optimal)
+print('optimal spatial length-scale is ', length_space_optimal)
+print('optimal alpha is', alpha_optimal)
+print('optimal time length_scale is', length_time_optimal)
 print('optimal noise amplitude is ', noise_optimal)
 print('optimal scalar mean value is ', mean_optimal)
-print('optimal matrix variables are', matrix_var_optimal)
-print('Kernel is', ker)
+print('Spatial Kernel is', ker_space)
+print('Temporal Kernel is rational_quad')
 print('The number of voxels per side is', vox_on_side)
 print('GP Hyper-parameter Optimization Completed')
 print('The initial starting parameter is', initial_scalar)
@@ -1365,18 +1224,8 @@ print('Conducting Kernel Optimization...')
 start_posterior_tab = time.clock()
 
 # Generate prior covariance matrix with kronecker noise
-if ker == 'matern1':
-    cov_auto = fast_matern_1_3d(sigma_optimal, length_optimal, xyt_vox, xyt_vox, matrix_var_optimal)
-elif ker == 'matern3':
-    cov_auto = fast_matern_3_3d(sigma_optimal, length_optimal, xyt_vox, xyt_vox, matrix_var_optimal)
-elif ker == 'squared_exponential':
-    cov_auto = fast_squared_exp_3d(sigma_optimal, length_optimal, xyt_vox, xyt_vox, matrix_var_optimal)
-elif ker == 'rational_quad':
-    cov_auto = fast_rational_quadratic_3d(sigma_optimal, length_optimal, xyt_vox, xyt_vox, matrix_var_optimal)
-else:
-    cov_auto = np.eye(latent_v_vox.size)
-    print('No appropriate kernel chosen')
-
+cov_auto = product_kernel_3d_rq(sigma_optimal, length_space_optimal, alpha_optimal, length_time_optimal,
+                                xy_vox, t_vox, ker_space)  # Basic Covariance Matrix
 cov_noise = (noise_optimal ** 2) * np.eye(cov_auto.shape[0])  # Addition of noise
 cov_overall = cov_auto + cov_noise
 

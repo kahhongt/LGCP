@@ -920,6 +920,45 @@ def product_kernel_3d(sigma_p, length_space_p, length_time_p, xy_p, t_p, kernel_
     return kernel_product_matrix
 
 
+def product_kernel_3d_rq(sigma_p, length_space_p, alpha, length_time_p, xy_p, t_p, kernel_s):
+    """
+    Takes the product of a 2-D spatial kernel and 1-D time kernel and returns the covariance matrix with n x n,
+    where n represents the total number of voxels - this is for the rational quadratic temporal kernel
+    *** Note that I can simply multiply the spatial and temporal matrices directly - element-wise
+    Note that both spatial and temporal covariance matrices have the same dimensions due to
+    the mesh grid that results in more repetitions in
+    :param sigma_p: overall kernel amplitude
+    :param length_space_p: length scale in spatial kernel
+    :param alpha: the rational quadratic kernel
+    :param length_time_p: length scale in time kernel
+    :param xy_p: spatial coordinates with 2 rows
+    :param t_p: time coordinates with only 1 row
+    :param kernel_s: spatial kernel
+    :param kernel_t: temporal kernel
+    :return: auto-covariance matrix with n x n dimensions
+    """
+    # Generate spatial covariance matrix
+    if kernel_s == 'matern1':
+        spatial_cov_matrix = fast_matern_1_2d(sigma_p, length_space_p, xy_p, xy_p)
+    elif kernel_s == 'matern3':
+        spatial_cov_matrix = fast_matern_3_2d(sigma_p, length_space_p, xy_p, xy_p)
+    elif kernel_s == 'squared_exponential':
+        spatial_cov_matrix = fast_squared_exp_2d(sigma_p, length_space_p, xy_p, xy_p)
+    elif kernel_s == 'rational_quad':
+        spatial_cov_matrix = fast_rational_quadratic_2d(sigma_p, length_space_p, xy_p, xy_p)
+    else:
+        spatial_cov_matrix = np.zeros(t_p.size, t_p.size)
+        print('No appropriate spatial kernel selected')
+
+    # Generate temporal covariance matrix
+
+    temporal_cov_matrix = fast_rational_quadratic_1d(alpha, length_time_p, t_p, t_p)
+
+    # Create overall kernel product covariance matrix
+    kernel_product_matrix = spatial_cov_matrix * temporal_cov_matrix
+    return kernel_product_matrix
+
+
 def gp_likelihood_3d(param, *args):
     """
     Returns the Log_likelihood for the Spatial Temporal LGCP after obtaining the latent intensities

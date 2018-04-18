@@ -8,7 +8,7 @@ import scipy.special as scispec
 import scipy.optimize as scopt
 import matplotlib.path as mpath
 
-matplotlib.use('TkAgg')
+# matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 

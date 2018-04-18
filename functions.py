@@ -383,3 +383,14 @@ avg_likelihood_frob.set_ylabel('Average Log Marginal Likelihood')
 plt.show()
 
 """
+
+initial_kernel_scalar = 1
+# maybe have a different start point for the matrix variables
+initial_kernel_param = np.ones(4) * initial_kernel_scalar
+
+# Have a different starting point for the matrix variables
+initial_mat_param = np.array([1, 0, 0, 1, 0, 1])
+
+initial_all_param = np.append(initial_kernel_param, initial_mat_param)
+
+print(initial_all_param)

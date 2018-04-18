@@ -1315,27 +1315,55 @@ plt.show()
 # -------------------------------------------------------------------- START OF KERNEL OPTIMIZATION
 start_gp_opt = time.clock()
 # The parameters are sigma, length_space, length_time, noise, scalar_mean, and alpha
-initial_scalar = 1
+initial_kernel_scalar = 1
 # maybe have a different start point for the matrix variables
-initial_param = np.ones(10) * initial_scalar
+initial_kernel_param = np.ones(4) * initial_kernel_scalar
 
+# Have a different starting point for the matrix variables
+initial_mat_param = np.array([1, 0, 0, 1, 0, 1])  # start off with the identity matrix
+# initial_mat_param = np.array([1, 1, 1, 1, 1, 1])
+# initial_mat_param = np.array([1, 1, 1, 1, 1, 1]) * 2
+
+initial_all_param = np.append(initial_kernel_param, initial_mat_param)
+
+# Record time taken for optimization
 start_gp_opt = time.clock()
 
 # ChangeParam
-ker = 'rational_quad'
+ker = 'matern1'
+opt_method = 'NM'
 print('Kernel is', ker)
 print('Optimizing Kernel Hyper-parameters...')
 
-args_param = (xyt_vox, latent_v_vox, ker)  # tuple
-param_sol = scopt.minimize(fun=gp_3d_mahalanobis, args=args_param, x0=initial_param,
-                           method='Nelder-Mead',
-                           options={'xatol': 5, 'fatol': 50, 'disp': True, 'maxfev': 1000})
+start_gp_opt = time.clock()
 
-# options={'xatol': 0.1, 'fatol': 1, 'disp': True, 'maxfev': 10000})
+args_param = (xyt_vox, latent_v_vox, ker)  # tuple
+
+if opt_method == 'NM':
+    param_sol = scopt.minimize(fun=gp_3d_mahalanobis, args=args_param, x0=initial_all_param,
+                               method='Nelder-Mead',
+                               options={'xatol': 10, 'fatol': 100, 'disp': True, 'maxfev': 1000})
+    func_optimal = param_sol.fun
+elif opt_method == 'DE':
+    # Attempt to use differential evolution method as proposed by Stork K Price
+    # Initialise Bounds for the parameters - in differential evolution, it takes a bound instead of starting point
+    # The differential evolution uses the latin hypercube method - no gradient methods are used
+
+    # The bound takes in a sequence of tuples
+    param_bound = [(-5, 5), (-5, 5), (-5, 5), (-5, 5), (-5, 5), (-5, 5), (-5, 5), (-5, 5), (-5, 5), (-5, 5)]
+    param_sol = scopt.differential_evolution(func=gp_3d_mahalanobis, bounds=param_bound, args=args_param)
+    func_optimal = param_sol.fun
+else:
+    print('No GP optimization method entered - Differential Evolution used by default')
+    param_bound = [(-5, 5), (-5, 5), (-5, 5), (-5, 5), (-5, 5), (-5, 5), (-5, 5), (-5, 5), (-5, 5), (-5, 5)]
+    param_sol = scopt.differential_evolution(func=gp_3d_mahalanobis, bounds=param_bound, args=args_param)
+    func_optimal = param_sol.fun
+
 
 end_gp_opt = time.clock()
 print('Time taken for kernel optimization is', end_gp_opt - start_gp_opt)
 print('The optimal solution display is', param_sol)
+print('The time taken for GP optimization is', end_gp_opt - start_gp_opt)
 
 # List optimal hyper-parameters
 sigma_optimal = param_sol.x[0]
@@ -1343,8 +1371,9 @@ length_optimal = param_sol.x[1]
 noise_optimal = param_sol.x[2]
 mean_optimal = param_sol.x[3]
 matrix_var_optimal = param_sol.x[4:]
+func_optimal = param_sol.fun
 
-print('Last function evaluation is ', param_sol.fun)
+print('Optimal function evaluation is ', func_optimal)
 print('optimal sigma is ', sigma_optimal)
 print('optimal length-scale is ', length_optimal)
 print('optimal noise amplitude is ', noise_optimal)
@@ -1353,7 +1382,8 @@ print('optimal matrix variables are', matrix_var_optimal)
 print('Kernel is', ker)
 print('The number of voxels per side is', vox_on_side)
 print('GP Hyper-parameter Optimization Completed')
-print('The initial starting parameter is', initial_scalar)
+print('The starting kernel parameters are', initial_kernel_scalar)
+print('The starting matrix parameters are', initial_mat_param)
 
 
 # -------------------------------------------------------------------- END OF KERNEL OPTIMIZATION
@@ -1361,7 +1391,7 @@ print('The initial starting parameter is', initial_scalar)
 # -------------------------------------------------------------------- START POSTERIOR TABULATION
 # Note Hessian = second derivative of the log[g(v)]
 # Posterior Distribution follows N(v; v_hap, -1 * Hessian)
-print('Conducting Kernel Optimization...')
+print('Performing Posterior Tabulation...')
 start_posterior_tab = time.clock()
 
 # Generate prior covariance matrix with kronecker noise
@@ -1432,15 +1462,26 @@ time_posterior_tab = time.clock() - start_posterior_tab
 print('Time Taken for Conversion into Latent Intensity = ', time_posterior_tab)
 
 print('Latent Intensity Conversion Completed')
+print('Kernel is', ker)
 
 # ------------------------------------------ End of Conversion into Latent Intensity
 
 # ------------------------------------------ Calculate the MSE from the Arithmetic Mean
 mean_sq_error = fn.mean_squared_error(latent_intensity_mean, k_vox)
 print('The Mean Squared Error is', mean_sq_error)
+print('Last function evaluation is ', param_sol.fun)
+print('optimal sigma is ', sigma_optimal)
+print('optimal length-scale is ', length_optimal)
+print('optimal noise amplitude is ', noise_optimal)
+print('optimal scalar mean value is ', mean_optimal)
+print('optimal matrix variables are', matrix_var_optimal)
+print('Kernel is', ker)
+print('The number of voxels per side is', vox_on_side)
+print('GP Hyper-parameter Optimization Completed')
+print('The starting kernel parameters are', initial_kernel_scalar)
+print('The starting matrix parameters are', initial_mat_param)
 
 
-"""
 # Plot 3-D Histogram after removing all the points with 0 occurrences
 # Create Boolean array to identify non-zero values
 non_zero = k_vox != 0
@@ -1475,7 +1516,7 @@ rainbow_histo_fig.colorbar(scalarMap)
 # Plotting the Posterior Mean
 p_mean_fig = plt.figure()
 p_mean = p_mean_fig.add_subplot(111, projection='3d')
-p_mean.scatter(x_vox, y_vox, t_vox, c=latent_intensity_mean, cmap='afmhot', s=5, marker='o')
+p_mean.scatter(x_vox, y_vox, t_vox, c=latent_intensity_mean, cmap='afmhot', s=10, marker='o')
 p_mean.set_xlabel('UTM Horizontal Coordinate')
 p_mean.set_ylabel('UTM Vertical Coordinate')
 p_mean.set_zlabel('Year')
@@ -1484,11 +1525,21 @@ p_mean.set_title('Posterior Mean')
 # Plotting the Posterior Standard Deviation
 p_sd_fig = plt.figure()
 p_sd = p_sd_fig.add_subplot(111, projection='3d')
-p_sd.scatter(x_vox, y_vox, t_vox, c=latent_intensity_sd, cmap='afmhot', s=5, marker='o')
+p_sd.scatter(x_vox, y_vox, t_vox, c=latent_intensity_sd, cmap='afmhot', s=10, marker='o')
 p_sd.set_xlabel('UTM Horizontal Coordinate')
 p_sd.set_ylabel('UTM Vertical Coordinate')
 p_sd.set_zlabel('Year')
 p_sd.set_title('Posterior Standard Deviation')
 
+
+# Plot heatmap slices on a 3D projection
+# Have to start creating boolean variables to separate the latent intensity mean and standard deviations by years
+
+levels = np.arange(0, 200, 10)
+p_mean_layers_fig = plt.figure()
+p_mean_layers = p_mean_layers_fig.add_subplot(111, projection='3d')
+p_mean_layers.contourf(x_vox, y_vox, latent_intensity_mean_mesh, zdir='z', levels=.1*levels)
+p_mean_layers.contourf(x_vox, y_vox, latent_intensity_mean_mesh, zdir='z', levels=3+.1*levels)
+p_mean_layers.contourf(x_vox, y_vox, latent_intensity_mean_mesh, zdir='z', levels=7+.1*levels)
+
 plt.show()
-"""

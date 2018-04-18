@@ -3,7 +3,7 @@ from numpy.lib import scimath
 import time
 import scipy.optimize as scopt
 import matplotlib
-matplotlib.use('TkAgg')
+# matplotlib.use('TkAgg')
 import pandas as pd
 import matplotlib.pyplot as plt
 

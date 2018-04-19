@@ -1058,6 +1058,7 @@ avg_likelihood_skew = avg_likelihood_skew_fig.add_subplot(111)
 avg_likelihood_skew.plot(element_skew, avg_log_likelihood, color='black')
 avg_likelihood_skew.set_xlabel('Diagonal Entry - Alpha')
 avg_likelihood_skew.set_ylabel('Average Log Marginal Likelihood')
+avg_likelihood_skew_fig.savefig('Temporary_alpha_iterate.png')
 
 plt.show()
 

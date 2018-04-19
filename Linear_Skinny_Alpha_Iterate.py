@@ -912,7 +912,7 @@ vertices = np.array([[x_lower, x_lower, x_upper, x_upper], [y_lower, y_upper, y_
 
 # Iterate each for each of the 4 matrix variables from 0 to 5
 # ChangeParam
-element_skew = np.arange(1, 6.1, 2.0)  # 4 values for each, and cubed
+element_skew = np.arange(1, 6.1, 0.1)  # 4 values for each, and cubed
 iterate_count = element_skew.size
 
 # Initialise holding arrays
@@ -1059,7 +1059,7 @@ avg_likelihood_skew = avg_likelihood_skew_fig.add_subplot(111)
 avg_likelihood_skew.plot(element_skew, avg_log_likelihood, color='black')
 avg_likelihood_skew.set_xlabel('Diagonal Entry - Alpha')
 avg_likelihood_skew.set_ylabel('Average Log Marginal Likelihood')
-avg_likelihood_skew_fig.savefig('Temporary_alpha_iterate.png')
+avg_likelihood_skew_fig.savefig('Temporary_alpha_iterate_Full.png')
 
 plt.show()
 

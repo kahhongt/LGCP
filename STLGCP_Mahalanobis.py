@@ -1330,7 +1330,7 @@ initial_all_param = np.append(initial_kernel_param, initial_mat_param)
 start_gp_opt = time.clock()
 
 # ChangeParam
-ker = 'matern3'
+ker = 'matern1'
 opt_method = 'DE'
 print('Kernel is', ker)
 print('Optimizing Kernel Hyper-parameters...')
@@ -1350,12 +1350,19 @@ elif opt_method == 'DE':
     # The differential evolution uses the latin hypercube method - no gradient methods are used
 
     # The bound takes in a sequence of tuples
-    param_bound = [(-5, 5), (-5, 5), (-5, 5), (-5, 5), (-5, 5), (-5, 5), (-5, 5), (-5, 5), (-5, 5), (-5, 5)]
+    b_u = 2
+    b_l = -2
+    param_bound = [(b_l, b_u), (b_l, b_u), (b_l, b_u), (b_l, b_u), (b_l, b_u),
+                   (b_l, b_u), (b_l, b_u), (b_l, b_u), (b_l, b_u), (b_l, b_u)]
     param_sol = scopt.differential_evolution(func=gp_3d_mahalanobis, bounds=param_bound, args=args_param)
     func_optimal = param_sol.fun
 else:
     print('No GP optimization method entered - Differential Evolution used by default')
-    param_bound = [(-5, 5), (-5, 5), (-5, 5), (-5, 5), (-5, 5), (-5, 5), (-5, 5), (-5, 5), (-5, 5), (-5, 5)]
+    # The bound takes in a sequence of tuples
+    b_u = 2
+    b_l = -2
+    param_bound = [(b_l, b_u), (b_l, b_u), (b_l, b_u), (b_l, b_u), (b_l, b_u),
+                   (b_l, b_u), (b_l, b_u), (b_l, b_u), (b_l, b_u), (b_l, b_u)]
     param_sol = scopt.differential_evolution(func=gp_3d_mahalanobis, bounds=param_bound, args=args_param)
     func_optimal = param_sol.fun
 

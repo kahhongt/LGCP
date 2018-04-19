@@ -10,6 +10,7 @@ import matplotlib.path as mpath
 
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
+plt.switch_backend('agg')
 from mpl_toolkits.mplot3d import Axes3D
 
 

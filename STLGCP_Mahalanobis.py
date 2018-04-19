@@ -1331,7 +1331,7 @@ start_gp_opt = time.clock()
 
 # ChangeParam
 ker = 'matern1'
-opt_method = 'NM'
+opt_method = 'DE'
 print('Kernel is', ker)
 print('Optimizing Kernel Hyper-parameters...')
 
@@ -1342,7 +1342,7 @@ args_param = (xyt_vox, latent_v_vox, ker)  # tuple
 if opt_method == 'NM':
     param_sol = scopt.minimize(fun=gp_3d_mahalanobis, args=args_param, x0=initial_all_param,
                                method='Nelder-Mead',
-                               options={'xatol': 10, 'fatol': 100, 'disp': True, 'maxfev': 1000})
+                               options={'xatol': 10, 'fatol': 200, 'disp': True, 'maxfev': 1000})
     func_optimal = param_sol.fun
 elif opt_method == 'DE':
     # Attempt to use differential evolution method as proposed by Stork K Price
@@ -1481,7 +1481,7 @@ print('GP Hyper-parameter Optimization Completed')
 print('The starting kernel parameters are', initial_kernel_scalar)
 print('The starting matrix parameters are', initial_mat_param)
 
-
+"""
 # Plot 3-D Histogram after removing all the points with 0 occurrences
 # Create Boolean array to identify non-zero values
 non_zero = k_vox != 0
@@ -1543,3 +1543,4 @@ p_mean_layers.contourf(x_vox, y_vox, latent_intensity_mean_mesh, zdir='z', level
 p_mean_layers.contourf(x_vox, y_vox, latent_intensity_mean_mesh, zdir='z', levels=7+.1*levels)
 
 plt.show()
+"""

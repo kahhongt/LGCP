@@ -1330,7 +1330,7 @@ initial_all_param = np.append(initial_kernel_param, initial_mat_param)
 start_gp_opt = time.clock()
 
 # ChangeParam
-ker = 'rational_quad'
+ker = 'matern1'
 opt_method = 'DE'
 print('Kernel is', ker)
 print('Optimizing Kernel Hyper-parameters...')

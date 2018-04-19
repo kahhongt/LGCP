@@ -8,7 +8,7 @@ import scipy.special as scispec
 import scipy.optimize as scopt
 import matplotlib.path as mpath
 
-matplotlib.use('TkAgg')
+# matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 plt.switch_backend('agg')
 from mpl_toolkits.mplot3d import Axes3D
@@ -912,7 +912,7 @@ vertices = np.array([[x_lower, x_lower, x_upper, x_upper], [y_lower, y_upper, y_
 
 # Iterate each for each of the 4 matrix variables from 0 to 5
 # ChangeParam
-element_skew = np.arange(1, 6.1, 1.0)  # 4 values for each, and cubed
+element_skew = np.arange(1, 6.1, 2.0)  # 4 values for each, and cubed
 iterate_count = element_skew.size
 
 # Initialise holding arrays

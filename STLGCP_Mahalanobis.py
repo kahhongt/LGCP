@@ -1343,7 +1343,7 @@ args_param = (xyt_vox, latent_v_vox, ker)  # tuple
 
 # Bound for DE
 b_u = 1
-b_l = -1
+b_l = 0
 
 if opt_method == 'NM':
     param_sol = scopt.minimize(fun=gp_3d_mahalanobis, args=args_param, x0=initial_all_param,

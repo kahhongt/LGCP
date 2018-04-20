@@ -1053,7 +1053,7 @@ avg_likelihood_frob.plot(frob_norm, avg_log_likelihood, color='black')
 avg_likelihood_frob.set_xlabel('Frobenius Norm')
 avg_likelihood_frob.set_ylabel('Average Log Marginal Likelihood')
 
-# Plot average likelihood against frobenius norm
+# Plot average likelihood against skew value
 avg_likelihood_skew_fig = plt.figure()
 avg_likelihood_skew = avg_likelihood_skew_fig.add_subplot(111)
 avg_likelihood_skew.plot(element_skew, avg_log_likelihood, color='black')

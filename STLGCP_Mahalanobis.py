@@ -1339,6 +1339,10 @@ start_gp_opt = time.clock()
 
 args_param = (xyt_vox, latent_v_vox, ker)  # tuple
 
+# Bound for DE
+b_u = 2
+b_l = -2
+
 if opt_method == 'NM':
     param_sol = scopt.minimize(fun=gp_3d_mahalanobis, args=args_param, x0=initial_all_param,
                                method='Nelder-Mead',
@@ -1359,8 +1363,6 @@ elif opt_method == 'DE':
 else:
     print('No GP optimization method entered - Differential Evolution used by default')
     # The bound takes in a sequence of tuples
-    b_u = 2
-    b_l = -2
     param_bound = [(b_l, b_u), (b_l, b_u), (b_l, b_u), (b_l, b_u), (b_l, b_u),
                    (b_l, b_u), (b_l, b_u), (b_l, b_u), (b_l, b_u), (b_l, b_u)]
     param_sol = scopt.differential_evolution(func=gp_3d_mahalanobis, bounds=param_bound, args=args_param)
@@ -1487,6 +1489,7 @@ print('The number of voxels per side is', vox_on_side)
 print('GP Hyper-parameter Optimization Completed')
 print('The starting kernel parameters are', initial_kernel_scalar)
 print('The starting matrix parameters are', initial_mat_param)
+print('Differential evolution bound is', np.array([b_l, b_u]))
 
 """
 # Plot 3-D Histogram after removing all the points with 0 occurrences

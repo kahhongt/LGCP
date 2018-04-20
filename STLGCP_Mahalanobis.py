@@ -1236,7 +1236,7 @@ print('The number of scatter points is', x_taiwan_selected.size)
 xy_taiwan_selected = np.vstack((x_taiwan_selected, y_taiwan_selected))
 xyt_taiwan_selected = np.vstack((xy_taiwan_selected, t_taiwan_selected))
 
-vox_on_side = 10
+vox_on_side = 5
 k_mesh, xyt_edges = np.histogramdd(np.transpose(xyt_taiwan_selected), bins=(vox_on_side, vox_on_side, vox_on_side),
                                    range=((x_lower, x_upper), (y_lower, y_upper), (year_lower, year_upper)))
 
@@ -1334,14 +1334,16 @@ ker = 'matern1'
 opt_method = 'DE'
 print('Kernel is', ker)
 print('Optimizing Kernel Hyper-parameters...')
+print('Vox per side is', vox_on_side)
+print('Optimization method is', opt_method)
 
 start_gp_opt = time.clock()
 
 args_param = (xyt_vox, latent_v_vox, ker)  # tuple
 
 # Bound for DE
-b_u = 2
-b_l = -2
+b_u = 1
+b_l = -1
 
 if opt_method == 'NM':
     param_sol = scopt.minimize(fun=gp_3d_mahalanobis, args=args_param, x0=initial_all_param,

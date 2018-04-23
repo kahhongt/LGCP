@@ -1215,7 +1215,7 @@ bounds = (-1, 1)
 res = skopt.gp_minimize(f, [(-1.0, 1.0)])
 print('The solution is', res)
 
-sol = skopt.gp_minimize(squared_function, [bounds])
+sol = skopt.gp_minimize(squared_function, [bounds, bounds])
 print('The squared function solution is', sol)
 
 end_time = time.clock()

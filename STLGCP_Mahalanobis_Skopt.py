@@ -1420,10 +1420,10 @@ elif opt_method == 'GP':
     # Bayesian Optimization using Scikit-Optimize - Skopt
     # Note inputs are entered as lists instead of tuple
     # Decide bounds
-    kernel_bounds = (-1.0, 1.0)
+    kernel_bounds = (-5.0, -5.0)
     kernel_middle = sum(kernel_bounds)/2
     mahala_bounds_diag = (1.0, 2.0)
-    mahala_bounds_skew = (0.0, 0.5)
+    mahala_bounds_skew = (0.0, 0.3)
 
     # Enter Arguments - which is args_param but must be in a list
     args_param = [xyt_vox, latent_v_vox, ker]  # This is a list to be entered into skp
@@ -1459,20 +1459,17 @@ elif opt_method == 'GP':
 elif opt_method == 'DM':  # Random search by uniform sampling within the given bounds - which may be pretty good
     # Decide bounds
     print('Performing random search for minimum by uniform sampling within given bounds')
-    kernel_bounds = (0.1, 1.1)
+    kernel_bounds = (-5.0, 5.0)
     kernel_middle = sum(kernel_bounds)/2
-    mahala_bounds = (0.1, 1.1)
-    mahala_middle = sum(mahala_bounds)/2
+    mahala_bounds_diag = (1.0, 2.0)
+    mahala_bounds_skew = (0.0, 0.3)
 
     # Enter Arguments - which is args_param but must be in a list
     args_param = [xyt_vox, latent_v_vox, ker]  # This is a list to be entered into skp
 
     list_of_bounds = [kernel_bounds, kernel_bounds, kernel_bounds, kernel_bounds,
-                      mahala_bounds, mahala_bounds, mahala_bounds, mahala_bounds, mahala_bounds, mahala_bounds]
-
-    # Enter initial starting point
-    list_of_middle = [kernel_middle, kernel_middle, kernel_middle, kernel_middle,
-                      mahala_middle, mahala_middle, mahala_middle, mahala_middle, mahala_middle, mahala_middle]
+                      mahala_bounds_diag, mahala_bounds_skew, mahala_bounds_skew,
+                      mahala_bounds_diag, mahala_bounds_skew, mahala_bounds_diag]
 
     param_sol = skp.dummy_minimize(func=gp_3d_mahalanobis_skopt,
                                    dimensions=list_of_bounds,

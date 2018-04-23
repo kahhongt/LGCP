@@ -1398,11 +1398,13 @@ def gp_3d_mahalanobis_skopt(param):
 
 
 if opt_method == 'NM':
+    print('Kernel Optimization using Nelder-Mead Function evaluation method')
     param_sol = scopt.minimize(fun=gp_3d_mahalanobis, args=args_param, x0=initial_all_param,
                                method='Nelder-Mead',
                                options={'xatol': 10, 'fatol': 300, 'disp': True, 'maxfev': 1000})
     func_optimal = param_sol.fun
 elif opt_method == 'DE':
+    print('Kernel Optimization using Differential Evolution')
     # Attempt to use differential evolution method as proposed by Stork K Price
     # Initialise Bounds for the parameters - in differential evolution, it takes a bound instead of starting point
     # The differential evolution uses the latin hypercube method - no gradient methods are used
@@ -1414,6 +1416,7 @@ elif opt_method == 'DE':
                    (b_l, b_u), (b_l, b_u), (b_l, b_u), (b_l, b_u), (b_l, b_u)]
     param_sol = scopt.differential_evolution(func=gp_3d_mahalanobis, bounds=param_bound, args=args_param)
 elif opt_method == 'GP':
+    print('Performing Bayesian Optimization to find optimize for hyper-parameters')
     # Bayesian Optimization using Scikit-Optimize - Skopt
     # Note inputs are entered as lists instead of tuple
     # Decide bounds

@@ -1345,13 +1345,13 @@ mahala_bounds_diag_m = sum(mahala_bounds_diag) / 2
 mahala_bounds_skew = (0.0, 0.5)
 mahala_bounds_skew_m = sum(mahala_bounds_skew) / 2
 
-list_of_bounds = [kernel_bounds_m, kernel_bounds_m, kernel_bounds_m, kernel_bounds_m,
-                  mahala_bounds_diag_m, mahala_bounds_skew_m, mahala_bounds_skew_m,
-                  mahala_bounds_diag_m, mahala_bounds_skew_m, mahala_bounds_diag_m]
-
-middle_of_bounds = [kernel_bounds, kernel_bounds, kernel_bounds, kernel_bounds,
+list_of_bounds = [kernel_bounds, kernel_bounds, kernel_bounds, kernel_bounds,
                   mahala_bounds_diag, mahala_bounds_skew, mahala_bounds_skew,
                   mahala_bounds_diag, mahala_bounds_skew, mahala_bounds_diag]
+
+middle_of_bounds = [kernel_bounds_m, kernel_bounds_m, kernel_bounds_m, kernel_bounds_m,
+                    mahala_bounds_diag_m, mahala_bounds_skew_m, mahala_bounds_skew_m,
+                    mahala_bounds_diag_m, mahala_bounds_skew_m, mahala_bounds_diag_m]
 
 
 # -------------------------------------------- CREATE NEW FUNCTION FOR GP OPTIMIZATION - BAYESIAN USING SKOPT

@@ -1419,7 +1419,7 @@ def gp_3d_mahalanobis_skopt(param):
         log_gp_min = 1000000  # give excessively large value for me to ignore
     elif log_gp_minimization >= 1000000:
         log_gp_min = 10000  # The penalty need not be so much
-    elif np.isnan(log_gp_minimization) == 'True':
+    elif np.isnan(log_gp_minimization) == 1:
         log_gp_min = 2000000  # Penalise this more
     else:
         log_gp_min = log_gp_minimization
@@ -1479,7 +1479,8 @@ elif opt_method == 'GP':
     param_sol = skp.gp_minimize(func=gp_3d_mahalanobis_skopt,
                                 dimensions=list_of_bounds,
                                 verbose=True,
-                                n_random_starts=random_starts)
+                                n_random_starts=random_starts,
+                                n_calls=500)
 elif opt_method == 'DM':  # Random search by uniform sampling within the given bounds - which may be pretty good
     # Decide bounds
     print('Performing random search for minimum by uniform sampling within given bounds')

@@ -1254,6 +1254,8 @@ def squared_callback(x):
     feval_number += 1
 
 
+
+"""
 bounds = (-2, 2)  # Create tuple
 # def dummy_minimize(	func, dimensions, n_calls=100, x0=None, y0=None, random_state=None, verbose=False, callback=None)
 # solution = skp.dummy_minimize(func=rosen, dimensions=[bounds, bounds, bounds], verbose=True, callback=rosen_callback)
@@ -1264,11 +1266,19 @@ rosen_solution = skp.dummy_minimize(func=rosen, dimensions=[bounds, bounds, boun
 
 # Obtain solution for squared function
 squared_solution = skp.gp_minimize(func=squared_function, dimensions=[bounds, bounds], verbose=True)
-
+"""
 
 # print(solution)
 
+a = np.nan
+b = np.isnan(a)
+print(b)
+print(a)
 
+if b == 'True':
+    print('not bpod')
+elif b == 1:
+    print('yesy')
 
 # ------------------------------------------ END OF SKOPT TEST
 """

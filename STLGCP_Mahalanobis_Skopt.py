@@ -1422,7 +1422,7 @@ elif opt_method == 'GP':
     # Note inputs are entered as lists instead of tuple
     # Decide bounds
     kernel_bounds = (-1, 1)
-    mahala_bounds = (-1, 1)
+    mahala_bounds = (0, 2)
 
     # Enter Arguments - which is args_param but must be in a list
     args_param = [xyt_vox, latent_v_vox, ker]  # This is a list to be entered into skp
@@ -1451,8 +1451,7 @@ elif opt_method == 'GP':
     """
     param_sol = skp.gp_minimize(func=gp_3d_mahalanobis_skopt,
                                 dimensions=list_of_bounds,
-                                verbose=True,
-                                acq_func='EI')
+                                verbose=True)
     func_optimal = param_sol.fun
 else:
     print('No GP optimization method entered - Differential Evolution used by default')

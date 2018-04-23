@@ -1338,6 +1338,7 @@ print('Optimization method is', opt_method)
 
 args_param = (xyt_vox, latent_v_vox, ker)  # tuple
 
+# ChangeParam
 kernel_bounds = (-5.0, 5.0)
 kernel_bounds_m = sum(kernel_bounds) / 2
 mahala_bounds_diag = (1.0, 2.0)

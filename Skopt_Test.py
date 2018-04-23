@@ -3,13 +3,14 @@ import math
 import matplotlib
 import numpy as np
 import functions as fn
+import skopt
 import time
 import scipy.special as scispec
 import scipy.optimize as scopt
 import skopt
 from collections import Counter
 
-matplotlib.use('TkAgg')
+# matplotlib.use('TkAgg')
 import matplotlib.cm as cmx
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
@@ -1195,6 +1196,33 @@ def fast_rational_quadratic_3d(alpha_rq, length_rq, x1, x2, matrix_tuple):
     return covariance_matrix
 
 
+# ------------------------------------------ SKOPT TEST PHASE
+
+start_time = time.clock()
+
+def f(x):
+    return (np.sin(5 * x[0]) * (1 - np.tanh(x[0] ** 2)) *
+            np.random.randn() * 0.1)
+
+
+def squared_function(x, y):
+    function_value = x ** 2 + y ** 2
+    return function_value
+
+
+bounds = (-1, 1)
+
+res = skopt.gp_minimize(f, [(-1.0, 1.0)])
+print('The solution is', res)
+
+sol = skopt.gp_minimize(squared_function, [bounds])
+print('The squared function solution is', sol)
+
+end_time = time.clock()
+print('Time taken is', end_time - start_time)
+
+# ------------------------------------------ END OF SKOPT TEST
+"""
 # ------------------------------------------ DATA COLLECTION STAGE
 # Aedes Occurrences in Brazil
 aedes_df = pd.read_csv('Aedes_PP_Data.csv')  # generates dataframe from csv - zika data
@@ -1305,13 +1333,6 @@ print('The Average Log Likelihood is', avg_p_likelihood)
 print('The Poisson optimization methods is', poisson_opt_method)
 print('Latent Intensity Array Optimization Completed')
 
-"""
-index = np.arange(0, latent_v_vox.size, 1)
-test_fig = plt.figure()
-test = test_fig.add_subplot(111)
-test.plot(index, latent_v_vox, color='black')
-plt.show()
-"""
 
 # -------------------------------------------------------------------- START OF KERNEL OPTIMIZATION
 start_gp_opt = time.clock()
@@ -1397,5 +1418,4 @@ print('GP Hyper-parameter Optimization Completed')
 print('The starting kernel parameters are', initial_kernel_scalar)
 print('The starting matrix parameters are', initial_mat_param)
 
-
-# -------------------------------------------------------------------- END OF KERNEL OPTIMIZATION
+"""

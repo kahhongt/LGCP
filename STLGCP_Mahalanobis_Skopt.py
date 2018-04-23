@@ -1355,7 +1355,7 @@ middle_of_bounds = [kernel_bounds_m, kernel_bounds_m, kernel_bounds_m, kernel_bo
                     mahala_bounds_diag_m, mahala_bounds_skew_m, mahala_bounds_diag_m]
 
 # Define number of random starts (latin hypercube concept)
-random_starts = 100
+random_starts = 10
 
 
 # -------------------------------------------- CREATE NEW FUNCTION FOR GP OPTIMIZATION - BAYESIAN USING SKOPT

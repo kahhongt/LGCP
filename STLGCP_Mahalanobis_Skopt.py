@@ -1416,19 +1416,24 @@ elif opt_method == 'DE':
     param_bound = [(b_l, b_u), (b_l, b_u), (b_l, b_u), (b_l, b_u), (b_l, b_u),
                    (b_l, b_u), (b_l, b_u), (b_l, b_u), (b_l, b_u), (b_l, b_u)]
     param_sol = scopt.differential_evolution(func=gp_3d_mahalanobis, bounds=param_bound, args=args_param)
-    func_optimal = param_sol.fun
 elif opt_method == 'GP':
     # Bayesian Optimization using Scikit-Optimize - Skopt
     # Note inputs are entered as lists instead of tuple
     # Decide bounds
-    kernel_bounds = (-1, 1)
-    mahala_bounds = (0, 2)
+    kernel_bounds = (0.1, 1.1)
+    kernel_middle = sum(kernel_bounds)/2
+    mahala_bounds = (0.1, 1.1)
+    mahala_middle = sum(mahala_bounds)/2
 
     # Enter Arguments - which is args_param but must be in a list
     args_param = [xyt_vox, latent_v_vox, ker]  # This is a list to be entered into skp
 
     list_of_bounds = [kernel_bounds, kernel_bounds, kernel_bounds, kernel_bounds,
                       mahala_bounds, mahala_bounds, mahala_bounds, mahala_bounds, mahala_bounds, mahala_bounds]
+
+    # Enter initial starting point
+    list_of_middle = [kernel_middle, kernel_middle, kernel_middle, kernel_middle,
+                      mahala_middle, mahala_middle, mahala_middle, mahala_middle, mahala_middle, mahala_middle]
 
     # I have to enter arguments into the objective function itself
     """
@@ -1451,8 +1456,7 @@ elif opt_method == 'GP':
     """
     param_sol = skp.gp_minimize(func=gp_3d_mahalanobis_skopt,
                                 dimensions=list_of_bounds,
-                                verbose=True)
-    func_optimal = param_sol.fun
+                                x0=list_of_middle)
 else:
     print('No GP optimization method entered - Differential Evolution used by default')
     # The bound takes in a sequence of tuples
@@ -1461,7 +1465,6 @@ else:
     param_bound = [(b_l, b_u), (b_l, b_u), (b_l, b_u), (b_l, b_u), (b_l, b_u),
                    (b_l, b_u), (b_l, b_u), (b_l, b_u), (b_l, b_u), (b_l, b_u)]
     param_sol = scopt.differential_evolution(func=gp_3d_mahalanobis, bounds=param_bound, args=args_param)
-    func_optimal = param_sol.fun
 
 
 end_gp_opt = time.clock()

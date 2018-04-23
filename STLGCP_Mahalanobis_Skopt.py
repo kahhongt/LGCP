@@ -1353,6 +1353,9 @@ middle_of_bounds = [kernel_bounds_m, kernel_bounds_m, kernel_bounds_m, kernel_bo
                     mahala_bounds_diag_m, mahala_bounds_skew_m, mahala_bounds_skew_m,
                     mahala_bounds_diag_m, mahala_bounds_skew_m, mahala_bounds_diag_m]
 
+# Define number of random starts (latin hypercube concept)
+random_starts = 100
+
 
 # -------------------------------------------- CREATE NEW FUNCTION FOR GP OPTIMIZATION - BAYESIAN USING SKOPT
 # Define new function here for definition - to be used for GP opt_method
@@ -1449,6 +1452,7 @@ elif opt_method == 'GP':
     args_param = [xyt_vox, latent_v_vox, ker]  # This is a list to be entered into skp
 
     print('List of bounds is', list_of_bounds)
+    print('The number of random starts is', random_starts)
 
     # I have to enter arguments into the objective function itself
     """
@@ -1472,7 +1476,7 @@ elif opt_method == 'GP':
     param_sol = skp.gp_minimize(func=gp_3d_mahalanobis_skopt,
                                 dimensions=list_of_bounds,
                                 verbose=True,
-                                n_random_starts=5)
+                                n_random_starts=random_starts)
 elif opt_method == 'DM':  # Random search by uniform sampling within the given bounds - which may be pretty good
     # Decide bounds
     print('Performing random search for minimum by uniform sampling within given bounds')

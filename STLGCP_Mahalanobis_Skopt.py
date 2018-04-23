@@ -1421,8 +1421,8 @@ elif opt_method == 'GP':
     # Bayesian Optimization using Scikit-Optimize - Skopt
     # Note inputs are entered as lists instead of tuple
     # Decide bounds
-    kernel_bounds = (0, 2)
-    mahala_bounds = (0, 2)
+    kernel_bounds = (-1, 1)
+    mahala_bounds = (-1, 1)
 
     # Enter Arguments - which is args_param but must be in a list
     args_param = [xyt_vox, latent_v_vox, ker]  # This is a list to be entered into skp
@@ -1431,6 +1431,7 @@ elif opt_method == 'GP':
                       mahala_bounds, mahala_bounds, mahala_bounds, mahala_bounds, mahala_bounds, mahala_bounds]
 
     # I have to enter arguments into the objective function itself
+    """
     param_sol = skp.gp_minimize(func=gp_3d_mahalanobis_skopt,
                                 dimensions=list_of_bounds,
                                 base_estimator=None,  # This is Matern by default - within the GP Bayesian Optimization
@@ -1447,6 +1448,12 @@ elif opt_method == 'GP':
                                 xi=0.01,
                                 kappa=1.96,
                                 noise='gaussian')
+    """
+    param_sol = skp.gp_minimize(func=gp_3d_mahalanobis_skopt,
+                                dimensions=list_of_bounds,
+                                verbose=True,
+                                n_calls=100,
+                                n_random_starts=10)
     func_optimal = param_sol.fun
 else:
     print('No GP optimization method entered - Differential Evolution used by default')

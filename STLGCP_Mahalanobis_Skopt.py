@@ -1457,6 +1457,7 @@ elif opt_method == 'GP':
                                 x0=list_of_middle)
 elif opt_method == 'DM':  # Random search by uniform sampling within the given bounds - which may be pretty good
     # Decide bounds
+    print('Performing random search for minimum by uniform sampling within given bounds')
     kernel_bounds = (0.1, 1.1)
     kernel_middle = sum(kernel_bounds)/2
     mahala_bounds = (0.1, 1.1)

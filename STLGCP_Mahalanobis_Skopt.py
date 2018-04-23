@@ -1327,12 +1327,9 @@ initial_mat_param = np.array([1, 0, 0, 1, 0, 1])  # start off with the identity 
 
 initial_all_param = np.append(initial_kernel_param, initial_mat_param)
 
-# Record time taken for optimization
-start_gp_opt = time.clock()
-
 # ChangeParam
 ker = 'matern1'
-opt_method = 'GP'
+opt_method = 'DM'
 print('Kernel is', ker)
 print('Optimizing Kernel Hyper-parameters...')
 print('Vox per side is', vox_on_side)
@@ -1456,7 +1453,28 @@ elif opt_method == 'GP':
     """
     param_sol = skp.gp_minimize(func=gp_3d_mahalanobis_skopt,
                                 dimensions=list_of_bounds,
+                                verbose=True,
                                 x0=list_of_middle)
+elif opt_method == 'DM':  # Random search by uniform sampling within the given bounds - which may be pretty good
+    # Decide bounds
+    kernel_bounds = (0.1, 1.1)
+    kernel_middle = sum(kernel_bounds)/2
+    mahala_bounds = (0.1, 1.1)
+    mahala_middle = sum(mahala_bounds)/2
+
+    # Enter Arguments - which is args_param but must be in a list
+    args_param = [xyt_vox, latent_v_vox, ker]  # This is a list to be entered into skp
+
+    list_of_bounds = [kernel_bounds, kernel_bounds, kernel_bounds, kernel_bounds,
+                      mahala_bounds, mahala_bounds, mahala_bounds, mahala_bounds, mahala_bounds, mahala_bounds]
+
+    # Enter initial starting point
+    list_of_middle = [kernel_middle, kernel_middle, kernel_middle, kernel_middle,
+                      mahala_middle, mahala_middle, mahala_middle, mahala_middle, mahala_middle, mahala_middle]
+
+    param_sol = skp.dummy_minimize(func=gp_3d_mahalanobis_skopt,
+                                   dimensions=list_of_bounds,
+                                   n_calls=100)
 else:
     print('No GP optimization method entered - Differential Evolution used by default')
     # The bound takes in a sequence of tuples

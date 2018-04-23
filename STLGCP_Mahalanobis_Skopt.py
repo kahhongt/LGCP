@@ -1338,10 +1338,20 @@ print('Optimization method is', opt_method)
 
 args_param = (xyt_vox, latent_v_vox, ker)  # tuple
 
-kernel_bounds = (-5.0, 5.0)
-kernel_middle = sum(kernel_bounds) / 2
+kernel_bounds = (-10.0, 10.0)
+kernel_bounds_m = sum(kernel_bounds) / 2
 mahala_bounds_diag = (1.0, 5.0)
-mahala_bounds_skew = (0.0, 0.3)
+mahala_bounds_diag_m = sum(mahala_bounds_diag) / 2
+mahala_bounds_skew = (0.0, 0.5)
+mahala_bounds_skew_m = sum(mahala_bounds_skew) / 2
+
+list_of_bounds = [kernel_bounds_m, kernel_bounds_m, kernel_bounds_m, kernel_bounds_m,
+                  mahala_bounds_diag_m, mahala_bounds_skew_m, mahala_bounds_skew_m,
+                  mahala_bounds_diag_m, mahala_bounds_skew_m, mahala_bounds_diag_m]
+
+middle_of_bounds = [kernel_bounds, kernel_bounds, kernel_bounds, kernel_bounds,
+                  mahala_bounds_diag, mahala_bounds_skew, mahala_bounds_skew,
+                  mahala_bounds_diag, mahala_bounds_skew, mahala_bounds_diag]
 
 
 # -------------------------------------------- CREATE NEW FUNCTION FOR GP OPTIMIZATION - BAYESIAN USING SKOPT
@@ -1436,10 +1446,6 @@ elif opt_method == 'GP':
     # Enter Arguments - which is args_param but must be in a list
     args_param = [xyt_vox, latent_v_vox, ker]  # This is a list to be entered into skp
 
-    list_of_bounds = [kernel_bounds, kernel_bounds, kernel_bounds, kernel_bounds,
-                      mahala_bounds_diag, mahala_bounds_skew, mahala_bounds_skew,
-                      mahala_bounds_diag, mahala_bounds_skew, mahala_bounds_diag]
-
     print('List of bounds is', list_of_bounds)
 
     # I have to enter arguments into the objective function itself
@@ -1463,17 +1469,14 @@ elif opt_method == 'GP':
     """
     param_sol = skp.gp_minimize(func=gp_3d_mahalanobis_skopt,
                                 dimensions=list_of_bounds,
-                                verbose=True)
+                                verbose=True,
+                                x0=middle_of_bounds)
 elif opt_method == 'DM':  # Random search by uniform sampling within the given bounds - which may be pretty good
     # Decide bounds
     print('Performing random search for minimum by uniform sampling within given bounds')
 
     # Enter Arguments - which is args_param but must be in a list
     args_param = [xyt_vox, latent_v_vox, ker]  # This is a list to be entered into skp
-
-    list_of_bounds = [kernel_bounds, kernel_bounds, kernel_bounds, kernel_bounds,
-                      mahala_bounds_diag, mahala_bounds_skew, mahala_bounds_skew,
-                      mahala_bounds_diag, mahala_bounds_skew, mahala_bounds_diag]
 
     param_sol = skp.dummy_minimize(func=gp_3d_mahalanobis_skopt,
                                    dimensions=list_of_bounds,

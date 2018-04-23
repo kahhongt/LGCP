@@ -3,14 +3,13 @@ import math
 import matplotlib
 import numpy as np
 import functions as fn
-import skopt as skp
 import time
 import scipy.special as scispec
 import scipy.optimize as scopt
-import skopt
+import skopt as skp
 from collections import Counter
 
-# matplotlib.use('TkAgg')
+matplotlib.use('TkAgg')
 import matplotlib.cm as cmx
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
@@ -1196,82 +1195,8 @@ def fast_rational_quadratic_3d(alpha_rq, length_rq, x1, x2, matrix_tuple):
     return covariance_matrix
 
 
-# ------------------------------------------ SKOPT TEST PHASE
-
-start_time = time.clock()
-
-"""
-Nfeval = 1
 
 
-def rosen(X):  # Rosenbrock function
-    return (1.0 - X[0])**2 + 100.0 * (X[1] - X[0]**2)**2 + \
-           (1.0 - X[1])**2 + 100.0 * (X[2] - X[1]**2)**2
-
-
-def callbackF(Xi):
-    global Nfeval
-    print('{0:4d}   {1: 3.6f}   {2: 3.6f}   {3: 3.6f}   {4: 3.6f}'.format(Nfeval, Xi[0], Xi[1], Xi[2], rosen(Xi)))
-    Nfeval += 1
-
-
-print('{0:4s}   {1:9s}   {2:9s}   {3:9s}   {4:9s}'.format('Iter', ' X1', ' X2', ' X3', 'f(X)'))
-x0 = np.array([1.1, 1.1, 1.1], dtype=np.double)
-solution = scopt.fmin_bfgs(rosen, x0, callback=callbackF, maxiter=2000, full_output=True, retall=False)
-"""
-# ------------------------------------- Create new for own squared function
-
-
-def f(x):
-    return (np.sin(5 * x[0]) * (1 - np.tanh(x[0] ** 2)) *
-            np.random.randn() * 0.1)
-
-
-def squared_function(param):  # Make sure to take in tuple of parameters
-    x = param[0]
-    y = param[1]
-    function_value = x ** 2 + y ** 2 + 5
-    return function_value  # Optimal value should be 0 at (0, 0)
-
-
-def rosen(x):  # Rosenbrock function
-    rosen_value = (1.0 - x[0])**2 + 100.0 * (x[1] - x[0]**2)**2 + (1.0 - x[1])**2 + 100.0 * (x[2] - x[1]**2)**2
-    return rosen_value
-
-
-feval_number = 1
-
-
-def rosen_callback(x):
-    global feval_number
-    print('{0:4d}   {1: 3.6f}   {2: 3.6f}   {3: 3.6f}   {4: 3.6f}'.format(feval_number, x[0], x[1], x[2], rosen(x)))
-    feval_number += 1
-
-
-def squared_callback(x):
-    global feval_number
-    print('{0:4d}   {1: 3.6f}   {2: 3.6f}   {3: 3.6f}'.format(feval_number, x[0], x[1], squared_function(x)))
-    feval_number += 1
-
-
-bounds = (-2, 2)  # Create tuple
-# def dummy_minimize(	func, dimensions, n_calls=100, x0=None, y0=None, random_state=None, verbose=False, callback=None)
-# solution = skp.dummy_minimize(func=rosen, dimensions=[bounds, bounds, bounds], verbose=True, callback=rosen_callback)
-
-# Obtain solution for rosenbrock
-rosen_solution = skp.dummy_minimize(func=rosen, dimensions=[bounds, bounds, bounds], verbose=True)
-
-
-# Obtain solution for squared function
-squared_solution = skp.gp_minimize(func=squared_function, dimensions=[bounds, bounds], verbose=True)
-
-
-# print(solution)
-
-
-
-# ------------------------------------------ END OF SKOPT TEST
-"""
 # ------------------------------------------ DATA COLLECTION STAGE
 # Aedes Occurrences in Brazil
 aedes_df = pd.read_csv('Aedes_PP_Data.csv')  # generates dataframe from csv - zika data
@@ -1382,6 +1307,13 @@ print('The Average Log Likelihood is', avg_p_likelihood)
 print('The Poisson optimization methods is', poisson_opt_method)
 print('Latent Intensity Array Optimization Completed')
 
+"""
+index = np.arange(0, latent_v_vox.size, 1)
+test_fig = plt.figure()
+test = test_fig.add_subplot(111)
+test.plot(index, latent_v_vox, color='black')
+plt.show()
+"""
 
 # -------------------------------------------------------------------- START OF KERNEL OPTIMIZATION
 start_gp_opt = time.clock()
@@ -1402,15 +1334,72 @@ start_gp_opt = time.clock()
 
 # ChangeParam
 ker = 'matern1'
-opt_method = 'DE'
+opt_method = 'GP'
 print('Kernel is', ker)
 print('Optimizing Kernel Hyper-parameters...')
 print('Vox per side is', vox_on_side)
 print('Optimization method is', opt_method)
 
-start_gp_opt = time.clock()
+# -------------------------------------------- CREATE NEW FUNCTION FOR GP OPTIMIZATION - BAYESIAN USING SKOPT
 
 args_param = (xyt_vox, latent_v_vox, ker)  # tuple
+
+
+def gp_3d_mahalanobis_skopt(param):
+    """
+    Returns the Log_likelihood for the Spatial Temporal LGCP after obtaining the latent intensities
+    - using the Malahanobis distance metric
+    - takes in arguments implicitly, as the skopt package does not easily allow arguments to be passed
+    :param param: hyperparameters - sigma, length scale and noise, prior scalar mean - array of 4 elements
+    :param args: xy coordinates for input into the covariance function and the optimised v_array
+    :return: the log of the GP Prior, log[N(prior mean, covariance matrix)]
+    """
+    # Generate Matern Covariance Matrix
+    # Enter parameters - there are now 5 parameters to optimize
+    sigma = param[0]
+    length = param[1]
+    noise = param[2]
+    scalar_mean = param[3]
+    matrix_tup = param[4:]  # Include the matrix array now - have to create the tuple beforehand
+
+    # There are 3 arguments to be entered - use vstack to create 3 input rows - x, y and z
+    xyt_coord = args_param[0]
+    v_array = args_param[1]  # This is the optimized v_array
+    kernel = args_param[2]  # Kernel chosen for the cases below
+
+    # Create prior mean array
+    prior_mean = mean_func_scalar(scalar_mean, xyt_coord[0])
+
+    # Construct covariance function with the 3D kernel
+    if kernel == 'matern1':
+        c_auto = fast_matern_1_3d(sigma, length, xyt_coord, xyt_coord, matrix_tup)
+    elif kernel == 'matern3':
+        c_auto = fast_matern_3_3d(sigma, length, xyt_coord, xyt_coord, matrix_tup)
+    elif kernel == 'squared_exponential':
+        c_auto = fast_squared_exp_3d(sigma, length, xyt_coord, xyt_coord, matrix_tup)
+    elif kernel == 'rational_quad':
+        c_auto = fast_rational_quadratic_3d(sigma, length, xyt_coord, xyt_coord, matrix_tup)
+    else:
+        c_auto = np.eye(v_array.size)
+        print('No appropriate kernel found')
+
+    c_noise = np.eye(c_auto.shape[0]) * (noise ** 2)  # Fro-necker delta function
+    cov_matrix = c_auto + c_noise
+
+    # Generate Determinant Term (after taking log)
+    determinant = np.exp(np.linalg.slogdet(cov_matrix))[1]
+    det_term = -0.5 * np.log(2 * np.pi * determinant)
+
+    # Generate Euclidean Term (after taking log)
+    v_difference = v_array - prior_mean
+    inv_covariance_matrix = np.linalg.inv(cov_matrix)
+    euclidean_term = -0.5 * fn.matmulmul(v_difference, inv_covariance_matrix, np.transpose(v_difference))
+
+    """Summation of all terms change to correct form to find minimum point"""
+    log_gp = det_term + euclidean_term
+    log_gp_minimization = -1 * log_gp  # Make the function convex for minimization
+    return log_gp_minimization
+
 
 # Bound for DE
 b_u = 1
@@ -1432,6 +1421,37 @@ elif opt_method == 'DE':
     param_bound = [(b_l, b_u), (b_l, b_u), (b_l, b_u), (b_l, b_u), (b_l, b_u),
                    (b_l, b_u), (b_l, b_u), (b_l, b_u), (b_l, b_u), (b_l, b_u)]
     param_sol = scopt.differential_evolution(func=gp_3d_mahalanobis, bounds=param_bound, args=args_param)
+    func_optimal = param_sol.fun
+elif opt_method == 'GP':
+    # Bayesian Optimization using Scikit-Optimize - Skopt
+    # Note inputs are entered as lists instead of tuple
+    # Decide bounds
+    kernel_bounds = (-2, 2)
+    mahala_bounds = (-2, 2)
+
+    # Enter Arguments - which is args_param but must be in a list
+    args_param = [xyt_vox, latent_v_vox, ker]  # This is a list to be entered into skp
+
+    list_of_bounds = [kernel_bounds, kernel_bounds, kernel_bounds, kernel_bounds,
+                      mahala_bounds, mahala_bounds, mahala_bounds, mahala_bounds, mahala_bounds, mahala_bounds]
+
+    # I have to enter arguments into the objective function itself
+    param_sol = skp.gp_minimize(func=gp_3d_mahalanobis,
+                                dimensions=list_of_bounds,
+                                base_estimator=None,  # This is Matern by default - within the GP Bayesian Optimization
+                                n_calls=100,
+                                n_random_starts=10,
+                                acq_func='gp_hedge',
+                                acq_optimizer='auto',
+                                x0=None,  # Initial Input Points
+                                y0=None,  # Initial Output Points
+                                random_state=None,
+                                verbose=True,
+                                n_points=10000,
+                                n_restarts_optimizer=5,
+                                xi=0.01,
+                                kappa=1.96,
+                                noise='gaussian')
     func_optimal = param_sol.fun
 else:
     print('No GP optimization method entered - Differential Evolution used by default')
@@ -1467,4 +1487,101 @@ print('GP Hyper-parameter Optimization Completed')
 print('The starting kernel parameters are', initial_kernel_scalar)
 print('The starting matrix parameters are', initial_mat_param)
 
+
+# -------------------------------------------------------------------- END OF KERNEL OPTIMIZATION
+
+"""
+# -------------------------------------------------------------------- START POSTERIOR TABULATION
+# Note Hessian = second derivative of the log[g(v)]
+# Posterior Distribution follows N(v; v_hap, -1 * Hessian)
+print('Performing Posterior Tabulation...')
+start_posterior_tab = time.clock()
+
+# Generate prior covariance matrix with kronecker noise
+if ker == 'matern1':
+    cov_auto = fast_matern_1_3d(sigma_optimal, length_optimal, xyt_vox, xyt_vox, matrix_var_optimal)
+elif ker == 'matern3':
+    cov_auto = fast_matern_3_3d(sigma_optimal, length_optimal, xyt_vox, xyt_vox, matrix_var_optimal)
+elif ker == 'squared_exponential':
+    cov_auto = fast_squared_exp_3d(sigma_optimal, length_optimal, xyt_vox, xyt_vox, matrix_var_optimal)
+elif ker == 'rational_quad':
+    cov_auto = fast_rational_quadratic_3d(sigma_optimal, length_optimal, xyt_vox, xyt_vox, matrix_var_optimal)
+else:
+    cov_auto = np.eye(latent_v_vox.size)
+    print('No appropriate kernel chosen')
+
+cov_noise = (noise_optimal ** 2) * np.eye(cov_auto.shape[0])  # Addition of noise
+cov_overall = cov_auto + cov_noise
+
+# Generate inverse of covariance matrix and set up the hessian matrix using symmetry
+inv_cov_overall = np.linalg.inv(cov_overall)
+inv_cov_diagonal_array = np.diag(inv_cov_overall)
+hess_diagonal = -1 * (np.exp(latent_v_vox) + inv_cov_diagonal_array)
+
+# Initialise and generate hessian matrix
+hess_matrix = np.zeros_like(inv_cov_overall)
+hess_length = inv_cov_overall.shape[0]
+
+# Fill in values
+for i in range(hess_length):
+    hess_matrix[i, i] = -1 * (np.exp(latent_v_vox[i]) + inv_cov_overall[i, i])
+    for j in range(i + 1, hess_length):
+        hess_matrix[i, j] = -0.5 * (inv_cov_overall[i, j] + inv_cov_overall[j, i])
+        hess_matrix[j, i] = hess_matrix[i, j]
+
+# The hessian H of the log-likelihood at vhap is the negative of the Laplacian
+hess_matrix = - hess_matrix
+
+# Generate Posterior Covariance Matrix of log-intensity v *** Check this part
+posterior_cov_matrix_v = np.linalg.inv(hess_matrix)
+print('Posterior Covariance Matrix of v is ', posterior_cov_matrix_v)
+
+print('Posterior Covariance Calculation Completed')
+# ------------------------------------------------------------------- END POSTERIOR TABULATION
+
+# ------------------------------------------------------------------- START CONVERSION INTO ARITHMETIC MEAN AND SD
+print('Start conversion into arithmetic mean and standard deviation')
+# Tabulation of Posterior Latent Intensity Mean
+variance_v = np.diag(posterior_cov_matrix_v)
+latent_intensity_mean = np.exp(latent_v_vox + 0.5 * variance_v)
+
+# Tabulation of Posterior Latent Intensity Variance
+latent_intensity_var = np.exp((2 * latent_v_vox) + variance_v) * (np.exp(variance_v) - 1)
+latent_intensity_sd = np.sqrt(latent_intensity_var)
+
+# Mesh Matrix containing posterior mean and standard deviation for plotting purposes
+latent_intensity_mean_mesh = latent_intensity_mean.reshape(x_mesh.shape)
+latent_intensity_sd_mesh = latent_intensity_sd.reshape(x_mesh.shape)
+# Note that we cannot recreate the mesh after the zero points have been excluded
+
+
+print('Log-Intensity Variances are ', variance_v)
+print('Latent Intensity Values are ', latent_intensity_mean)
+print('Latent Intensity Variances are ', latent_intensity_var)
+
+# Measure time taken for covariance matrix and final standard deviation tabulation
+time_posterior_tab = time.clock() - start_posterior_tab
+
+print('Time Taken for Conversion into Latent Intensity = ', time_posterior_tab)
+
+print('Latent Intensity Conversion Completed')
+print('Kernel is', ker)
+
+# ------------------------------------------ End of Conversion into Latent Intensity
+
+# ------------------------------------------ Calculate the MSE from the Arithmetic Mean
+mean_sq_error = fn.mean_squared_error(latent_intensity_mean, k_vox)
+print('The Mean Squared Error is', mean_sq_error)
+print('Last function evaluation is ', param_sol.fun)
+print('optimal sigma is ', sigma_optimal)
+print('optimal length-scale is ', length_optimal)
+print('optimal noise amplitude is ', noise_optimal)
+print('optimal scalar mean value is ', mean_optimal)
+print('optimal matrix variables are', matrix_var_optimal)
+print('Kernel is', ker)
+print('The number of voxels per side is', vox_on_side)
+print('GP Hyper-parameter Optimization Completed')
+print('The starting kernel parameters are', initial_kernel_scalar)
+print('The starting matrix parameters are', initial_mat_param)
+print('Differential evolution bound is', np.array([b_l, b_u]))
 """

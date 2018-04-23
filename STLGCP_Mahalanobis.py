@@ -6,7 +6,7 @@ import functions as fn
 import time
 import scipy.special as scispec
 import scipy.optimize as scopt
-import skopt
+import skopt as skp
 from collections import Counter
 
 matplotlib.use('TkAgg')

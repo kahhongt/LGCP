@@ -1062,7 +1062,7 @@ def fast_matern_1_3d(sigma_matern, length_matern, x1, x2, matrix_tuple):
             array_product = fn.matmulmul(diff, mat, np.transpose(diff))
             euclidean = np.sqrt(array_product)
 
-            exp_term = np.exp(-1 * euclidean * (length_matern ** -1))
+            exp_term = np.exp(-1 * euclidean * (1 / length_matern))
             cov_matrix[i, j] = (sigma_matern ** 2) * exp_term
             cov_matrix[j, i] = cov_matrix[i, j]
 
@@ -1195,8 +1195,6 @@ def fast_rational_quadratic_3d(alpha_rq, length_rq, x1, x2, matrix_tuple):
     return covariance_matrix
 
 
-
-
 # ------------------------------------------ DATA COLLECTION STAGE
 # Aedes Occurrences in Brazil
 aedes_df = pd.read_csv('Aedes_PP_Data.csv')  # generates dataframe from csv - zika data
@@ -1239,7 +1237,7 @@ print('The number of scatter points is', x_taiwan_selected.size)
 xy_taiwan_selected = np.vstack((x_taiwan_selected, y_taiwan_selected))
 xyt_taiwan_selected = np.vstack((xy_taiwan_selected, t_taiwan_selected))
 
-vox_on_side = 5
+vox_on_side = 10
 k_mesh, xyt_edges = np.histogramdd(np.transpose(xyt_taiwan_selected), bins=(vox_on_side, vox_on_side, vox_on_side),
                                    range=((x_lower, x_upper), (y_lower, y_upper), (year_lower, year_upper)))
 
@@ -1340,11 +1338,11 @@ print('Optimizing Kernel Hyper-parameters...')
 print('Vox per side is', vox_on_side)
 print('Optimization method is', opt_method)
 
-# -------------------------------------------- CREATE NEW FUNCTION FOR GP OPTIMIZATION - BAYESIAN USING SKOPT
-
 args_param = (xyt_vox, latent_v_vox, ker)  # tuple
 
 
+# -------------------------------------------- CREATE NEW FUNCTION FOR GP OPTIMIZATION - BAYESIAN USING SKOPT
+# Define new function here for definition - to be used for GP opt_method
 def gp_3d_mahalanobis_skopt(param):
     """
     Returns the Log_likelihood for the Spatial Temporal LGCP after obtaining the latent intensities
@@ -1363,6 +1361,7 @@ def gp_3d_mahalanobis_skopt(param):
     matrix_tup = param[4:]  # Include the matrix array now - have to create the tuple beforehand
 
     # There are 3 arguments to be entered - use vstack to create 3 input rows - x, y and z
+    global args_param
     xyt_coord = args_param[0]
     v_array = args_param[1]  # This is the optimized v_array
     kernel = args_param[2]  # Kernel chosen for the cases below
@@ -1401,10 +1400,6 @@ def gp_3d_mahalanobis_skopt(param):
     return log_gp_minimization
 
 
-# Bound for DE
-b_u = 1
-b_l = 0
-
 if opt_method == 'NM':
     param_sol = scopt.minimize(fun=gp_3d_mahalanobis, args=args_param, x0=initial_all_param,
                                method='Nelder-Mead',
@@ -1426,8 +1421,8 @@ elif opt_method == 'GP':
     # Bayesian Optimization using Scikit-Optimize - Skopt
     # Note inputs are entered as lists instead of tuple
     # Decide bounds
-    kernel_bounds = (-2, 2)
-    mahala_bounds = (-2, 2)
+    kernel_bounds = (0, 2)
+    mahala_bounds = (0, 2)
 
     # Enter Arguments - which is args_param but must be in a list
     args_param = [xyt_vox, latent_v_vox, ker]  # This is a list to be entered into skp
@@ -1436,7 +1431,7 @@ elif opt_method == 'GP':
                       mahala_bounds, mahala_bounds, mahala_bounds, mahala_bounds, mahala_bounds, mahala_bounds]
 
     # I have to enter arguments into the objective function itself
-    param_sol = skp.gp_minimize(func=gp_3d_mahalanobis,
+    param_sol = skp.gp_minimize(func=gp_3d_mahalanobis_skopt,
                                 dimensions=list_of_bounds,
                                 base_estimator=None,  # This is Matern by default - within the GP Bayesian Optimization
                                 n_calls=100,
@@ -1456,6 +1451,8 @@ elif opt_method == 'GP':
 else:
     print('No GP optimization method entered - Differential Evolution used by default')
     # The bound takes in a sequence of tuples
+    b_u = 1
+    b_l = -1
     param_bound = [(b_l, b_u), (b_l, b_u), (b_l, b_u), (b_l, b_u), (b_l, b_u),
                    (b_l, b_u), (b_l, b_u), (b_l, b_u), (b_l, b_u), (b_l, b_u)]
     param_sol = scopt.differential_evolution(func=gp_3d_mahalanobis, bounds=param_bound, args=args_param)

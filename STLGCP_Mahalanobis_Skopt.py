@@ -1329,7 +1329,7 @@ initial_mat_param = np.array([1, 0, 0, 1, 0, 1])  # start off with the identity 
 initial_all_param = np.append(initial_kernel_param, initial_mat_param)
 
 # ChangeParam
-ker = 'rational_quad'
+ker = 'matern3'
 opt_method = 'GP'
 print('Kernel is', ker)
 print('Optimizing Kernel Hyper-parameters...')
@@ -1356,6 +1356,7 @@ middle_of_bounds = [kernel_bounds_m, kernel_bounds_m, kernel_bounds_m, kernel_bo
 
 # Define number of random starts (latin hypercube concept)
 random_starts = 10
+number_calls = 500
 
 
 # -------------------------------------------- CREATE NEW FUNCTION FOR GP OPTIMIZATION - BAYESIAN USING SKOPT
@@ -1419,7 +1420,7 @@ def gp_3d_mahalanobis_skopt(param):
         log_gp_min = 1000000  # give excessively large value for me to ignore
     elif log_gp_minimization >= 1000000:
         log_gp_min = 10000  # The penalty need not be so much
-    elif np.isnan(log_gp_minimization) == 1:
+    elif np.isnan(log_gp_minimization) == 1:  # if this is nan
         log_gp_min = 2000000  # Penalise this more
     else:
         log_gp_min = log_gp_minimization
@@ -1480,7 +1481,7 @@ elif opt_method == 'GP':
                                 dimensions=list_of_bounds,
                                 verbose=True,
                                 n_random_starts=random_starts,
-                                n_calls=500)
+                                n_calls=number_calls)
 elif opt_method == 'DM':  # Random search by uniform sampling within the given bounds - which may be pretty good
     # Decide bounds
     print('Performing random search for minimum by uniform sampling within given bounds')

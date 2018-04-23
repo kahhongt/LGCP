@@ -1418,7 +1418,9 @@ def gp_3d_mahalanobis_skopt(param):
     if log_gp_minimization <= 0:
         log_gp_min = 1000000  # give excessively large value for me to ignore
     elif log_gp_minimization >= 1000000:
-        log_gp_min = 10000
+        log_gp_min = 10000  # The penalty need not be so much
+    elif np.isnan(log_gp_minimization) == 'True':
+        log_gp_min = 2000000  # Penalise this more
     else:
         log_gp_min = log_gp_minimization
 

@@ -425,5 +425,3 @@ avg_likelihood_skew_fig.savefig('Temporary_alpha_iterate_Full.png')
 
 plt.show()
 """
-
-print(-inf)

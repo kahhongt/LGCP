@@ -1238,7 +1238,7 @@ xy_taiwan_selected = np.vstack((x_taiwan_selected, y_taiwan_selected))
 xyt_taiwan_selected = np.vstack((xy_taiwan_selected, t_taiwan_selected))
 
 # ChangeParam
-vox_on_side = 5
+vox_on_side = 10
 k_mesh, xyt_edges = np.histogramdd(np.transpose(xyt_taiwan_selected), bins=(vox_on_side, vox_on_side, vox_on_side),
                                    range=((x_lower, x_upper), (y_lower, y_upper), (year_lower, year_upper)))
 
@@ -1338,9 +1338,9 @@ print('Optimization method is', opt_method)
 
 args_param = (xyt_vox, latent_v_vox, ker)  # tuple
 
-kernel_bounds = (-10.0, 10.0)
+kernel_bounds = (-5.0, 5.0)
 kernel_bounds_m = sum(kernel_bounds) / 2
-mahala_bounds_diag = (1.0, 5.0)
+mahala_bounds_diag = (1.0, 2.0)
 mahala_bounds_diag_m = sum(mahala_bounds_diag) / 2
 mahala_bounds_skew = (0.0, 0.5)
 mahala_bounds_skew_m = sum(mahala_bounds_skew) / 2
@@ -1413,6 +1413,8 @@ def gp_3d_mahalanobis_skopt(param):
 
     if log_gp_minimization <= 0:
         log_gp_min = 1000000  # give excessively large value for me to ignore
+    elif log_gp_minimization >= 1000000:
+        log_gp_min = 10000
     else:
         log_gp_min = log_gp_minimization
 
@@ -1470,7 +1472,7 @@ elif opt_method == 'GP':
     param_sol = skp.gp_minimize(func=gp_3d_mahalanobis_skopt,
                                 dimensions=list_of_bounds,
                                 verbose=True,
-                                x0=middle_of_bounds)
+                                n_random_starts=5)
 elif opt_method == 'DM':  # Random search by uniform sampling within the given bounds - which may be pretty good
     # Decide bounds
     print('Performing random search for minimum by uniform sampling within given bounds')

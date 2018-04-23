@@ -1526,7 +1526,7 @@ print('The starting matrix parameters are', initial_mat_param)
 
 # -------------------------------------------------------------------- END OF KERNEL OPTIMIZATION
 
-"""
+
 # -------------------------------------------------------------------- START POSTERIOR TABULATION
 # Note Hessian = second derivative of the log[g(v)]
 # Posterior Distribution follows N(v; v_hap, -1 * Hessian)
@@ -1608,7 +1608,7 @@ print('Kernel is', ker)
 # ------------------------------------------ Calculate the MSE from the Arithmetic Mean
 mean_sq_error = fn.mean_squared_error(latent_intensity_mean, k_vox)
 print('The Mean Squared Error is', mean_sq_error)
-print('Last function evaluation is ', param_sol.fun)
+print('Optimal function evaluation is ', func_optimal)
 print('optimal sigma is ', sigma_optimal)
 print('optimal length-scale is ', length_optimal)
 print('optimal noise amplitude is ', noise_optimal)
@@ -1619,5 +1619,4 @@ print('The number of voxels per side is', vox_on_side)
 print('GP Hyper-parameter Optimization Completed')
 print('The starting kernel parameters are', initial_kernel_scalar)
 print('The starting matrix parameters are', initial_mat_param)
-print('Differential evolution bound is', np.array([b_l, b_u]))
-"""
+

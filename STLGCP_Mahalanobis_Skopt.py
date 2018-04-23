@@ -1423,7 +1423,7 @@ elif opt_method == 'GP':
     kernel_bounds = (-1.0, 1.0)
     kernel_middle = sum(kernel_bounds)/2
     mahala_bounds_diag = (1.0, 2.0)
-    mahala_bounds_skew = (0.0, 1.0)
+    mahala_bounds_skew = (0.0, 0.5)
 
     # Enter Arguments - which is args_param but must be in a list
     args_param = [xyt_vox, latent_v_vox, ker]  # This is a list to be entered into skp

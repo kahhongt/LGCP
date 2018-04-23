@@ -1237,7 +1237,8 @@ print('The number of scatter points is', x_taiwan_selected.size)
 xy_taiwan_selected = np.vstack((x_taiwan_selected, y_taiwan_selected))
 xyt_taiwan_selected = np.vstack((xy_taiwan_selected, t_taiwan_selected))
 
-vox_on_side = 10
+# ChangeParam
+vox_on_side = 5
 k_mesh, xyt_edges = np.histogramdd(np.transpose(xyt_taiwan_selected), bins=(vox_on_side, vox_on_side, vox_on_side),
                                    range=((x_lower, x_upper), (y_lower, y_upper), (year_lower, year_upper)))
 

@@ -1399,7 +1399,13 @@ def gp_3d_mahalanobis_skopt(param):
     """Summation of all terms change to correct form to find minimum point"""
     log_gp = det_term + euclidean_term
     log_gp_minimization = -1 * log_gp  # Make the function convex for minimization
-    return log_gp_minimization
+    
+    if log_gp_minimization <= 0:
+        log_gp_min = 1000000  # give excessively large value for me to ignore
+    else:
+        log_gp_min = log_gp_minimization
+
+    return log_gp_min
 
 
 if opt_method == 'NM':

@@ -1452,8 +1452,7 @@ elif opt_method == 'GP':
     param_sol = skp.gp_minimize(func=gp_3d_mahalanobis_skopt,
                                 dimensions=list_of_bounds,
                                 verbose=True,
-                                n_calls=100,
-                                n_random_starts=10)
+                                acq_func='EI')
     func_optimal = param_sol.fun
 else:
     print('No GP optimization method entered - Differential Evolution used by default')

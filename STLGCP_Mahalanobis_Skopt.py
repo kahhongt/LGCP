@@ -1432,6 +1432,8 @@ elif opt_method == 'GP':
                       mahala_bounds_diag, mahala_bounds_skew, mahala_bounds_skew,
                       mahala_bounds_diag, mahala_bounds_skew, mahala_bounds_diag]
 
+    print('List of bounds is', list_of_bounds)
+
     # I have to enter arguments into the objective function itself
     """
     param_sol = skp.gp_minimize(func=gp_3d_mahalanobis_skopt,

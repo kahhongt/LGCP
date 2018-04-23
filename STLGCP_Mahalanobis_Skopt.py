@@ -1329,7 +1329,7 @@ initial_all_param = np.append(initial_kernel_param, initial_mat_param)
 
 # ChangeParam
 ker = 'matern1'
-opt_method = 'DM'
+opt_method = 'GP'
 print('Kernel is', ker)
 print('Optimizing Kernel Hyper-parameters...')
 print('Vox per side is', vox_on_side)

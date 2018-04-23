@@ -1337,6 +1337,11 @@ print('Optimization method is', opt_method)
 
 args_param = (xyt_vox, latent_v_vox, ker)  # tuple
 
+kernel_bounds = (-5.0, -5.0)
+kernel_middle = sum(kernel_bounds) / 2
+mahala_bounds_diag = (1.0, 5.0)
+mahala_bounds_skew = (0.0, 0.3)
+
 
 # -------------------------------------------- CREATE NEW FUNCTION FOR GP OPTIMIZATION - BAYESIAN USING SKOPT
 # Define new function here for definition - to be used for GP opt_method
@@ -1420,10 +1425,6 @@ elif opt_method == 'GP':
     # Bayesian Optimization using Scikit-Optimize - Skopt
     # Note inputs are entered as lists instead of tuple
     # Decide bounds
-    kernel_bounds = (-5.0, -5.0)
-    kernel_middle = sum(kernel_bounds)/2
-    mahala_bounds_diag = (1.0, 2.0)
-    mahala_bounds_skew = (0.0, 0.3)
 
     # Enter Arguments - which is args_param but must be in a list
     args_param = [xyt_vox, latent_v_vox, ker]  # This is a list to be entered into skp
@@ -1459,10 +1460,6 @@ elif opt_method == 'GP':
 elif opt_method == 'DM':  # Random search by uniform sampling within the given bounds - which may be pretty good
     # Decide bounds
     print('Performing random search for minimum by uniform sampling within given bounds')
-    kernel_bounds = (-5.0, 5.0)
-    kernel_middle = sum(kernel_bounds)/2
-    mahala_bounds_diag = (1.0, 2.0)
-    mahala_bounds_skew = (0.0, 0.3)
 
     # Enter Arguments - which is args_param but must be in a list
     args_param = [xyt_vox, latent_v_vox, ker]  # This is a list to be entered into skp

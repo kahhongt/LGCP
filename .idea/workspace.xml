@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="4ad8067e-3b6a-4346-b135-9d6f96d6ed99" name="Default" comment="">
-      <change beforePath="$PROJECT_DIR$/Polygon_Indicator.py" beforeDir="false" afterPath="$PROJECT_DIR$/Polygon_Indicator.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="TRACKING_ENABLED" value="true" />
@@ -16,10 +16,46 @@
       <file leaf-file-name="STLGCP_Mahalanobis_Skopt.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/STLGCP_Mahalanobis_Skopt.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="141">
-              <caret line="643" column="45" selection-start-line="643" selection-start-column="45" selection-end-line="643" selection-end-column="45" />
+              <caret line="69" column="17" lean-forward="true" selection-start-line="69" selection-start-column="17" selection-end-line="69" selection-end-column="17" />
               <folding>
                 <element signature="e#0#19#0" expanded="true" />
+                <element signature="e#415#702#0" />
+                <element signature="e#752#1518#0" />
+                <element signature="e#1549#1906#0" />
+                <element signature="e#2000#2225#0" />
+                <element signature="e#2323#2463#0" />
+                <element signature="e#2537#4248#0" />
+                <element signature="e#4371#7039#0" />
+                <element signature="e#7102#8384#0" />
+                <element signature="e#8562#9725#0" />
+                <element signature="e#9832#10853#0" />
+                <element signature="e#10919#11994#0" />
+                <element signature="e#12046#12935#0" />
+                <element signature="e#13053#14120#0" />
+                <element signature="e#14227#15101#0" />
+                <element signature="e#15169#16493#0" />
+                <element signature="e#16561#17849#0" />
+                <element signature="e#17894#19590#0" />
+                <element signature="e#19640#21636#0" />
+                <element signature="e#21683#23880#0" />
+                <element signature="e#23928#26553#0" />
+                <element signature="e#26606#27688#0" />
+                <element signature="e#27743#28570#0" />
+                <element signature="e#28620#29135#0" />
+                <element signature="e#29191#29931#0" />
+                <element signature="e#29980#30416#0" />
+                <element signature="e#30467#32978#0" />
+                <element signature="e#33032#34728#0" />
+                <element signature="e#34802#35173#0" />
+                <element signature="e#35248#35356#0" />
+                <element signature="e#35399#37813#0" />
+                <element signature="e#37997#40105#0" />
+                <element signature="e#40148#41981#0" />
+                <element signature="e#42025#44467#0" />
+                <element signature="e#44651#46329#0" />
+                <element signature="e#46464#48052#0" />
+                <element signature="e#48184#49676#0" />
+                <element signature="e#49758#51500#0" />
               </folding>
             </state>
           </provider>
@@ -35,6 +71,7 @@
     <option name="CHANGED_PATHS">
       <list>
         <option value="$PROJECT_DIR$/Polygon_Indicator.py" />
+        <option value="$PROJECT_DIR$/STLGCP_Mahalanobis_Skopt.py" />
       </list>
     </option>
   </component>
@@ -79,7 +116,7 @@
       </list>
     </option>
   </component>
-  <component name="RunManager" selected="Python.Polygon_Indicator">
+  <component name="RunManager" selected="Python.STLGCP_Mahalanobis_Skopt">
     <configuration name="Polygon_Indicator" type="PythonConfigurationType" factoryName="Python" temporary="true">
       <module name="LGCP" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -93,6 +130,24 @@
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/Polygon_Indicator.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+    </configuration>
+    <configuration name="STLGCP_Mahalanobis_Skopt" type="PythonConfigurationType" factoryName="Python" temporary="true">
+      <module name="LGCP" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/STLGCP_Mahalanobis_Skopt.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -119,9 +174,11 @@
     <list>
       <item itemvalue="Python.Skopt_Test" />
       <item itemvalue="Python.Polygon_Indicator" />
+      <item itemvalue="Python.STLGCP_Mahalanobis_Skopt" />
     </list>
     <recent_temporary>
       <list>
+        <item itemvalue="Python.STLGCP_Mahalanobis_Skopt" />
         <item itemvalue="Python.Polygon_Indicator" />
         <item itemvalue="Python.Skopt_Test" />
       </list>
@@ -144,12 +201,12 @@
     <frame x="-8" y="-8" width="1382" height="744" extended-state="6" />
     <editor active="true" />
     <layout>
-      <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.24011713" />
+      <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.1317716" />
       <window_info anchor="bottom" id="TODO" order="6" />
-      <window_info active="true" anchor="bottom" id="Event Log" order="7" sideWeight="0.5021962" side_tool="true" visible="true" weight="0.24960254" />
+      <window_info anchor="bottom" id="Event Log" order="7" sideWeight="0.26281112" side_tool="true" visible="true" weight="0.23529412" />
       <window_info anchor="bottom" id="Version Control" order="7" />
       <window_info anchor="bottom" id="Python Console" order="7" />
-      <window_info anchor="bottom" id="Run" order="2" sideWeight="0.4978038" weight="0.24960254" />
+      <window_info active="true" anchor="bottom" id="Run" order="2" sideWeight="0.7371889" visible="true" weight="0.23529412" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
       <window_info anchor="bottom" id="Terminal" order="7" />
       <window_info id="Favorites" order="2" side_tool="true" />
@@ -166,6 +223,11 @@
   <component name="VcsContentAnnotationSettings">
     <option name="myLimit" value="2678400000" />
   </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <option name="time" value="1" />
+    </breakpoint-manager>
+  </component>
   <component name="editorHistoryManager">
     <entry file="file://$PROJECT_DIR$/STLGCP_Mahalanobis_Skopt.py">
       <provider selected="true" editor-type-id="text-editor">
@@ -173,6 +235,43 @@
           <caret line="553" column="20" selection-start-line="553" selection-start-column="20" selection-end-line="553" selection-end-column="20" />
           <folding>
             <element signature="e#0#19#0" expanded="true" />
+            <element signature="e#415#702#0" />
+            <element signature="e#752#1518#0" />
+            <element signature="e#1549#1906#0" />
+            <element signature="e#2000#2225#0" />
+            <element signature="e#2323#2463#0" />
+            <element signature="e#2537#4248#0" />
+            <element signature="e#4371#7039#0" />
+            <element signature="e#7102#8384#0" />
+            <element signature="e#8562#9725#0" />
+            <element signature="e#9832#10853#0" />
+            <element signature="e#10919#11994#0" />
+            <element signature="e#12046#12935#0" />
+            <element signature="e#13053#14120#0" />
+            <element signature="e#14227#15101#0" />
+            <element signature="e#15169#16493#0" />
+            <element signature="e#16561#17849#0" />
+            <element signature="e#17894#19590#0" />
+            <element signature="e#19640#21636#0" />
+            <element signature="e#21683#23880#0" />
+            <element signature="e#23928#26553#0" />
+            <element signature="e#26606#27688#0" />
+            <element signature="e#27743#28570#0" />
+            <element signature="e#28620#29135#0" />
+            <element signature="e#29191#29931#0" />
+            <element signature="e#29980#30416#0" />
+            <element signature="e#30467#32978#0" />
+            <element signature="e#33032#34728#0" />
+            <element signature="e#34802#35173#0" />
+            <element signature="e#35248#35356#0" />
+            <element signature="e#35399#37813#0" />
+            <element signature="e#37997#40105#0" />
+            <element signature="e#40148#41981#0" />
+            <element signature="e#42025#44467#0" />
+            <element signature="e#44651#46329#0" />
+            <element signature="e#46464#48052#0" />
+            <element signature="e#48184#49676#0" />
+            <element signature="e#49758#51500#0" />
           </folding>
         </state>
       </provider>
@@ -197,6 +296,43 @@
           <caret line="553" column="20" lean-forward="true" selection-start-line="553" selection-start-column="20" selection-end-line="553" selection-end-column="20" />
           <folding>
             <element signature="e#0#19#0" expanded="true" />
+            <element signature="e#415#702#0" />
+            <element signature="e#752#1518#0" />
+            <element signature="e#1549#1906#0" />
+            <element signature="e#2000#2225#0" />
+            <element signature="e#2323#2463#0" />
+            <element signature="e#2537#4248#0" />
+            <element signature="e#4371#7039#0" />
+            <element signature="e#7102#8384#0" />
+            <element signature="e#8562#9725#0" />
+            <element signature="e#9832#10853#0" />
+            <element signature="e#10919#11994#0" />
+            <element signature="e#12046#12935#0" />
+            <element signature="e#13053#14120#0" />
+            <element signature="e#14227#15101#0" />
+            <element signature="e#15169#16493#0" />
+            <element signature="e#16561#17849#0" />
+            <element signature="e#17894#19590#0" />
+            <element signature="e#19640#21636#0" />
+            <element signature="e#21683#23880#0" />
+            <element signature="e#23928#26553#0" />
+            <element signature="e#26606#27688#0" />
+            <element signature="e#27743#28570#0" />
+            <element signature="e#28620#29135#0" />
+            <element signature="e#29191#29931#0" />
+            <element signature="e#29980#30416#0" />
+            <element signature="e#30467#32978#0" />
+            <element signature="e#33032#34728#0" />
+            <element signature="e#34802#35173#0" />
+            <element signature="e#35248#35356#0" />
+            <element signature="e#35399#37813#0" />
+            <element signature="e#37997#40105#0" />
+            <element signature="e#40148#41981#0" />
+            <element signature="e#42025#44467#0" />
+            <element signature="e#44651#46329#0" />
+            <element signature="e#46464#48052#0" />
+            <element signature="e#48184#49676#0" />
+            <element signature="e#49758#51500#0" />
           </folding>
         </state>
       </provider>
@@ -241,10 +377,47 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/STLGCP_Mahalanobis_Skopt.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="141">
-          <caret line="643" column="45" selection-start-line="643" selection-start-column="45" selection-end-line="643" selection-end-column="45" />
+        <state relative-caret-position="-2532">
+          <caret line="69" column="17" lean-forward="true" selection-start-line="69" selection-start-column="17" selection-end-line="69" selection-end-column="17" />
           <folding>
             <element signature="e#0#19#0" expanded="true" />
+            <element signature="e#415#702#0" />
+            <element signature="e#752#1518#0" />
+            <element signature="e#1549#1906#0" />
+            <element signature="e#2000#2225#0" />
+            <element signature="e#2323#2463#0" />
+            <element signature="e#2537#4248#0" />
+            <element signature="e#4371#7039#0" />
+            <element signature="e#7102#8384#0" />
+            <element signature="e#8562#9725#0" />
+            <element signature="e#9832#10853#0" />
+            <element signature="e#10919#11994#0" />
+            <element signature="e#12046#12935#0" />
+            <element signature="e#13053#14120#0" />
+            <element signature="e#14227#15101#0" />
+            <element signature="e#15169#16493#0" />
+            <element signature="e#16561#17849#0" />
+            <element signature="e#17894#19590#0" />
+            <element signature="e#19640#21636#0" />
+            <element signature="e#21683#23880#0" />
+            <element signature="e#23928#26553#0" />
+            <element signature="e#26606#27688#0" />
+            <element signature="e#27743#28570#0" />
+            <element signature="e#28620#29135#0" />
+            <element signature="e#29191#29931#0" />
+            <element signature="e#29980#30416#0" />
+            <element signature="e#30467#32978#0" />
+            <element signature="e#33032#34728#0" />
+            <element signature="e#34802#35173#0" />
+            <element signature="e#35248#35356#0" />
+            <element signature="e#35399#37813#0" />
+            <element signature="e#37997#40105#0" />
+            <element signature="e#40148#41981#0" />
+            <element signature="e#42025#44467#0" />
+            <element signature="e#44651#46329#0" />
+            <element signature="e#46464#48052#0" />
+            <element signature="e#48184#49676#0" />
+            <element signature="e#49758#51500#0" />
           </folding>
         </state>
       </provider>

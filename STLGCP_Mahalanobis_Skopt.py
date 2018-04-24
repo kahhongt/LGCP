@@ -1457,6 +1457,7 @@ elif opt_method == 'GP':
 
     print('List of bounds is', list_of_bounds)
     print('The number of random starts is', random_starts)
+    print('The number of function calls is', number_calls)
 
     # I have to enter arguments into the objective function itself
     """

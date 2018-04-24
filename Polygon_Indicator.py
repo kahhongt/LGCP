@@ -8,9 +8,9 @@ import scipy.special as scispec
 import scipy.optimize as scopt
 import matplotlib.path as mpath
 
-# matplotlib.use('TkAgg')
+matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
-plt.switch_backend('agg')
+# plt.switch_backend('agg')
 from mpl_toolkits.mplot3d import Axes3D
 
 """This Script tests out if a point falls inside a polygon, which will mainly be used for quadrat selection"""
@@ -26,6 +26,7 @@ albop = aedes_df['VECTOR'] == "Aedes albopictus"
 year_2014 = aedes_df['YEAR'] == "2014"
 year_2013 = aedes_df['YEAR'] == "2013"
 year_2012 = aedes_df['YEAR'] == "2012"
+# testing
 
 # Extract data for Brazil and make sure to convert data type to float64
 aedes_brazil = aedes_df[brazil]  # Extracting Brazil Data
@@ -235,3 +236,6 @@ indicator.set_xlabel('UTM Horizontal Coordinate')
 indicator.set_ylabel('UTM Vertical Coordinate')
 
 plt.show()
+
+
+

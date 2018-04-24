@@ -1329,7 +1329,7 @@ initial_mat_param = np.array([1, 0, 0, 1, 0, 1])  # start off with the identity 
 initial_all_param = np.append(initial_kernel_param, initial_mat_param)
 
 # ChangeParam
-ker = 'matern1'
+ker = 'matern3'
 opt_method = 'GP'
 print('Kernel is', ker)
 print('Optimizing Kernel Hyper-parameters...')
@@ -1339,7 +1339,7 @@ print('Optimization method is', opt_method)
 args_param = (xyt_vox, latent_v_vox, ker)  # tuple
 
 # ChangeParam
-kernel_bounds = (-5.0, 5.0)
+kernel_bounds = (0.01, 5.0)
 kernel_bounds_m = sum(kernel_bounds) / 2
 mahala_bounds_diag = (1.0, 2.0)
 mahala_bounds_diag_m = sum(mahala_bounds_diag) / 2

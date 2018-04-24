@@ -1329,7 +1329,7 @@ initial_mat_param = np.array([1, 0, 0, 1, 0, 1])  # start off with the identity 
 initial_all_param = np.append(initial_kernel_param, initial_mat_param)
 
 # ChangeParam
-ker = 'matern3'
+ker = 'squared_exponential'
 opt_method = 'GP'
 print('Kernel is', ker)
 print('Optimizing Kernel Hyper-parameters...')

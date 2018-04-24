@@ -1329,7 +1329,7 @@ initial_mat_param = np.array([1, 0, 0, 1, 0, 1])  # start off with the identity 
 initial_all_param = np.append(initial_kernel_param, initial_mat_param)
 
 # ChangeParam
-ker = 'rational_quad'
+ker = 'matern3'
 opt_method = 'GP'
 print('Kernel is', ker)
 print('Optimizing Kernel Hyper-parameters...')
@@ -1355,8 +1355,8 @@ middle_of_bounds = [kernel_bounds_m, kernel_bounds_m, kernel_bounds_m, kernel_bo
                     mahala_bounds_diag_m, mahala_bounds_skew_m, mahala_bounds_diag_m]
 
 # Define number of random starts (latin hypercube concept)
-random_starts = 10
-number_calls = 200
+random_starts = 20
+number_calls = 100
 
 
 # -------------------------------------------- CREATE NEW FUNCTION FOR GP OPTIMIZATION - BAYESIAN USING SKOPT

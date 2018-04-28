@@ -695,7 +695,7 @@ initial_hyperparam = np.array([1, 1, 1, 1])
 
 # Set up tuple for arguments
 # ChangeParam
-kernel = 'matern1'
+kernel = 'rational_quad'
 args_hyperparam = (xy_quad, latent_v_array, kernel)
 
 # Start Optimization Algorithm for GP Hyperparameters
@@ -1010,6 +1010,12 @@ log_gp = det_term + euclidean_term
 
 print('The GP Log Marginal Likelihood is', log_gp)
 print('The Log Poisson Likelihood is', log_p_likelihood)
+print('The Kernel used is', kernel)
+
+# -------------------------------------------------- Tabulate Mean Squared Error
+
+mean_squared_err = fn.mean_squared_error(latent_intensity_mean, k_quad)
+print('The Mean Squared Error is', mean_squared_err)
 
 
 

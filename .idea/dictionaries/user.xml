@@ -2,8 +2,12 @@
   <dictionary name="user">
     <words>
       <w>disp</w>
+      <w>histo</w>
+      <w>hyperparam</w>
+      <w>hyperparameters</w>
       <w>mahalanobis</w>
       <w>matern</w>
+      <w>maxiter</w>
       <w>nelder</w>
       <w>xtol</w>
     </words>

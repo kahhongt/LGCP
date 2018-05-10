@@ -600,7 +600,7 @@ elif opt_method == 'differential_evolution':
 initial_hyperparam = np.array([1, 1, 1, 1])  # Note that this initial condition should be close to actual
 # Set up tuple for arguments
 # ChangeParam
-kernel = 'matern1'
+kernel = 'matern3'
 args_hyperparam = (xy_quad, k_quad, kernel)
 # Start Optimization Algorithm for GP Hyperparameters
 
@@ -632,6 +632,7 @@ time_opt = end_opt - start_opt
 # Define number of points for y_*
 intervals = 100
 
+# ChangeParam
 cut_decision = 'yes'
 if cut_decision == 'yes':
     # Define sampling points beyond the data set
@@ -730,6 +731,21 @@ print(posterior_df)
 # ------------------------------------------End of Test Space
 
 # ------------------------------------------Start of Plots
+
+"""
+# Make plot with vertical (default) colorbar
+fig, ax = plt.subplots()
+
+data = np.clip(randn(250, 250), -1, 1)
+
+cax = ax.imshow(data, interpolation='nearest', cmap=cm.coolwarm)
+ax.set_title('Gaussian noise with vertical colorbar')
+
+# Add colorbar, make sure to specify tick locations to match desired ticklabels
+cbar = fig.colorbar(cax, ticks=[-1, 0, 1])
+cbar.ax.set_yticklabels(['< -1', '0', '> 1'])  # vertically oriented colorbar
+"""
+
 start_plot = time.clock()
 fig_m_post = plt.figure()
 post_mean_color = fig_m_post.add_subplot(111)
@@ -738,6 +754,7 @@ post_mean_color.scatter(x_within_window, y_within_window, marker='o', color='bla
 post_mean_color.set_title('Posterior Mean')
 post_mean_color.set_xlabel('UTM Horizontal Coordinate')
 post_mean_color.set_ylabel('UTM Vertical Coordinate')
+post_mean_color.colorbar()
 # post_mean_color.grid(True)
 
 fig_sd_post = plt.figure()
@@ -747,6 +764,7 @@ post_sd_color.scatter(x_within_window, y_within_window, marker='o', color='black
 post_sd_color.set_title('Posterior Standard Deviation')
 post_sd_color.set_xlabel('UTM Horizontal Coordinate')
 post_sd_color.set_ylabel('UTM Vertical Coordinate')
+post_sd_color.colorbar()
 # post_cov_color.grid(True)
 
 fig_m_3d = plt.figure()

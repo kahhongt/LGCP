@@ -10,6 +10,7 @@ import scipy.optimize as scopt
 import time
 
 """Methodology for Conducting Gaussian Regression for 2-D"""
+"""SCRIPT SPECIALLY CREATED FOR PLOTTING HEATMAPS"""
 
 
 def mean_func_zero(c):  # Prior mean function taken as 0 for the entire sampling range
@@ -224,6 +225,37 @@ def rational_quadratic_2d(alpha_rq, length_rq, x1, x2):
     return cov_matrix
 
 
+def fast_rational_quadratic_2d(alpha_rq, length_rq, x1, x2):
+    """
+    Rational Quadratic Coveriance function with 2 parameters to be optimized, using
+    power alpha and length scale l. The Rational Quadratic Kernel is used to model the
+    volatility of equity index returns, which is equivalent to a sum of Squared
+    Exponential Kernels. This kernel is used to model multi-scale data
+
+    This is a fast method of generating the rational quadratic kernel, by exploiting the symmetry
+    of the covariance matrix
+    :param alpha_rq: power and denominator
+    :param length_rq: length scale
+    :param x1: First set of coordinates for iteration
+    :param x2: Second set of coordinates for iteration
+    :return: Covariance matrix with Rational Quadratic Kernel
+    """
+    # Note that this function only takes in 2-D coordinates, make sure there are 2 rows and n columns
+    n = x1.shape[1]
+    covariance_matrix = np.zeros((n, n))
+    for i in range(n):
+        covariance_matrix[i, i] = 1
+        for j in range(i + 1, n):
+            diff = x1[:, i] - x2[:, j]
+            euclidean_squared = np.matmul(diff, np.transpose(diff))
+            fraction_term = euclidean_squared / (2 * alpha_rq * (length_rq ** 2))
+            covariance_matrix[i, j] = (1 + fraction_term) ** (-1 * alpha_rq)
+            covariance_matrix[j, i] = covariance_matrix[i, j]
+
+    return covariance_matrix
+
+
+
 def mu_post(xy_next, c_auto, c_cross, mismatch):  # Posterior mean
     if c_cross.shape[1] != (np.linalg.inv(c_auto)).shape[0]:
         print('First Dimension Mismatch!')
@@ -350,6 +382,8 @@ def short_log_integrand_data(param, *args):
         c_auto = fast_matern_1_2d(sigma, length, xy_coordinates, xy_coordinates)
     elif ker == 'squared_exponential':
         c_auto = fast_squared_exp_2d(sigma, length, xy_coordinates, xy_coordinates)
+    elif kernel == 'rational_quad':
+        c_auto = fast_rational_quadratic_2d(sigma, length, xy_coordinates, xy_coordinates)
     else:  # Default kernel is matern1
         c_auto = fast_matern_1_2d(sigma, length, xy_coordinates, xy_coordinates)
 
@@ -600,12 +634,12 @@ elif opt_method == 'differential_evolution':
 initial_hyperparam = np.array([1, 1, 1, 1])  # Note that this initial condition should be close to actual
 # Set up tuple for arguments
 # ChangeParam
-kernel = 'matern3'
+kernel = 'rational_quad'
 args_hyperparam = (xy_quad, k_quad, kernel)
 # Start Optimization Algorithm for GP Hyperparameters
 
 # Change Covariance Function and corresponding optimization method
-hyperparam_solution = scopt.minimize(fun=short_log_integrand_data, args=args_hyperparam, x0=initial_hyperparam,
+hyperparam_solution = scopt.minimize(fun=short_log_integrand_data_rq, args=args_hyperparam, x0=initial_hyperparam,
                                      method='Nelder-Mead',
                                      options={'xatol': 1, 'fatol': 1, 'disp': True, 'maxfev': 300})
 
@@ -622,6 +656,7 @@ print('optimal sigma is ', sigma_optimal)
 print('optimal length-scale is ', length_optimal)
 print('optimal noise amplitude is ', noise_optimal)
 print('optimal scalar mean value is ', mean_optimal)
+print('The Kernel is ', kernel)
 
 end_opt = time.clock()
 time_opt = end_opt - start_opt
@@ -630,7 +665,7 @@ time_opt = end_opt - start_opt
 # ------------------------------------------Start of Sampling Points Creation
 
 # Define number of points for y_*
-intervals = 10
+intervals = 100
 
 # ChangeParam
 cut_decision = 'yes'
@@ -755,19 +790,20 @@ post_mean_color.set_title('Posterior Mean')
 post_mean_color.set_xlabel('UTM Horizontal Coordinate')
 post_mean_color.set_ylabel('UTM Vertical Coordinate')
 
-"""
-#data
-np.random.seed(42)
-data = np.random.rand(4, 4)
-fig, ax = plt.subplots()
-heatmap = ax.pcolor(data, cmap=cMap)
+# ----------------------------- TEST
 
-#legend
-cbar = plt.colorbar(heatmap)
-cbar.ax.set_yticklabels(['0','1','2','>3'])
-cbar.set_label('# of contacts', rotation=270)
-# post_mean_color.grid(True)
-"""
+fig, axs = plt.subplots(1, 1)
+# ax = axs[0, 0]
+c = axs.pcolor(sampling_points_x, sampling_points_y, mean_posterior_2d, cmap='YlOrBr')
+axs.scatter(x_within_window, y_within_window, marker='o', color='black', s=0.3)
+axs.set_title('Posterior Mean')
+axs.set_xlabel('UTM Horizontal Coordinate')
+axs.set_ylabel('UTM Vertical Coordinate')
+# set the limits of the plot to the limits of the data
+fig.colorbar(c, ax=axs, format="%.1f")
+
+# ----------------------------- TEST
+
 
 fig_sd_post = plt.figure()
 post_sd_color = fig_sd_post.add_subplot(111)
@@ -776,8 +812,23 @@ post_sd_color.scatter(x_within_window, y_within_window, marker='o', color='black
 post_sd_color.set_title('Posterior Standard Deviation')
 post_sd_color.set_xlabel('UTM Horizontal Coordinate')
 post_sd_color.set_ylabel('UTM Vertical Coordinate')
-fig_sd_post.colorbar(post_sd_color)
 # post_cov_color.grid(True)
+
+
+# ----------------------------- TEST
+
+fig, axs = plt.subplots(1, 1)
+# ax = axs[0, 0]
+c = axs.pcolor(sampling_points_x, sampling_points_y, sd_posterior_2d, cmap='YlOrBr')
+axs.scatter(x_within_window, y_within_window, marker='o', color='black', s=0.3)
+axs.set_title('Posterior Standard Deviation')
+axs.set_xlabel('UTM Horizontal Coordinate')
+axs.set_ylabel('UTM Vertical Coordinate')
+# set the limits of the plot to the limits of the data
+fig.colorbar(c, ax=axs, format="%.2f")
+
+# ----------------------------- TEST
+
 
 fig_m_3d = plt.figure()
 m_3d = fig_m_3d.add_subplot(111, projection='3d')

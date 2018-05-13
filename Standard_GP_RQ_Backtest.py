@@ -730,9 +730,7 @@ start_posterior = time.clock()
 
 # Generate auto-covariance function from the data set
 # Change_Param
-# cov_dd = fast_matern_2d(sigma_optimal, length_optimal, xy_quad, xy_quad)
-cov_dd = fast_matern_1_2d(sigma_optimal, length_optimal, xy_quad, xy_quad)
-# cov_dd = fast_squared_exp_2d(sigma_optimal, length_optimal, xy_quad, xy_quad)
+cov_dd = fast_rational_quadratic_2d(alpha_optimal, length_optimal, xy_quad, xy_quad, sigma_optimal)
 
 cov_noise = np.eye(cov_dd.shape[0]) * (noise_optimal ** 2)
 cov_overall = cov_dd + cov_noise
@@ -780,107 +778,9 @@ mean_squared_error = sum(squared_error) / mean_posterior.size
 print('Sum of Individual Squared Error = ', sum(squared_error))
 print('Mean Squared Error = ', mean_squared_error)
 
+print('k_quad is', k_quad)
+print('Posterior mean is ', mean_posterior)
+
 # ------------------------------------------End of Posterior Tabulation
 
-# ------------------------------------------Start of import to csv
-# Create numpy array containing mean and variance and convert to dataframe
-combined_posterior_data = np.vstack((mean_posterior_2d, var_posterior_2d))
-posterior_df = pd.DataFrame(combined_posterior_data)
 
-# Import to csv
-posterior_df.to_csv('posterior_dataframe.csv', index=False, header=False)
-print(posterior_df)
-
-# ------------------------------------------End of import to csv
-
-# ------------------------------------------Start of Test Space
-
-# ------------------------------------------End of Test Space
-
-# ------------------------------------------Start of Plots
-
-"""
-# Make plot with vertical (default) colorbar
-fig, ax = plt.subplots()
-
-data = np.clip(randn(250, 250), -1, 1)
-
-cax = ax.imshow(data, interpolation='nearest', cmap=cm.coolwarm)
-ax.set_title('Gaussian noise with vertical colorbar')
-
-# Add colorbar, make sure to specify tick locations to match desired ticklabels
-cbar = fig.colorbar(cax, ticks=[-1, 0, 1])
-cbar.ax.set_yticklabels(['< -1', '0', '> 1'])  # vertically oriented colorbar
-"""
-
-start_plot = time.clock()
-fig_m_post = plt.figure()
-post_mean_color = fig_m_post.add_subplot(111)
-post_mean_color.pcolor(sampling_points_x, sampling_points_y, mean_posterior_2d, cmap='YlOrBr')
-post_mean_color.scatter(x_within_window, y_within_window, marker='o', color='black', s=0.3)
-post_mean_color.set_title('Posterior Mean')
-post_mean_color.set_xlabel('UTM Horizontal Coordinate')
-post_mean_color.set_ylabel('UTM Vertical Coordinate')
-
-# ----------------------------- TEST
-
-fig, axs = plt.subplots(1, 1)
-# ax = axs[0, 0]
-c = axs.pcolor(sampling_points_x, sampling_points_y, mean_posterior_2d, cmap='YlOrBr')
-axs.scatter(x_within_window, y_within_window, marker='o', color='black', s=0.3)
-axs.set_title('Posterior Mean')
-axs.set_xlabel('UTM Horizontal Coordinate')
-axs.set_ylabel('UTM Vertical Coordinate')
-# set the limits of the plot to the limits of the data
-fig.colorbar(c, ax=axs, format="%.1f")
-
-# ----------------------------- TEST
-
-
-fig_sd_post = plt.figure()
-post_sd_color = fig_sd_post.add_subplot(111)
-post_sd_color.pcolor(sampling_points_x, sampling_points_y, sd_posterior_2d, cmap='YlOrBr')
-post_sd_color.scatter(x_within_window, y_within_window, marker='o', color='black', s=0.3)
-post_sd_color.set_title('Posterior Standard Deviation')
-post_sd_color.set_xlabel('UTM Horizontal Coordinate')
-post_sd_color.set_ylabel('UTM Vertical Coordinate')
-# post_cov_color.grid(True)
-
-
-# ----------------------------- TEST
-
-fig, axs = plt.subplots(1, 1)
-# ax = axs[0, 0]
-c = axs.pcolor(sampling_points_x, sampling_points_y, sd_posterior_2d, cmap='YlOrBr')
-axs.scatter(x_within_window, y_within_window, marker='o', color='black', s=0.3)
-axs.set_title('Posterior Standard Deviation')
-axs.set_xlabel('UTM Horizontal Coordinate')
-axs.set_ylabel('UTM Vertical Coordinate')
-# set the limits of the plot to the limits of the data
-fig.colorbar(c, ax=axs, format="%.2f")
-
-# ----------------------------- TEST
-
-
-fig_m_3d = plt.figure()
-m_3d = fig_m_3d.add_subplot(111, projection='3d')
-m_3d.plot_surface(sampling_x_2d, sampling_y_2d, mean_posterior_2d, cmap='YlOrBr')
-m_3d.set_title('Posterior Mean 3D-Plot')
-m_3d.set_xlabel('UTM Horizontal Coordinate')
-m_3d.set_ylabel('UTM Vertical Coordinate')
-m_3d.set_zlabel('Posterior Mean')
-m_3d.grid(True)
-
-fig_sd_3d = plt.figure()
-sd_3d = fig_sd_3d.add_subplot(111, projection='3d')
-sd_3d.plot_surface(sampling_x_2d, sampling_y_2d, sd_posterior_2d, cmap='YlOrBr')
-sd_3d.set_title('Posterior Standard Deviation 3D-Plot')
-sd_3d.set_xlabel('UTM Horizontal Coordinate')
-sd_3d.set_ylabel('UTM Vertical Coordinate')
-sd_3d.set_zlabel('Posterior Standard Deviation')
-sd_3d.grid(True)
-
-end_plot = time.clock()
-print('Time taken for plotting =', end_plot - start_plot)
-# ------------------------------------------End of Plots
-plt.show()

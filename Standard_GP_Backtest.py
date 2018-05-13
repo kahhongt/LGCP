@@ -194,7 +194,7 @@ def fast_matern_1_2d(sigma_matern, length_matern, x1, x2):
     return cov_matrix
 
 
-def fast_rational_quadratic_2d(alpha_rq, length_rq, x1, x2):
+def fast_rational_quadratic_2d(alpha_rq, length_rq, x1, x2, sigma_rq):
     """
     Rational Quadratic Coveriance function with 2 parameters to be optimized, using
     power alpha and length scale l. The Rational Quadratic Kernel is used to model the
@@ -205,6 +205,7 @@ def fast_rational_quadratic_2d(alpha_rq, length_rq, x1, x2):
     of the covariance matrix
     :param alpha_rq: power and denominator
     :param length_rq: length scale
+    :param sigma_rq: scaling coefficient
     :param x1: First set of coordinates for iteration
     :param x2: Second set of coordinates for iteration
     :return: Covariance matrix with Rational Quadratic Kernel
@@ -218,14 +219,29 @@ def fast_rational_quadratic_2d(alpha_rq, length_rq, x1, x2):
             diff = x1[:, i] - x2[:, j]
             euclidean_squared = np.matmul(diff, np.transpose(diff))
             fraction_term = euclidean_squared / (2 * alpha_rq * (length_rq ** 2))
-            covariance_matrix[i, j] = (1 + fraction_term) ** (-1 * alpha_rq)
+            covariance_matrix[i, j] = (sigma_rq ** 2) * ((1 + fraction_term) ** (-1 * alpha_rq))
             covariance_matrix[j, i] = covariance_matrix[i, j]
 
     return covariance_matrix
 
 
-def rational_quadratic_2d(alpha_rq, length_rq, x1, x2):  # Only for 2-D
-    # Define horizontal and vertical dimensions of covariance matrix c
+def rational_quadratic_2d(alpha_rq, length_rq, x1, x2, sigma_rq):
+    """
+    Rational Quadratic Coveriance function with 2 parameters to be optimized, using
+    power alpha and length scale l. The Rational Quadratic Kernel is used to model the
+    volatility of equity index returns, which is equivalent to a sum of Squared
+    Exponential Kernels. This kernel is used to model multi-scale data
+
+    This is a fast method of generating the rational quadratic kernel, by exploiting the symmetry
+    of the covariance matrix
+    :param alpha_rq: power and denominator
+    :param length_rq: length scale
+    :param sigma_rq: scaling coefficient
+    :param x1: First set of coordinates for iteration
+    :param x2: Second set of coordinates for iteration
+    :return: Covariance matrix with Rational Quadratic Kernel
+    """
+    # Note that this function only takes in 2-D coordinates, make sure there are 2 rows and n columns
     if np.array([x1.shape]).size == 1 and np.array([x2.shape]).size != 1 and x1.size == x2.shape[0]:
         rows = 1
         columns = x2.shape[1]
@@ -239,10 +255,10 @@ def rational_quadratic_2d(alpha_rq, length_rq, x1, x2):  # Only for 2-D
         rows = x1.shape[1]
         columns = x2.shape[1]
 
-    c = np.zeros((rows, columns))
+    cov_matrix = np.zeros((rows, columns))
 
-    for i in range(c.shape[0]):
-        for j in range(c.shape[1]):
+    for i in range(cov_matrix.shape[0]):
+        for j in range(cov_matrix.shape[1]):
             if np.array([x1.shape]).size == 1 and np.array([x2.shape]).size != 1:
                 diff = x1 - x2[:, j]
             elif np.array([x1.shape]).size != 1 and np.array([x2.shape]).size == 1:
@@ -254,9 +270,9 @@ def rational_quadratic_2d(alpha_rq, length_rq, x1, x2):  # Only for 2-D
 
             euclidean_squared = np.matmul(diff, np.transpose(diff))
             fraction_term = euclidean_squared / (2 * alpha_rq * (length_rq ** 2))
-            c[i, j] = (1 + fraction_term) ** (-1 * alpha_rq)
+            cov_matrix[i, j] = (sigma_rq ** 2) * ((1 + fraction_term) ** (-1 * alpha_rq))
 
-    return c
+    return cov_matrix
 
 
 def mu_post(xy_next, c_auto, c_cross, mismatch):  # Posterior mean
@@ -416,6 +432,7 @@ def short_log_integrand_data_rq(param, *args):
     length = param[1]
     noise = param[2]
     scalar_mean = param[3]
+    sigma = param[4]
 
     # Enter Arguments
     xy_coordinates = args[0]
@@ -425,7 +442,7 @@ def short_log_integrand_data_rq(param, *args):
     p_mean = mean_func_scalar(scalar_mean, xy_coordinates)
 
     # Create Rational Quadratic Covariance Matrix including noise
-    c_auto = rational_quadratic_2d(alpha, length, xy_coordinates, xy_coordinates)
+    c_auto = rational_quadratic_2d(alpha, length, xy_coordinates, xy_coordinates, sigma)
     c_noise = np.eye(c_auto.shape[0]) * (noise ** 2)  # Fro-necker delta function
     cov_matrix = c_auto + c_noise
 
@@ -578,7 +595,7 @@ else:
 # Parameters = sigma, length, noise, scalar
 
 # Change_Param - this is for Brazil 2013 Data
-kernel = 'matern3_2013'
+kernel = 'rational_quad_2013'
 
 # Set up cases for kernel function hyper-parameter selection
 if kernel == 'matern3_2013':
@@ -600,10 +617,11 @@ elif kernel == 'squared_exp_2013':
     mean_opt = 0.8887
 
 elif kernel == 'rational_quad_2013':  # Note there is no sigma in rational quadratic function
-    sigma_opt = 1.9537  # This is actually alpha
-    length_opt = 3.4939  # This is actually l, which is also length scale
-    noise_opt = 2.3361
-    mean_opt = 0.5137
+    alpha_opt = 0.2190  # This is actually alpha
+    length_opt = 1.8572  # This is actually l, which is also length scale
+    noise_opt = 1.7180
+    mean_opt = 0.5133
+    sigma_opt = 3.9720
 
 if kernel == 'matern3_2014':
     sigma_opt = 5.0139
@@ -630,10 +648,11 @@ elif kernel == 'rational_quad_2014':  # Note there is no sigma in rational quadr
     mean_opt = 0.7375
 
 
-print('Optimal sigma = ', sigma_opt)  # Note this is alpha for rational quadratic
+print('Optimal alpha = ', alpha_opt)  # Note this is alpha for rational quadratic
 print('Optimal length = ', length_opt)
 print('Optimal noise =', noise_opt)
 print('Optimal Mean = ', mean_opt)
+print('Optimal sigma = ', sigma_opt)
 
 # Set up inputs for generation of objective function
 p_mean = mean_func_scalar(mean_opt, xy_quad)
@@ -646,7 +665,7 @@ elif kernel == 'matern1_2013':
 elif kernel == 'squared_exp_2013':
     c_auto = fast_squared_exp_2d(sigma_opt, length_opt, xy_quad, xy_quad)
 elif kernel == 'rational_quad_2013':
-    c_auto = fast_rational_quadratic_2d(sigma_opt, length_opt, xy_quad, xy_quad)
+    c_auto = fast_rational_quadratic_2d(alpha_opt, length_opt, xy_quad, xy_quad, sigma_opt)
 elif kernel == 'matern3_2014':
     c_auto = fast_matern_2d(sigma_opt, length_opt, xy_quad, xy_quad)
 elif kernel == 'matern1_2014':
@@ -654,7 +673,7 @@ elif kernel == 'matern1_2014':
 elif kernel == 'squared_exp_2014':
     c_auto = fast_squared_exp_2d(sigma_opt, length_opt, xy_quad, xy_quad)
 elif kernel == 'rational_quad_2014':
-    c_auto = fast_rational_quadratic_2d(sigma_opt, length_opt, xy_quad, xy_quad)
+    c_auto = fast_rational_quadratic_2d(alpha_opt, length_opt, xy_quad, xy_quad, sigma_opt)
     # even though sigma is actually alpha here
 
 # Add noise using kronecker delta to covariance matrix
@@ -745,8 +764,8 @@ for i in range(sampling_xy.shape[1]):
         cov_star_d = squared_exp_2d(sigma_opt, length_opt, xy_star, xy_quad)
         cov_star_star = squared_exp_2d(sigma_opt, length_opt, xy_star, xy_star)
     elif kernel == 'rational_quad_2013':
-        cov_star_d = rational_quadratic_2d(sigma_opt, length_opt, xy_star, xy_quad)
-        cov_star_star = rational_quadratic_2d(sigma_opt, length_opt, xy_star, xy_star)
+        cov_star_d = rational_quadratic_2d(alpha_opt, length_opt, xy_star, xy_quad, sigma_opt)
+        cov_star_star = rational_quadratic_2d(alpha_opt, length_opt, xy_star, xy_star, sigma_opt)
     elif kernel == 'matern3_2014':
         cov_star_d = matern_2d(3/2, sigma_opt, length_opt, xy_star, xy_quad)
         cov_star_star = matern_2d(3/2, sigma_opt, length_opt, xy_star, xy_star)
@@ -757,8 +776,8 @@ for i in range(sampling_xy.shape[1]):
         cov_star_d = squared_exp_2d(sigma_opt, length_opt, xy_star, xy_quad)
         cov_star_star = squared_exp_2d(sigma_opt, length_opt, xy_star, xy_star)
     elif kernel == 'rational_quad_2014':
-        cov_star_d = rational_quadratic_2d(sigma_opt, length_opt, xy_star, xy_quad)
-        cov_star_star = rational_quadratic_2d(sigma_opt, length_opt, xy_star, xy_star)
+        cov_star_d = rational_quadratic_2d(alpha_opt, length_opt, xy_star, xy_quad, sigma_opt)
+        cov_star_star = rational_quadratic_2d(alpha_opt, length_opt, xy_star, xy_star, sigma_opt)
     # Generate Posterior Mean and Variance
     mean_posterior[i] = mu_post(xy_star, cov_matrix, cov_star_d, prior_mismatch)
     var_posterior[i] = var_post(cov_star_star, cov_star_d, cov_matrix)

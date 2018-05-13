@@ -810,15 +810,17 @@ hyperparam_solution = scopt.minimize(fun=short_log_integrand_v_rq, args=args_hyp
 print(hyperparam_solution)
 
 # List optimal hyper-parameters
-sigma_optimal = hyperparam_solution.x[0]
+alpha_optimal = hyperparam_solution.x[0]
 length_optimal = hyperparam_solution.x[1]
 noise_optimal = hyperparam_solution.x[2]
 mean_optimal = hyperparam_solution.x[3]
+sigma_optimal = hyperparam_solution.x[4]
 print('Last function evaluation is ', hyperparam_solution.fun)
-print('optimal sigma is ', sigma_optimal)
+print('optimal alpha is ', alpha_optimal)
 print('optimal length-scale is ', length_optimal)
 print('optimal noise amplitude is ', noise_optimal)
 print('optimal scalar mean value is ', mean_optimal)
+print('optimal sigma is ', sigma_optimal)
 
 time_gp_opt = time.clock() - start_gp_opt
 
@@ -836,13 +838,14 @@ start_posterior_tab = time.clock()
 
 # Extract optimized hyper-parameters
 hyperparam_opt = hyperparam_solution.x
-sigma_opt = hyperparam_opt[0]
+alpha_opt = hyperparam_opt[0]
 length_opt = hyperparam_opt[1]
 noise_opt = hyperparam_opt[2]
 prior_mean_opt = hyperparam_opt[3]
+sigma_opt = hyperparam_opt[4]
 
 # Generate prior covariance matrix with kronecker noise
-cov_auto = fast_matern_2d(sigma_opt, length_opt, xy_quad, xy_quad)  # Basic Covariance Matrix
+cov_auto = fast_rational_quadratic_2d(alpha_opt, length_opt, xy_quad, xy_quad, sigma_opt)  # Basic Covariance Matrix
 cov_noise = (noise_opt ** 2) * np.eye(cov_auto.shape[0])  # Addition of noise
 cov_overall = cov_auto + cov_noise
 
@@ -1086,7 +1089,7 @@ elif kernel == 'matern1':
 elif kernel == 'squared_exponential':
     c_auto = fast_squared_exp_2d(sigma_optimal, length_optimal, xy_quad, xy_quad)
 elif kernel == 'rational_quad':
-    c_auto = fast_rational_quadratic_2d(sigma_optimal, length_optimal, xy_quad, xy_quad)
+    c_auto = fast_rational_quadratic_2d(alpha_optimal, length_optimal, xy_quad, xy_quad, sigma_optimal)
 
 c_noise = np.eye(c_auto.shape[0]) * (noise_optimal ** 2)  # Fro-necker delta function
 cov_matrix = c_auto + c_noise
